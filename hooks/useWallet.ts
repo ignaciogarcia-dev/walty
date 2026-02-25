@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { formatEther } from "viem"
 import { createWallet } from "@/lib/wallet"
 import { encryptSeed, decryptSeed, EncryptedSeed } from "@/lib/crypto"
@@ -10,45 +10,37 @@ type StoredWallet = {
   address: string
 }
 
-type PendingWallet = {
-  mnemonic: string
-  address: string
-  encrypted: EncryptedSeed
-}
-
-export type WalletStatus = "loading" | "new" | "backup" | "locked" | "unlocked"
+export type WalletStatus = "loading" | "new" | "locked" | "unlocked"
 
 export function useWallet() {
   const [status, setStatus] = useState<WalletStatus>("loading")
+  const [password, setPassword] = useState("")
   const [seed, setSeed] = useState<string | null>(null)
   const [address, setAddress] = useState<string | null>(null)
   const [balance, setBalance] = useState<string | null>(null)
-  const [pending, setPending] = useState<PendingWallet | null>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem("wallet")
     setStatus(stored ? "locked" : "new")
   }, [])
 
-  // Auto-lock after 5 minutes of being unlocked
+  // Auto-lock after 5 minutes
   useEffect(() => {
     if (status !== "unlocked") return
     const timeout = setTimeout(() => lock(), 5 * 60 * 1000)
     return () => clearTimeout(timeout)
   }, [status])
 
+  async function loadBalance(addr: string) {
+    const b = await getBalance(addr as `0x${string}`)
+    setBalance(formatEther(b))
+  }
+
   async function create(password: string) {
     const { mnemonic, address } = createWallet()
     const encrypted = await encryptSeed(mnemonic, password)
-    setPending({ mnemonic, address, encrypted })
-    setStatus("backup")
-  }
 
-  async function confirmBackup() {
-    if (!pending) return
-
-    const stored: StoredWallet = { encrypted: pending.encrypted, address: pending.address }
-    localStorage.setItem("wallet", JSON.stringify(stored))
+    localStorage.setItem("wallet", JSON.stringify({ encrypted, address } satisfies StoredWallet))
 
     const token = localStorage.getItem("token")
     const res = await fetch("/api/wallet", {
@@ -57,7 +49,7 @@ export function useWallet() {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ address: pending.address }),
+      body: JSON.stringify({ address }),
     })
 
     if (!res.ok) {
@@ -65,11 +57,11 @@ export function useWallet() {
       return
     }
 
-    setSeed(pending.mnemonic)
-    setAddress(pending.address)
-    setPending(null)
+    setSeed(mnemonic)
+    setAddress(address)
+    setPassword("")
     setStatus("unlocked")
-    getBalance(pending.address).then((b) => setBalance(formatEther(b)))
+    loadBalance(address)
   }
 
   async function unlock(password: string) {
@@ -78,8 +70,9 @@ export function useWallet() {
     const mnemonic = await decryptSeed(stored.encrypted, password)
     setSeed(mnemonic)
     setAddress(stored.address)
+    setPassword("")
     setStatus("unlocked")
-    getBalance(stored.address).then((b) => setBalance(formatEther(b)))
+    loadBalance(stored.address)
   }
 
   function lock() {
@@ -91,12 +84,12 @@ export function useWallet() {
 
   return {
     status,
+    password,
+    setPassword,
     seed,
     address,
     balance,
-    pendingMnemonic: pending?.mnemonic ?? null,
     create,
-    confirmBackup,
     unlock,
     lock,
   }
