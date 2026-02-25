@@ -12,7 +12,7 @@ type StoredWallet = {
 }
 
 export type WalletStatus = "loading" | "new" | "locked" | "unlocked"
-export type TxStatus = "idle" | "pending" | "confirmed" | "error"
+export type TxStatus = "idle" | "pending" | "confirmed" | "error" | "pending_on_chain"
 
 export function useWallet() {
   const [status, setStatus] = useState<WalletStatus>("loading")
@@ -102,25 +102,61 @@ export function useWallet() {
       return
     }
 
+    if (Number(amount) <= 0) {
+      setTxStatus("error")
+      setTxError("Monto inválido")
+      return
+    }
+
+    if (address && to.toLowerCase() === address.toLowerCase()) {
+      setTxStatus("error")
+      setTxError("No podés enviarte a vos mismo")
+      return
+    }
+
     try {
       setTxStatus("pending")
       setTxHash(null)
       setTxError(null)
 
+      const currentBalance = await publicClient.getBalance({ address: address as `0x${string}` })
+      if (currentBalance < parseEther(amount)) {
+        setTxStatus("error")
+        setTxError("Fondos insuficientes")
+        return
+      }
+
       const walletClient = getWalletClient(seed)
-      const hash = await walletClient.sendTransaction({
+
+      const gas = await publicClient.estimateGas({
+        account: address as `0x${string}`,
         to: to as `0x${string}`,
         value: parseEther(amount),
       })
 
+      const hash = await walletClient.sendTransaction({
+        to: to as `0x${string}`,
+        value: parseEther(amount),
+        gas,
+      })
+
       setTxHash(hash)
 
-      const receipt = await Promise.race([
-        publicClient.waitForTransactionReceipt({ hash }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Timeout esperando confirmación")), 60_000)
-        ),
-      ])
+      let receipt
+      try {
+        receipt = await Promise.race([
+          publicClient.waitForTransactionReceipt({ hash }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("timeout")), 60_000)
+          ),
+        ])
+      } catch (err) {
+        if (err instanceof Error && err.message === "timeout") {
+          setTxStatus("pending_on_chain")
+          return
+        }
+        throw err
+      }
 
       if (receipt.status === "success") {
         setTxStatus("confirmed")
