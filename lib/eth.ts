@@ -1,8 +1,8 @@
 import { createPublicClient, http } from "viem"
-import { mainnet } from "viem/chains"
+import { sepolia } from "viem/chains"
 
 export const client = createPublicClient({
-  chain: mainnet,
+  chain: sepolia,
   transport: http(process.env.NEXT_PUBLIC_RPC_URL),
 })
 

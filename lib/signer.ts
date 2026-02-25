@@ -1,13 +1,13 @@
 import { mnemonicToAccount } from "viem/accounts"
 import { createWalletClient, http } from "viem"
-import { mainnet } from "viem/chains"
+import { sepolia } from "viem/chains"
 
 export function getWalletClient(mnemonic: string) {
   const account = mnemonicToAccount(mnemonic)
 
   return createWalletClient({
     account,
-    chain: mainnet,
+    chain: sepolia,
     transport: http(process.env.NEXT_PUBLIC_RPC_URL),
   })
 }
