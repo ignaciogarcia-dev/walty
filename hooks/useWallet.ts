@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { formatEther, isAddress, parseEther } from "viem"
 import { createWallet } from "@/lib/wallet"
 import { encryptSeed, decryptSeed, EncryptedSeed } from "@/lib/crypto"
@@ -14,9 +14,12 @@ type StoredWallet = {
 export type WalletStatus = "loading" | "new" | "locked" | "unlocked"
 export type TxStatus = "idle" | "pending" | "confirmed" | "error" | "pending_on_chain"
 
+const LOCK_TIMEOUT_MS = 5 * 60 * 1000
+
 export function useWallet() {
   const [status, setStatus] = useState<WalletStatus>("loading")
   const [password, setPassword] = useState("")
+  // 2.4: seed lives only in React state — never logged, cleared on lock
   const [seed, setSeed] = useState<string | null>(null)
   const [address, setAddress] = useState<string | null>(null)
   const [balance, setBalance] = useState<string | null>(null)
@@ -29,12 +32,39 @@ export function useWallet() {
     setStatus(stored ? "locked" : "new")
   }, [])
 
-  // Auto-lock after 5 minutes
+  // 2.4: stable reference — setSeed(null) is called on every lock path
+  const lock = useCallback(() => {
+    setSeed(null)
+    setAddress(null)
+    setBalance(null)
+    setStatus("locked")
+  }, [])
+
+  // 2.2: auto-lock on inactivity (5 min) + reset on interaction + lock on tab blur
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   useEffect(() => {
     if (status !== "unlocked") return
-    const timeout = setTimeout(() => lock(), 5 * 60 * 1000)
-    return () => clearTimeout(timeout)
-  }, [status])
+
+    const schedule = () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(lock, LOCK_TIMEOUT_MS)
+    }
+
+    const reset = () => schedule()
+
+    schedule()
+
+    const events = ["mousemove", "keydown", "click", "touchstart"] as const
+    events.forEach((e) => window.addEventListener(e, reset, { passive: true }))
+    window.addEventListener("blur", lock)
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+      events.forEach((e) => window.removeEventListener(e, reset))
+      window.removeEventListener("blur", lock)
+    }
+  }, [status, lock])
 
   async function loadBalance(addr: string) {
     const b = await getBalance(addr as `0x${string}`)
@@ -90,17 +120,32 @@ export function useWallet() {
     loadBalance(stored.address)
   }
 
-  function lock() {
-    setSeed(null)
-    setAddress(null)
-    setBalance(null)
-    setStatus("locked")
-  }
-
   function resetTx() {
     setTxStatus("idle")
     setTxHash(null)
     setTxError(null)
+  }
+
+  // 2.1: Export encrypted wallet to a JSON file — seed never leaves encrypted
+  function exportWallet() {
+    const stored = localStorage.getItem("wallet")
+    if (!stored) return
+    const blob = new Blob([stored], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "walty-backup.json"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // 2.1: Import wallet from a JSON backup file
+  async function importWallet(file: File) {
+    const text = await file.text()
+    const parsed = JSON.parse(text) as StoredWallet
+    if (!parsed.encrypted || !parsed.address) throw new Error("Archivo inválido")
+    localStorage.setItem("wallet", JSON.stringify(parsed))
+    setStatus("locked")
   }
 
   async function send(to: string, amount: string) {
@@ -194,6 +239,8 @@ export function useWallet() {
     create,
     unlock,
     lock,
+    exportWallet,
+    importWallet,
     send,
     txStatus,
     txHash,

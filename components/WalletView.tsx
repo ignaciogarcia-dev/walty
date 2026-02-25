@@ -8,6 +8,7 @@ export function WalletView({
   address,
   balance,
   onLock,
+  onExport,
   onSend,
   txStatus,
   txHash,
@@ -16,6 +17,7 @@ export function WalletView({
   address: string | null
   balance: string | null
   onLock: () => void
+  onExport: () => void
   onSend: (to: string, amount: string) => Promise<void>
   txStatus: TxStatus
   txHash: string | null
@@ -120,7 +122,10 @@ export function WalletView({
         </div>
       )}
 
-      <button onClick={onLock}>Bloquear wallet</button>
+      <div className="flex gap-2">
+        <button onClick={onExport}>Exportar backup</button>
+        <button onClick={onLock}>Bloquear wallet</button>
+      </div>
     </div>
   )
 }
