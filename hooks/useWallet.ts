@@ -1,9 +1,9 @@
 "use client"
 import { useEffect, useState } from "react"
-import { formatEther, parseEther } from "viem"
+import { formatEther, isAddress, parseEther } from "viem"
 import { createWallet } from "@/lib/wallet"
 import { encryptSeed, decryptSeed, EncryptedSeed } from "@/lib/crypto"
-import { getBalance } from "@/lib/eth"
+import { getBalance, client as publicClient } from "@/lib/eth"
 import { getWalletClient } from "@/lib/signer"
 
 type StoredWallet = {
@@ -12,6 +12,7 @@ type StoredWallet = {
 }
 
 export type WalletStatus = "loading" | "new" | "locked" | "unlocked"
+export type TxStatus = "idle" | "pending" | "confirmed" | "error"
 
 export function useWallet() {
   const [status, setStatus] = useState<WalletStatus>("loading")
@@ -19,6 +20,9 @@ export function useWallet() {
   const [seed, setSeed] = useState<string | null>(null)
   const [address, setAddress] = useState<string | null>(null)
   const [balance, setBalance] = useState<string | null>(null)
+  const [txStatus, setTxStatus] = useState<TxStatus>("idle")
+  const [txHash, setTxHash] = useState<string | null>(null)
+  const [txError, setTxError] = useState<string | null>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem("wallet")
@@ -83,17 +87,52 @@ export function useWallet() {
     setStatus("locked")
   }
 
+  function resetTx() {
+    setTxStatus("idle")
+    setTxHash(null)
+    setTxError(null)
+  }
+
   async function send(to: string, amount: string) {
     if (!seed) throw new Error("Wallet locked")
 
-    const client = getWalletClient(seed)
+    if (!isAddress(to)) {
+      setTxStatus("error")
+      setTxError("Dirección inválida")
+      return
+    }
 
-    const hash = await client.sendTransaction({
-      to: to as `0x${string}`,
-      value: parseEther(amount),
-    })
+    try {
+      setTxStatus("pending")
+      setTxHash(null)
+      setTxError(null)
 
-    return hash
+      const walletClient = getWalletClient(seed)
+      const hash = await walletClient.sendTransaction({
+        to: to as `0x${string}`,
+        value: parseEther(amount),
+      })
+
+      setTxHash(hash)
+
+      const receipt = await Promise.race([
+        publicClient.waitForTransactionReceipt({ hash }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout esperando confirmación")), 60_000)
+        ),
+      ])
+
+      if (receipt.status === "success") {
+        setTxStatus("confirmed")
+        if (address) loadBalance(address)
+      } else {
+        setTxStatus("error")
+        setTxError("La transacción falló en la red")
+      }
+    } catch (err: unknown) {
+      setTxStatus("error")
+      setTxError(err instanceof Error ? err.message : "Error desconocido")
+    }
   }
 
   return {
@@ -107,5 +146,9 @@ export function useWallet() {
     unlock,
     lock,
     send,
+    txStatus,
+    txHash,
+    txError,
+    resetTx,
   }
 }

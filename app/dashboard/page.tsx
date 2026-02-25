@@ -3,7 +3,7 @@ import { useWallet } from "@/hooks/useWallet"
 import { WalletView } from "@/components/WalletView"
 
 export default function Dashboard() {
-  const { status, password, setPassword, address, balance, create, unlock, lock, send } = useWallet()
+  const { status, password, setPassword, address, balance, create, unlock, lock, send, txStatus, txHash, txError } = useWallet()
 
   if (status === "loading") return <div className="p-10">Cargando...</div>
 
@@ -37,5 +37,15 @@ export default function Dashboard() {
     )
   }
 
-  return <WalletView address={address} balance={balance} onLock={lock} onSend={send} />
+  return (
+    <WalletView
+      address={address}
+      balance={balance}
+      onLock={lock}
+      onSend={send}
+      txStatus={txStatus}
+      txHash={txHash}
+      txError={txError}
+    />
+  )
 }

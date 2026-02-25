@@ -1,34 +1,37 @@
 "use client"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import type { TxStatus } from "@/hooks/useWallet"
 
 export function WalletView({
   address,
   balance,
   onLock,
   onSend,
+  txStatus,
+  txHash,
+  txError,
 }: {
   address: string | null
   balance: string | null
   onLock: () => void
-  onSend: (to: string, amount: string) => Promise<string>
+  onSend: (to: string, amount: string) => Promise<void>
+  txStatus: TxStatus
+  txHash: string | null
+  txError: string | null
 }) {
   const [to, setTo] = useState("")
   const [amount, setAmount] = useState("")
-  const [sending, setSending] = useState(false)
+
+  useEffect(() => {
+    if (txStatus === "confirmed") {
+      setTo("")
+      setAmount("")
+    }
+  }, [txStatus])
 
   async function handleSend() {
     if (!to || !amount) return
-    setSending(true)
-    try {
-      const hash = await onSend(to, amount)
-      alert("TX enviada: " + hash)
-      setTo("")
-      setAmount("")
-    } catch (err: unknown) {
-      alert("Error: " + (err instanceof Error ? err.message : String(err)))
-    } finally {
-      setSending(false)
-    }
+    await onSend(to, amount)
   }
 
   return (
@@ -51,10 +54,30 @@ export function WalletView({
           onChange={(e) => setAmount(e.target.value)}
           className="border p-2 rounded"
         />
-        <button onClick={handleSend} disabled={sending}>
-          {sending ? "Enviando..." : "Enviar ETH"}
+        <button onClick={handleSend} disabled={txStatus === "pending"}>
+          {txStatus === "pending" ? "Enviando..." : "Enviar ETH"}
         </button>
       </div>
+
+      {txStatus === "pending" && (
+        <div className="mt-2 text-yellow-600">
+          <div>Transacción pendiente...</div>
+          {txHash && <div className="text-xs break-all mt-1">Hash: {txHash}</div>}
+        </div>
+      )}
+
+      {txStatus === "confirmed" && (
+        <div className="mt-2 text-green-600">
+          <div>Confirmada</div>
+          {txHash && <div className="text-xs break-all mt-1">Hash: {txHash}</div>}
+        </div>
+      )}
+
+      {txStatus === "error" && (
+        <div className="mt-2 text-red-600">
+          Error: {txError}
+        </div>
+      )}
 
       <button onClick={onLock}>Bloquear wallet</button>
     </div>
