@@ -15,6 +15,7 @@ export default function Dashboard() {
     lock,
     exportWallet,
     importWallet,
+    estimateGasCost,
     send,
     txStatus,
     txHash,
@@ -89,6 +90,7 @@ export default function Dashboard() {
       balance={balance}
       onLock={lock}
       onExport={exportWallet}
+      onEstimateGas={estimateGasCost}
       onSend={send}
       txStatus={txStatus}
       txHash={txHash}

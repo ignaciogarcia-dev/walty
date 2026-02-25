@@ -148,6 +148,20 @@ export function useWallet() {
     setStatus("locked")
   }
 
+  // 4.1: Returns estimated gas cost in ETH string for the confirm modal
+  async function estimateGasCost(to: string, amount: string): Promise<string> {
+    if (!address || !isAddress(to) || Number(amount) <= 0) {
+      throw new Error("Parámetros inválidos")
+    }
+    const gas = await publicClient.estimateGas({
+      account: address as `0x${string}`,
+      to: to as `0x${string}`,
+      value: parseEther(amount),
+    })
+    const gasPrice = await publicClient.getGasPrice()
+    return formatEther(gas * gasPrice)
+  }
+
   // Persists a transaction record; failures are silent so they never block the send flow
   async function recordTx(
     txHash: string,
@@ -272,6 +286,7 @@ export function useWallet() {
     lock,
     exportWallet,
     importWallet,
+    estimateGasCost,
     send,
     txStatus,
     txHash,
