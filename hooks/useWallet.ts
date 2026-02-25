@@ -1,9 +1,10 @@
 "use client"
 import { useEffect, useState } from "react"
-import { formatEther } from "viem"
+import { formatEther, parseEther } from "viem"
 import { createWallet } from "@/lib/wallet"
 import { encryptSeed, decryptSeed, EncryptedSeed } from "@/lib/crypto"
 import { getBalance } from "@/lib/eth"
+import { getWalletClient } from "@/lib/signer"
 
 type StoredWallet = {
   encrypted: EncryptedSeed
@@ -82,6 +83,19 @@ export function useWallet() {
     setStatus("locked")
   }
 
+  async function send(to: string, amount: string) {
+    if (!seed) throw new Error("Wallet locked")
+
+    const client = getWalletClient(seed)
+
+    const hash = await client.sendTransaction({
+      to: to as `0x${string}`,
+      value: parseEther(amount),
+    })
+
+    return hash
+  }
+
   return {
     status,
     password,
@@ -92,5 +106,6 @@ export function useWallet() {
     create,
     unlock,
     lock,
+    send,
   }
 }
