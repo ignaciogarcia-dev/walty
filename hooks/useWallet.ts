@@ -48,13 +48,23 @@ export function useWallet() {
     localStorage.setItem("wallet", JSON.stringify({ encrypted, address } satisfies StoredWallet))
 
     const token = localStorage.getItem("token")
+    if (!token) throw new Error("Not authenticated")
+
+    // Decode userId from JWT payload (no verification needed client-side)
+    const { userId } = JSON.parse(atob(token.split(".")[1])) as { userId: string }
+
+    // Sign ownership proof: proves this frontend controls the private key
+    const walletClient = getWalletClient(mnemonic)
+    const message = `Link wallet ${address} to user ${userId}`
+    const signature = await walletClient.signMessage({ message })
+
     const res = await fetch("/api/wallet", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ address }),
+      body: JSON.stringify({ address, signature }),
     })
 
     if (!res.ok) {
@@ -120,19 +130,22 @@ export function useWallet() {
       setTxError(null)
 
       const currentBalance = await publicClient.getBalance({ address: address as `0x${string}` })
-      if (currentBalance < parseEther(amount)) {
-        setTxStatus("error")
-        setTxError("Fondos insuficientes")
-        return
-      }
-
-      const walletClient = getWalletClient(seed)
 
       const gas = await publicClient.estimateGas({
         account: address as `0x${string}`,
         to: to as `0x${string}`,
         value: parseEther(amount),
       })
+      const gasPrice = await publicClient.getGasPrice()
+      const totalCost = parseEther(amount) + gas * gasPrice
+
+      if (currentBalance < totalCost) {
+        setTxStatus("error")
+        setTxError("Fondos insuficientes (incluye gas)")
+        return
+      }
+
+      const walletClient = getWalletClient(seed)
 
       const hash = await walletClient.sendTransaction({
         to: to as `0x${string}`,

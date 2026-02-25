@@ -1,25 +1,28 @@
-import { NextResponse } from "next/server"
-import jwt from "jsonwebtoken"
+import { NextRequest, NextResponse } from "next/server"
+import { verifyMessage } from "viem"
 import { db } from "@/server/db"
 import { addresses } from "@/server/db/schema"
+import { requireAuth } from "@/lib/auth"
 
-export async function POST(req: Request) {
-  const auth = req.headers.get("authorization")
+export async function POST(req: NextRequest) {
+  try {
+    const { userId } = requireAuth(req)
+    const { address, signature } = await req.json()
 
-  if (!auth) {
-    return NextResponse.json({ error: "no token" }, { status: 401 })
+    const message = `Link wallet ${address} to user ${userId}`
+    const valid = await verifyMessage({ address, message, signature })
+
+    if (!valid) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 403 })
+    }
+
+    await db.insert(addresses).values({
+      userId: String(userId),
+      address,
+    })
+
+    return NextResponse.json({ ok: true })
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
-
-  const token = auth.split(" ")[1]
-
-  const { userId } = jwt.verify(token, process.env.JWT_SECRET!) as any
-
-  const { address } = await req.json()
-
-  await db.insert(addresses).values({
-    userId: String(userId),
-    address,
-  })
-
-  return NextResponse.json({ ok: true })
 }
