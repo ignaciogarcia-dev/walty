@@ -148,6 +148,32 @@ export function useWallet() {
     setStatus("locked")
   }
 
+  // Persists a transaction record; failures are silent so they never block the send flow
+  async function recordTx(
+    txHash: string,
+    to: string,
+    amount: string,
+    status: "pending" | "confirmed" | "failed"
+  ) {
+    const token = localStorage.getItem("token")
+    if (!token || !address) return
+    await fetch("/api/tx", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ fromAddress: address, toAddress: to, amount, txHash, status }),
+    })
+  }
+
+  async function updateTxRecord(txHash: string, status: "confirmed" | "failed") {
+    const token = localStorage.getItem("token")
+    if (!token) return
+    await fetch("/api/tx", {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ txHash, status }),
+    })
+  }
+
   async function send(to: string, amount: string) {
     if (!seed) throw new Error("Wallet locked")
 
@@ -199,6 +225,8 @@ export function useWallet() {
       })
 
       setTxHash(hash)
+      // 3.3: persist as pending immediately after broadcast
+      await recordTx(hash, to, amount, "pending").catch(() => {})
 
       let receipt
       try {
@@ -210,6 +238,7 @@ export function useWallet() {
         ])
       } catch (err) {
         if (err instanceof Error && err.message === "timeout") {
+          // tx is on-chain but unconfirmed — leave DB status as "pending"
           setTxStatus("pending_on_chain")
           return
         }
@@ -218,10 +247,12 @@ export function useWallet() {
 
       if (receipt.status === "success") {
         setTxStatus("confirmed")
+        await updateTxRecord(hash, "confirmed").catch(() => {})
         if (address) loadBalance(address)
       } else {
         setTxStatus("error")
         setTxError("La transacción falló en la red")
+        await updateTxRecord(hash, "failed").catch(() => {})
       }
     } catch (err: unknown) {
       setTxStatus("error")

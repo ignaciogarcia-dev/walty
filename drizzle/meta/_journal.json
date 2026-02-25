@@ -8,6 +8,13 @@
       "when": 1771986750053,
       "tag": "0000_complex_carmella_unuscione",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772000283017,
+      "tag": "0001_majestic_black_bolt",
+      "breakpoints": true
     }
   ]
 }

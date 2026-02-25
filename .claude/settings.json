@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); exports=p.get\\(''exports'',{}\\); [print\\(k\\) for k in exports.keys\\(\\) if ''account'' in k.lower\\(\\)]\")",
-      "Bash(node -e \"const v = require\\(''viem/accounts''\\); console.log\\(Object.keys\\(v\\).filter\\(k => k.toLowerCase\\(\\).includes\\(''english''\\) || k.toLowerCase\\(\\).includes\\(''wordlist''\\)\\)\\)\")"
+      "Bash(node -e \"const v = require\\(''viem/accounts''\\); console.log\\(Object.keys\\(v\\).filter\\(k => k.toLowerCase\\(\\).includes\\(''english''\\) || k.toLowerCase\\(\\).includes\\(''wordlist''\\)\\)\\)\")",
+      "Bash(pnpm drizzle-kit generate)"
     ]
   }
 }
