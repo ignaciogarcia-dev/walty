@@ -15,10 +15,7 @@ export default function LoginPage() {
             body: JSON.stringify({ email, password }),
         })
 
-        const data = await res.json()
-
-        if (data.token) {
-            localStorage.setItem("token", data.token)
+        if (res.ok) {
             router.push("/dashboard")
         } else {
             alert("Login inválido")
