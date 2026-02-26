@@ -66,6 +66,17 @@ export function useWallet() {
     }
   }, [status, lock])
 
+  // Sync on-chain status for all pending/failed transactions whenever wallet unlocks
+  useEffect(() => {
+    if (status !== "unlocked") return
+    const token = localStorage.getItem("token")
+    if (!token) return
+    fetch("/api/tx/sync", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  }, [status])
+
   async function loadBalance(addr: string) {
     const b = await getBalance(addr as `0x${string}`)
     setBalance(formatEther(b))
