@@ -165,21 +165,18 @@ export function useWallet() {
     amount: string,
     status: "pending" | "confirmed" | "failed"
   ) {
-    const token = localStorage.getItem("token")
-    if (!token || !address) return
+    if (!address) return
     await fetch("/api/tx", {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fromAddress: address, toAddress: to, amount, txHash, status }),
     })
   }
 
   async function updateTxRecord(txHash: string, status: "confirmed" | "failed") {
-    const token = localStorage.getItem("token")
-    if (!token) return
     await fetch("/api/tx", {
       method: "PATCH",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ txHash, status }),
     })
   }
