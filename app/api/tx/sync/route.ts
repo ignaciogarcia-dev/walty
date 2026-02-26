@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm"
 import { db } from "@/server/db"
 import { transactions } from "@/server/db/schema"
 import { requireAuth } from "@/lib/auth"
-import { client as publicClient } from "@/lib/eth"
+import { publicClient } from "@/lib/eth"
 
 // POST /api/tx/sync — check on-chain status for all non-confirmed transactions
 export async function POST(req: NextRequest) {

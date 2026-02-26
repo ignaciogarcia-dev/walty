@@ -11,10 +11,6 @@ services:
       - db
     environment:
       - CI=true
-    volumes:
-      - .:/app
-      - /app/node_modules
-    command: sh -c "pnpm install && pnpm dev"
 
   db:
     image: postgres:16
