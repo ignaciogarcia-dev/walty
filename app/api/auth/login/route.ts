@@ -1,11 +1,18 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
 import { db } from "@/server/db"
 import { users } from "@/server/db/schema"
 import { eq } from "drizzle-orm"
+import { rateLimit } from "@/lib/rate-limit"
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  try {
+    rateLimit(req.headers.get("x-forwarded-for") ?? "unknown")
+  } catch {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+  }
+
   const { email, password } = await req.json()
 
   const user = await db.query.users.findFirst({
@@ -28,5 +35,10 @@ export async function POST(req: Request) {
     { expiresIn: "7d" }
   )
 
-  return NextResponse.json({ token })
+  return new Response(JSON.stringify({ ok: true }), {
+    headers: {
+      "Content-Type": "application/json",
+      "Set-Cookie": `token=${token}; HttpOnly; Secure; SameSite=Strict; Path=/`,
+    },
+  })
 }
