@@ -71,36 +71,38 @@ export function useWallet() {
     setBalance(formatEther(b))
   }
 
+  async function linkWallet(addr: string, walletClient: ReturnType<typeof getWalletClient>) {
+    const token = localStorage.getItem("token")
+    if (!token) throw new Error("Not authenticated")
+
+    // Step 1: get a server-issued one-time nonce (5-min TTL)
+    const { nonce } = await fetch("/api/wallet/nonce", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((r) => r.json())
+
+    // Step 2: sign the nonce — proves this client holds the private key
+    const message = `Link wallet ${addr} nonce ${nonce}`
+    const signature = await walletClient.signMessage({ message })
+
+    // Step 3: send signature + nonce; server verifies and records the address
+    const res = await fetch("/api/wallet/link", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ address: addr, signature, nonce }),
+    })
+
+    if (!res.ok) throw new Error("Error vinculando wallet")
+  }
+
   async function create(password: string) {
     const { mnemonic, address } = createWallet()
     const encrypted = await encryptSeed(mnemonic, password)
 
     localStorage.setItem("wallet", JSON.stringify({ encrypted, address } satisfies StoredWallet))
 
-    const token = localStorage.getItem("token")
-    if (!token) throw new Error("Not authenticated")
-
-    // Decode userId from JWT payload (no verification needed client-side)
-    const { userId } = JSON.parse(atob(token.split(".")[1])) as { userId: string }
-
-    // Sign ownership proof: proves this frontend controls the private key
     const walletClient = getWalletClient(mnemonic)
-    const message = `Link wallet ${address} to user ${userId}`
-    const signature = await walletClient.signMessage({ message })
-
-    const res = await fetch("/api/wallet", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ address, signature }),
-    })
-
-    if (!res.ok) {
-      alert("Error guardando address")
-      return
-    }
+    await linkWallet(address, walletClient)
 
     setSeed(mnemonic)
     setAddress(address)

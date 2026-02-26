@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, serial, text, timestamp, pgEnum, integer } from "drizzle-orm/pg-core"
 
 export const txStatusEnum = pgEnum("tx_status", ["pending", "confirmed", "failed"])
 
@@ -24,4 +24,11 @@ export const transactions = pgTable("transactions", {
   txHash: text("tx_hash").notNull().unique(),
   status: txStatusEnum("status").notNull().default("pending"),
   createdAt: timestamp("created_at").defaultNow(),
+})
+
+export const walletNonces = pgTable("wallet_nonces", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  nonce: text("nonce").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
 })
