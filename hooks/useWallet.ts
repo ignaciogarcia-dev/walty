@@ -2,14 +2,11 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { formatEther, isAddress, parseEther } from "viem"
 import { createWallet } from "@/lib/wallet"
-import { encryptSeed, decryptSeed, EncryptedSeed } from "@/lib/crypto"
-import { getBalance, client as publicClient } from "@/lib/eth"
+import { encryptSeed, decryptSeed } from "@/lib/crypto"
+import { getBalance, publicClient } from "@/lib/eth"
 import { getWalletClient } from "@/lib/signer"
-
-type StoredWallet = {
-  encrypted: EncryptedSeed
-  address: string
-}
+import { validateTx } from "@/lib/wallet-core"
+import { getStoredWallet, saveWallet, type StoredWallet } from "@/lib/wallet-store"
 
 export type WalletStatus = "loading" | "new" | "locked" | "unlocked"
 export type TxStatus = "idle" | "pending" | "confirmed" | "error" | "pending_on_chain"
@@ -19,8 +16,6 @@ const LOCK_TIMEOUT_MS = 5 * 60 * 1000
 export function useWallet() {
   const [status, setStatus] = useState<WalletStatus>("loading")
   const [password, setPassword] = useState("")
-  // 2.4: seed lives only in React state — never logged, cleared on lock
-  const [seed, setSeed] = useState<string | null>(null)
   const [address, setAddress] = useState<string | null>(null)
   const [balance, setBalance] = useState<string | null>(null)
   const [txStatus, setTxStatus] = useState<TxStatus>("idle")
@@ -28,13 +23,12 @@ export function useWallet() {
   const [txError, setTxError] = useState<string | null>(null)
 
   useEffect(() => {
-    const stored = localStorage.getItem("wallet")
-    setStatus(stored ? "locked" : "new")
+    setStatus(getStoredWallet() ? "locked" : "new")
   }, [])
 
-  // 2.4: stable reference — setSeed(null) is called on every lock path
+  // 2.4: stable reference — password cleared on every lock path
   const lock = useCallback(() => {
-    setSeed(null)
+    setPassword("")
     setAddress(null)
     setBalance(null)
     setStatus("locked")
@@ -110,25 +104,23 @@ export function useWallet() {
     const { mnemonic, address } = createWallet()
     const encrypted = await encryptSeed(mnemonic, password)
 
-    localStorage.setItem("wallet", JSON.stringify({ encrypted, address } satisfies StoredWallet))
+    saveWallet({ encrypted, address } satisfies StoredWallet)
 
     const walletClient = getWalletClient(mnemonic)
     await linkWallet(address, walletClient)
 
-    setSeed(mnemonic)
     setAddress(address)
-    setPassword("")
+    setPassword(password)
     setStatus("unlocked")
     loadBalance(address)
   }
 
   async function unlock(password: string) {
-    const stored = JSON.parse(localStorage.getItem("wallet")!) as StoredWallet
+    const stored = getStoredWallet()!
     // throws "Invalid password" if wrong
-    const mnemonic = await decryptSeed(stored.encrypted, password)
-    setSeed(mnemonic)
+    await decryptSeed(stored.encrypted, password)
     setAddress(stored.address)
-    setPassword("")
+    setPassword(password)
     setStatus("unlocked")
     loadBalance(stored.address)
   }
@@ -141,9 +133,9 @@ export function useWallet() {
 
   // 2.1: Export encrypted wallet to a JSON file — seed never leaves encrypted
   function exportWallet() {
-    const stored = localStorage.getItem("wallet")
+    const stored = getStoredWallet()
     if (!stored) return
-    const blob = new Blob([stored], { type: "application/json" })
+    const blob = new Blob([JSON.stringify(stored)], { type: "application/json" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
@@ -157,7 +149,7 @@ export function useWallet() {
     const text = await file.text()
     const parsed = JSON.parse(text) as StoredWallet
     if (!parsed.encrypted || !parsed.address) throw new Error("Archivo inválido")
-    localStorage.setItem("wallet", JSON.stringify(parsed))
+    saveWallet(parsed)
     setStatus("locked")
   }
 
@@ -202,23 +194,9 @@ export function useWallet() {
   }
 
   async function send(to: string, amount: string) {
-    if (!seed) throw new Error("Wallet locked")
-
-    if (!isAddress(to)) {
+    if (!password || !address) {
       setTxStatus("error")
-      setTxError("Dirección inválida")
-      return
-    }
-
-    if (Number(amount) <= 0) {
-      setTxStatus("error")
-      setTxError("Monto inválido")
-      return
-    }
-
-    if (address && to.toLowerCase() === address.toLowerCase()) {
-      setTxStatus("error")
-      setTxError("No podés enviarte a vos mismo")
+      setTxError("Wallet locked")
       return
     }
 
@@ -229,27 +207,29 @@ export function useWallet() {
 
       const currentBalance = await publicClient.getBalance({ address: address as `0x${string}` })
 
+      // Basic validation: address format, self-send, amount > 0, rough balance check
+      await validateTx({ to, amount, balance: currentBalance, address })
+
       const gas = await publicClient.estimateGas({
         account: address as `0x${string}`,
         to: to as `0x${string}`,
         value: parseEther(amount),
       })
       const gasPrice = await publicClient.getGasPrice()
-      const totalCost = parseEther(amount) + gas * gasPrice
-
-      if (currentBalance < totalCost) {
-        setTxStatus("error")
-        setTxError("Fondos insuficientes (incluye gas)")
-        return
+      if (currentBalance < parseEther(amount) + gas * gasPrice) {
+        throw new Error("Fondos insuficientes (incluye gas)")
       }
 
-      const walletClient = getWalletClient(seed)
-
+      // sendSecure: decrypt on demand — mnemonic stays local, never stored in state
+      const stored = getStoredWallet()!
+      const mnemonic = await decryptSeed(stored.encrypted, password)
+      const walletClient = getWalletClient(mnemonic)
       const hash = await walletClient.sendTransaction({
         to: to as `0x${string}`,
         value: parseEther(amount),
         gas,
       })
+      // mnemonic is a local const → GC when send() returns
 
       setTxHash(hash)
       // 3.3: persist as pending immediately after broadcast
@@ -291,7 +271,6 @@ export function useWallet() {
     status,
     password,
     setPassword,
-    seed,
     address,
     balance,
     create,

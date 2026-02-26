@@ -1,6 +1,7 @@
 import { mnemonicToAccount } from "viem/accounts"
-import { createWalletClient, http } from "viem"
+import { createWalletClient } from "viem"
 import { sepolia } from "viem/chains"
+import { getTransport } from "@/lib/rpc"
 
 export function getWalletClient(mnemonic: string) {
   const account = mnemonicToAccount(mnemonic)
@@ -8,6 +9,6 @@ export function getWalletClient(mnemonic: string) {
   return createWalletClient({
     account,
     chain: sepolia,
-    transport: http(process.env.NEXT_PUBLIC_RPC_URL),
+    transport: getTransport(),
   })
 }
