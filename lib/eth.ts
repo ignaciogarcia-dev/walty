@@ -1,13 +1,14 @@
-import { createPublicClient, http } from "viem"
+import { createPublicClient } from "viem"
 import { sepolia } from "viem/chains"
+import { getTransport } from "@/lib/rpc"
 
-export const client = createPublicClient({
+export const publicClient = createPublicClient({
   chain: sepolia,
-  transport: http(process.env.NEXT_PUBLIC_RPC_URL),
+  transport: getTransport(),
 })
 
 export async function getBalance(address: `0x${string}`) {
-  const balance = await client.getBalance({ address })
+  const balance = await publicClient.getBalance({ address })
 
   return balance
 }
