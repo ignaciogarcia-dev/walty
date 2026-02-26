@@ -7,9 +7,7 @@ export interface AuthPayload {
 }
 
 export function requireAuth(req: NextRequest): AuthPayload {
-  const auth = req.headers.get("authorization")
-  if (!auth) throw new Error("Unauthorized")
-
-  const token = auth.split(" ")[1]
+  const token = req.cookies.get("token")?.value
+  if (!token) throw new Error("Unauthorized")
   return jwt.verify(token, process.env.JWT_SECRET!) as AuthPayload
 }
