@@ -63,12 +63,7 @@ export function useWallet() {
   // Sync on-chain status for all pending/failed transactions whenever wallet unlocks
   useEffect(() => {
     if (status !== "unlocked") return
-    const token = localStorage.getItem("token")
-    if (!token) return
-    fetch("/api/tx/sync", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch("/api/tx/sync", { method: "POST" })
   }, [status])
 
   async function loadBalance(addr: string) {
@@ -77,13 +72,9 @@ export function useWallet() {
   }
 
   async function linkWallet(addr: string, walletClient: ReturnType<typeof getWalletClient>) {
-    const token = localStorage.getItem("token")
-    if (!token) throw new Error("Not authenticated")
-
     // Step 1: get a server-issued one-time nonce (5-min TTL)
     const { nonce } = await fetch("/api/wallet/nonce", {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
     }).then((r) => r.json())
 
     // Step 2: sign the nonce — proves this client holds the private key
@@ -93,7 +84,7 @@ export function useWallet() {
     // Step 3: send signature + nonce; server verifies and records the address
     const res = await fetch("/api/wallet/link", {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address: addr, signature, nonce }),
     })
 
