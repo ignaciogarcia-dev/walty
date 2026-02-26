@@ -15,6 +15,13 @@
       "when": 1772000283017,
       "tag": "0001_majestic_black_bolt",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772071834790,
+      "tag": "0002_clammy_mystique",
+      "breakpoints": true
     }
   ]
 }
