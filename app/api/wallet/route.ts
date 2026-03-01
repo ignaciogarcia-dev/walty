@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
 
     await db.insert(addresses).values({
-      userId: String(userId),
+      userId,
       address,
     })
 
