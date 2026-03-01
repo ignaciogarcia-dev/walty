@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken"
 import { NextRequest } from "next/server"
 
 export interface AuthPayload {
-  userId: string
+  userId: number
   email: string
 }
 
