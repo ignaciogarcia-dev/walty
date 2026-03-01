@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcrypt"
+import jwt from "jsonwebtoken"
 import { db } from "@/server/db"
 import { users } from "@/server/db/schema"
 import { rateLimit } from "@/lib/rate-limit"
@@ -15,10 +16,23 @@ export async function POST(req: NextRequest) {
 
   const hash = await bcrypt.hash(password, 10)
 
-  await db.insert(users).values({
-    email,
-    passwordHash: hash,
-  })
+  let inserted
+  try {
+    inserted = await db.insert(users).values({ email, passwordHash: hash }).returning()
+  } catch {
+    return NextResponse.json({ error: "Email already in use" }, { status: 409 })
+  }
 
-  return NextResponse.json({ ok: true })
+  const token = jwt.sign(
+    { userId: inserted[0].id },
+    process.env.JWT_SECRET!,
+    { expiresIn: "7d" }
+  )
+
+  return new Response(JSON.stringify({ ok: true }), {
+    headers: {
+      "Content-Type": "application/json",
+      "Set-Cookie": `token=${token}; HttpOnly; Secure; SameSite=Strict; Path=/`,
+    },
+  })
 }

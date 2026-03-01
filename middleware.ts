@@ -2,6 +2,19 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  const hasToken = request.cookies.has("token")
+
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL(hasToken ? "/dashboard" : "/login", request.url))
+  }
+  if (pathname.startsWith("/dashboard") && !hasToken) {
+    return NextResponse.redirect(new URL("/login", request.url))
+  }
+  if (pathname === "/login" && hasToken) {
+    return NextResponse.redirect(new URL("/dashboard", request.url))
+  }
+
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64")
 
   const csp = [
