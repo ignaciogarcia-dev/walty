@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     const txs = await db
       .select()
       .from(transactions)
-      .where(eq(transactions.userId, String(userId)))
+      .where(eq(transactions.userId, userId))
 
     for (const tx of txs) {
       if (tx.status === "confirmed") continue
