@@ -12,4 +12,7 @@ RUN pnpm build
 
 EXPOSE 3000
 
-CMD ["pnpm", "start"]
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
+
+CMD ["./entrypoint.sh"]

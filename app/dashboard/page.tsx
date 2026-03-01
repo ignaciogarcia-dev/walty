@@ -45,7 +45,7 @@ export default function Dashboard() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <button onClick={() => create(password)}>Crear wallet</button>
+        <button onClick={() => create(password).catch((err) => alert(err instanceof Error ? err.message : "Error al crear wallet"))}>Crear wallet</button>
         <hr />
         <input
           ref={fileInputRef}

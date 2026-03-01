@@ -73,9 +73,9 @@ export function useWallet() {
 
   async function linkWallet(addr: string, walletClient: ReturnType<typeof getWalletClient>) {
     // Step 1: get a server-issued one-time nonce (5-min TTL)
-    const { nonce } = await fetch("/api/wallet/nonce", {
-      method: "POST",
-    }).then((r) => r.json())
+    const nonceRes = await fetch("/api/wallet/nonce", { method: "POST" })
+    if (!nonceRes.ok) throw new Error("Error obteniendo nonce")
+    const { nonce } = await nonceRes.json()
 
     // Step 2: sign the nonce — proves this client holds the private key
     const message = `Link wallet ${addr} nonce ${nonce}`
@@ -95,11 +95,10 @@ export function useWallet() {
     const { mnemonic, address } = createWallet()
     const encrypted = await encryptSeed(mnemonic, password)
 
-    saveWallet({ encrypted, address } satisfies StoredWallet)
-
     const walletClient = getWalletClient(mnemonic)
     await linkWallet(address, walletClient)
 
+    saveWallet({ encrypted, address } satisfies StoredWallet)
     setAddress(address)
     setPassword(password)
     setStatus("unlocked")
