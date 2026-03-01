@@ -1,7 +1,8 @@
-CREATE TYPE "public"."tx_status" AS ENUM('pending', 'confirmed', 'failed');--> statement-breakpoint
+CREATE TYPE "public"."tx_status" AS ENUM('pending', 'confirmed', 'failed');
+--> statement-breakpoint
 CREATE TABLE "transactions" (
 	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" text NOT NULL,
+	"user_id" integer NOT NULL,
 	"from_address" text NOT NULL,
 	"to_address" text NOT NULL,
 	"amount" text NOT NULL,
