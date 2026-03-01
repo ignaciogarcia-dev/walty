@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const nonce = randomBytes(16).toString("hex")
 
     await db.insert(walletNonces).values({
-      userId: Number(userId),
+      userId,
       nonce,
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     })
