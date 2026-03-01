@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { and, eq } from "drizzle-orm"
+import { and, eq, desc } from "drizzle-orm"
 import { db } from "@/server/db"
 import { transactions } from "@/server/db/schema"
 import { requireAuth } from "@/lib/auth"
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       : "pending"
 
     await db.insert(transactions).values({
-      userId: String(userId),
+      userId,
       fromAddress,
       toAddress,
       amount,
@@ -42,8 +42,8 @@ export async function GET(req: NextRequest) {
     const rows = await db
       .select()
       .from(transactions)
-      .where(eq(transactions.userId, String(userId)))
-      .orderBy(transactions.createdAt)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.createdAt))
 
     return NextResponse.json(rows)
   } catch {
@@ -64,7 +64,7 @@ export async function PATCH(req: NextRequest) {
     await db
       .update(transactions)
       .set({ status })
-      .where(and(eq(transactions.txHash, txHash), eq(transactions.userId, String(userId))))
+      .where(and(eq(transactions.txHash, txHash), eq(transactions.userId, userId)))
 
     return NextResponse.json({ ok: true })
   } catch {
