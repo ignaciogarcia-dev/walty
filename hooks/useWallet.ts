@@ -215,6 +215,7 @@ export function useWallet() {
         to: to as `0x${string}`,
         value: parseEther(amount),
         gas,
+        gasPrice,
       })
       // mnemonic is a local const → GC when send() returns
 

@@ -1,10 +1,11 @@
-import { http } from "viem"
-
-const RPCS = [
-  process.env.NEXT_PUBLIC_RPC_URL!,
-]
+import { http, fallback } from "viem"
 
 export function getTransport() {
-  const url = RPCS[Math.floor(Math.random() * RPCS.length)]
-  return http(url)
+  const rpcs = [
+    process.env.NEXT_PUBLIC_RPC_URL,
+    "https://rpc.ankr.com/eth_sepolia",
+    "https://ethereum-sepolia.publicnode.com",
+  ].filter(Boolean) as string[]
+
+  return fallback(rpcs.map((url) => http(url)))
 }

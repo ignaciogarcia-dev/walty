@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const result = await db
       .select()
       .from(addresses)
-      .where(eq(addresses.userId, String(userId)))
+      .where(eq(addresses.userId, userId))
     return NextResponse.json({ addresses: result })
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

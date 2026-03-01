@@ -1,6 +1,4 @@
 import { parseEther, isAddress } from "viem"
-import type { getWalletClient } from "@/lib/signer"
-import { publicClient } from "@/lib/eth"
 
 export async function validateTx({
   to,
@@ -26,19 +24,4 @@ export async function validateTx({
   if (balance < value) throw new Error("Insufficient funds")
 
   return value
-}
-
-export async function sendTx(
-  walletClient: ReturnType<typeof getWalletClient>,
-  to: string,
-  amount: string
-) {
-  const hash = await walletClient.sendTransaction({
-    to: to as `0x${string}`,
-    value: parseEther(amount),
-  })
-
-  const receipt = await publicClient.waitForTransactionReceipt({ hash })
-
-  return { hash, receipt }
 }

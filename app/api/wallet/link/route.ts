@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     await db.delete(walletNonces).where(eq(walletNonces.id, record.id))
 
-    await db.insert(addresses).values({ userId: String(userId), address })
+    await db.insert(addresses).values({ userId, address })
 
     return NextResponse.json({ ok: true })
   } catch {
