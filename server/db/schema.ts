@@ -11,13 +11,13 @@ export const users = pgTable("users", {
 
 export const addresses = pgTable("addresses", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull(),
+  userId: integer("user_id").notNull(),
   address: text("address").notNull(),
 })
 
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull(),
+  userId: integer("user_id").notNull(),
   fromAddress: text("from_address").notNull(),
   toAddress: text("to_address").notNull(),
   amount: text("amount").notNull(),
