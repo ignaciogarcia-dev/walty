@@ -14,6 +14,10 @@ export async function POST(req: NextRequest) {
 
   const { email, password } = await req.json()
 
+  if (!email?.includes("@") || !password || password.length < 8) {
+    return NextResponse.json({ error: "Email inválido o password menor a 8 caracteres" }, { status: 400 })
+  }
+
   const hash = await bcrypt.hash(password, 10)
 
   let inserted

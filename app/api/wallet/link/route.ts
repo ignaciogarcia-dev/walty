@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { verifyMessage } from "viem"
 import { db } from "@/server/db"
 import { walletNonces, addresses } from "@/server/db/schema"
@@ -11,7 +11,10 @@ export async function POST(req: NextRequest) {
     const { address, signature, nonce } = await req.json()
 
     const record = await db.query.walletNonces.findFirst({
-      where: eq(walletNonces.nonce, nonce),
+      where: and(
+        eq(walletNonces.nonce, nonce),
+        eq(walletNonces.userId, userId),
+      ),
     })
 
     if (!record || record.expiresAt < new Date()) {

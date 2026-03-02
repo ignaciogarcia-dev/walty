@@ -6,21 +6,7 @@
       "idx": 0,
       "version": "7",
       "when": 1771986750053,
-      "tag": "0000_users_and_addresses",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1772000283017,
-      "tag": "0001_transactions",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1772071834790,
-      "tag": "0002_wallet_nonces",
+      "tag": "0000_init",
       "breakpoints": true
     }
   ]

@@ -11,6 +11,16 @@ import { getStoredWallet, saveWallet, type StoredWallet } from "@/lib/wallet-sto
 export type WalletStatus = "loading" | "new" | "locked" | "unlocked"
 export type TxStatus = "idle" | "pending" | "confirmed" | "error" | "pending_on_chain"
 
+export type TxRecord = {
+  id: number
+  fromAddress: string
+  toAddress: string
+  amount: string
+  txHash: string
+  status: "pending" | "confirmed" | "failed"
+  createdAt: string | null
+}
+
 const LOCK_TIMEOUT_MS = 5 * 60 * 1000
 
 export function useWallet() {
@@ -21,6 +31,7 @@ export function useWallet() {
   const [txStatus, setTxStatus] = useState<TxStatus>("idle")
   const [txHash, setTxHash] = useState<string | null>(null)
   const [txError, setTxError] = useState<string | null>(null)
+  const [txHistory, setTxHistory] = useState<TxRecord[]>([])
 
   useEffect(() => {
     setStatus(getStoredWallet() ? "locked" : "new")
@@ -60,10 +71,17 @@ export function useWallet() {
     }
   }, [status, lock])
 
-  // Sync on-chain status for all pending/failed transactions whenever wallet unlocks
+  async function loadTxHistory() {
+    const res = await fetch("/api/tx")
+    if (res.ok) setTxHistory(await res.json())
+  }
+
+  // Sync on-chain status for all pending transactions on unlock, then refresh history
   useEffect(() => {
     if (status !== "unlocked") return
     fetch("/api/tx/sync", { method: "POST" })
+      .catch(() => {})
+      .then(() => loadTxHistory().catch(() => {}))
   }, [status])
 
   async function loadBalance(addr: string) {
@@ -157,18 +175,13 @@ export function useWallet() {
     return formatEther(gas * gasPrice)
   }
 
-  // Persists a transaction record; failures are silent so they never block the send flow
-  async function recordTx(
-    txHash: string,
-    to: string,
-    amount: string,
-    status: "pending" | "confirmed" | "failed"
-  ) {
+  // Persists a transaction record as pending; failures are silent so they never block the send flow
+  async function recordTx(txHash: string, to: string, amount: string) {
     if (!address) return
     await fetch("/api/tx", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fromAddress: address, toAddress: to, amount, txHash, status }),
+      body: JSON.stringify({ fromAddress: address, toAddress: to, amount, txHash }),
     })
   }
 
@@ -220,8 +233,8 @@ export function useWallet() {
       // mnemonic is a local const → GC when send() returns
 
       setTxHash(hash)
-      // 3.3: persist as pending immediately after broadcast
-      await recordTx(hash, to, amount, "pending").catch(() => {})
+      // persist as pending immediately after broadcast
+      await recordTx(hash, to, amount).catch(() => {})
 
       let receipt
       try {
@@ -235,6 +248,7 @@ export function useWallet() {
         if (err instanceof Error && err.message === "timeout") {
           // tx is on-chain but unconfirmed — leave DB status as "pending"
           setTxStatus("pending_on_chain")
+          loadTxHistory().catch(() => {})
           return
         }
         throw err
@@ -249,6 +263,7 @@ export function useWallet() {
         setTxError("La transacción falló en la red")
         await updateTxRecord(hash, "failed").catch(() => {})
       }
+      loadTxHistory().catch(() => {})
     } catch (err: unknown) {
       setTxStatus("error")
       setTxError(err instanceof Error ? err.message : "Error desconocido")
@@ -272,5 +287,6 @@ export function useWallet() {
     txHash,
     txError,
     resetTx,
+    txHistory,
   }
 }
