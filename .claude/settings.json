@@ -3,7 +3,24 @@
     "allow": [
       "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); exports=p.get\\(''exports'',{}\\); [print\\(k\\) for k in exports.keys\\(\\) if ''account'' in k.lower\\(\\)]\")",
       "Bash(node -e \"const v = require\\(''viem/accounts''\\); console.log\\(Object.keys\\(v\\).filter\\(k => k.toLowerCase\\(\\).includes\\(''english''\\) || k.toLowerCase\\(\\).includes\\(''wordlist''\\)\\)\\)\")",
-      "Bash(pnpm drizzle-kit generate)"
+      "Bash(pnpm drizzle-kit generate)",
+      "Bash(ls -la /home/ignacio/workspace/walty/tailwind.config.*)",
+      "Bash(pnpm add class-variance-authority radix-ui @phosphor-icons/react clsx tailwind-merge)",
+      "Bash(pnpm exec tsc --noEmit)",
+      "Bash(git add package.json pnpm-lock.yaml)",
+      "Bash(git commit -m \"Add UI dependencies: cva, radix-ui, phosphor-icons, clsx, tailwind-merge\")",
+      "Bash(git add tsconfig.json)",
+      "Bash(git commit -m \"Exclude ui-inspo from TypeScript compilation\")",
+      "Bash(git add .gitignore)",
+      "Bash(git commit -m \"Ignore ui-inspo folder\")",
+      "Bash(git add utils/style.ts)",
+      "Bash(git commit -m \"Add cn utility function\")",
+      "Bash(git add components/primitives/button.tsx)",
+      "Bash(git commit -m \"Add button primitive with asChild support\")",
+      "Bash(git add components/primitives/dialog.tsx)",
+      "Bash(git commit -m \"Add dialog primitive re-exporting Radix Dialog parts\")",
+      "Bash(git add server/db/schema.ts)",
+      "Bash(git commit -m \"Add FK constraints and UNIQUE\\(user_id, address\\) to schema\")"
     ]
   }
 }

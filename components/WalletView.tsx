@@ -1,6 +1,20 @@
 "use client"
 import { useEffect, useState } from "react"
-import type { TxStatus } from "@/hooks/useWallet"
+import type { TxStatus, TxRecord } from "@/hooks/useWallet"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Spinner } from "@/components/ui/spinner"
+import { Separator } from "@/components/ui/separator"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 const EXPLORER_BASE = "https://sepolia.etherscan.io/tx"
 
@@ -10,16 +24,10 @@ function ExplorerLink({ hash }: { hash: string }) {
       href={`${EXPLORER_BASE}/${hash}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-xs font-mono break-all underline opacity-80 hover:opacity-100"
+      className="font-mono text-xs underline underline-offset-2 text-muted-foreground hover:text-foreground break-all"
     >
-      {hash.slice(0, 12)}…{hash.slice(-8)} (Etherscan)
+      {hash.slice(0, 12)}…{hash.slice(-8)} ↗
     </a>
-  )
-}
-
-function Spinner() {
-  return (
-    <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin align-middle mr-2" />
   )
 }
 
@@ -30,9 +38,11 @@ export function WalletView({
   onExport,
   onEstimateGas,
   onSend,
+  onResetTx,
   txStatus,
   txHash,
   txError,
+  txHistory,
 }: {
   address: string | null
   balance: string | null
@@ -40,14 +50,14 @@ export function WalletView({
   onExport: () => void
   onEstimateGas: (to: string, amount: string) => Promise<string>
   onSend: (to: string, amount: string) => Promise<void>
+  onResetTx: () => void
   txStatus: TxStatus
   txHash: string | null
   txError: string | null
+  txHistory: TxRecord[]
 }) {
   const [to, setTo] = useState("")
   const [amount, setAmount] = useState("")
-
-  // 4.1 Confirm modal state
   const [showModal, setShowModal] = useState(false)
   const [gasEstimate, setGasEstimate] = useState<string | null>(null)
   const [gasError, setGasError] = useState<string | null>(null)
@@ -72,147 +82,208 @@ export function WalletView({
     }
   }
 
-  function handleCancel() {
-    setShowModal(false)
-  }
-
   async function handleConfirm() {
     setShowModal(false)
     await onSend(to, amount)
   }
 
-  const isBusy = txStatus === "pending"
+  const isBusy = txStatus === "pending" || txStatus === "pending_on_chain"
 
   return (
-    <div className="p-10 flex flex-col gap-4 max-w-lg">
-      {/* 4.2 Network badge */}
-      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-mono font-semibold bg-amber-100 text-amber-800 w-fit">
-        <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-        Sepolia — TESTNET
-      </div>
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-lg px-4 py-10 flex flex-col gap-6">
 
-      <div className="font-mono text-sm break-all">Address: {address}</div>
-      <div className="text-lg font-semibold">{balance ?? "..."} ETH</div>
+        {/* Header row: network badge + actions */}
+        <div className="flex items-center justify-between">
+          <Badge variant="outline" className="gap-1.5 font-mono text-amber-700 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400">
+            <span className="size-1.5 rounded-full bg-amber-500 shrink-0" />
+            Sepolia — TESTNET
+          </Badge>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={onExport}>
+              Exportar backup
+            </Button>
+            <Button size="sm" variant="outline" onClick={onLock}>
+              Bloquear
+            </Button>
+          </div>
+        </div>
 
-      {/* Send form */}
-      <div className="flex flex-col gap-2 mt-2">
-        <input
-          type="text"
-          placeholder="Dirección destino (0x...)"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-          className="border p-2 rounded font-mono text-sm"
-        />
-        <input
-          type="text"
-          placeholder="Cantidad (ETH)"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className="border p-2 rounded"
-        />
-        <button onClick={handleOpenModal} disabled={isBusy || !to || !amount}>
-          {isBusy ? (
-            <>
-              <Spinner />
-              Enviando…
-            </>
-          ) : (
-            "Enviar ETH"
+        {/* Balance card */}
+        <div className="rounded-xl border bg-card p-6 flex flex-col gap-2">
+          <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Balance</p>
+          <p className="text-4xl font-bold text-foreground tabular-nums">
+            {balance ?? <span className="text-muted-foreground">—</span>}
+            <span className="ml-2 text-lg font-medium text-muted-foreground">ETH</span>
+          </p>
+          {address && (
+            <p className="mt-1 font-mono text-xs text-muted-foreground break-all">{address}</p>
           )}
-        </button>
+        </div>
+
+        {/* Send form */}
+        <div className="rounded-xl border bg-card p-6 flex flex-col gap-4">
+          <h2 className="font-semibold text-foreground">Enviar ETH</h2>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="tx-to">Dirección destino</Label>
+            <Input
+              id="tx-to"
+              type="text"
+              placeholder="0x..."
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="font-mono"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="tx-amount">Cantidad (ETH)</Label>
+            <Input
+              id="tx-amount"
+              type="text"
+              placeholder="0.001"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </div>
+
+          <Button onClick={handleOpenModal} disabled={isBusy || !to || !amount} className="w-full">
+            {isBusy ? (
+              <>
+                <Spinner />
+                Enviando…
+              </>
+            ) : (
+              "Enviar ETH"
+            )}
+          </Button>
+
+          {/* Transaction status */}
+          {(txStatus === "pending" || txStatus === "pending_on_chain") && (
+            <Alert>
+              <Spinner />
+              <AlertTitle>
+                {txStatus === "pending" ? "Transacción pendiente…" : "En la red — esperando confirmación"}
+              </AlertTitle>
+              {txHash && (
+                <AlertDescription>
+                  <ExplorerLink hash={txHash} />
+                </AlertDescription>
+              )}
+            </Alert>
+          )}
+
+          {txStatus === "confirmed" && (
+            <div className="flex flex-col gap-1 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/20 px-4 py-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-green-700 dark:text-green-400">✓ Confirmada</span>
+                <Button size="icon-sm" variant="ghost" onClick={onResetTx} aria-label="Descartar" className="text-green-600 hover:text-green-800 -mr-1">
+                  ×
+                </Button>
+              </div>
+              {txHash && <ExplorerLink hash={txHash} />}
+            </div>
+          )}
+
+          {txStatus === "error" && (
+            <Alert variant="destructive">
+              <AlertTitle className="flex items-center justify-between">
+                <span>✗ Error</span>
+                <Button size="icon-sm" variant="ghost" onClick={onResetTx} aria-label="Descartar" className="text-destructive hover:text-destructive/80 -mr-1 -mt-1">
+                  ×
+                </Button>
+              </AlertTitle>
+              {txError && <AlertDescription>{txError}</AlertDescription>}
+            </Alert>
+          )}
+        </div>
+
+        {/* Transaction history */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold text-foreground shrink-0">Historial</h2>
+            <Separator className="flex-1" />
+          </div>
+
+          {txHistory.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Sin transacciones aún.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {txHistory.map((tx) => (
+                <div key={tx.id} className="rounded-lg border bg-card px-4 py-3 flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <Badge
+                      variant={
+                        tx.status === "confirmed" ? "default" :
+                        tx.status === "failed" ? "destructive" : "secondary"
+                      }
+                    >
+                      {tx.status === "confirmed" ? "✓ Confirmada" : tx.status === "failed" ? "✗ Fallida" : "⏳ Pendiente"}
+                    </Badge>
+                    <span className="font-mono text-sm font-semibold">{tx.amount} ETH</span>
+                  </div>
+                  <p className="font-mono text-xs text-muted-foreground break-all">→ {tx.toAddress}</p>
+                  <ExplorerLink hash={tx.txHash} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* 4.4 Transaction status */}
-      {txStatus === "pending" && (
-        <div className="flex flex-col gap-1 text-amber-700">
-          <div className="flex items-center gap-1">
-            <Spinner />
-            Transacción pendiente…
-          </div>
-          {txHash && <ExplorerLink hash={txHash} />}
-        </div>
-      )}
+      {/* Confirm dialog */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirmar transacción</DialogTitle>
+          </DialogHeader>
 
-      {txStatus === "pending_on_chain" && (
-        <div className="flex flex-col gap-1 text-amber-600">
-          <div className="flex items-center gap-1">
-            <Spinner />
-            En la red — esperando confirmación (puede demorar)
-          </div>
-          {txHash && <ExplorerLink hash={txHash} />}
-        </div>
-      )}
-
-      {txStatus === "confirmed" && (
-        <div className="flex flex-col gap-1 text-green-700">
-          <div className="font-semibold">&#10003; Confirmada</div>
-          {txHash && <ExplorerLink hash={txHash} />}
-        </div>
-      )}
-
-      {txStatus === "error" && (
-        <div className="flex flex-col gap-1 text-red-600">
-          <div className="font-semibold">&#10007; Error</div>
-          <div className="text-sm">{txError}</div>
-        </div>
-      )}
-
-      <div className="flex gap-2 mt-2">
-        <button onClick={onExport}>Exportar backup</button>
-        <button onClick={onLock}>Bloquear wallet</button>
-      </div>
-
-      {/* 4.1 Confirm modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 flex flex-col gap-3 shadow-xl">
-            <h2 className="font-semibold text-lg">Confirmar transacción</h2>
-
-            {/* 4.2 Network inside modal */}
-            <div className="flex items-center gap-1.5 text-xs font-mono font-semibold text-amber-700">
-              <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+          <div className="flex flex-col gap-4 py-2">
+            <Badge variant="outline" className="w-fit gap-1.5 font-mono text-amber-700 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400">
+              <span className="size-1.5 rounded-full bg-amber-500 shrink-0" />
               Sepolia — TESTNET
+            </Badge>
+
+            <div className="flex flex-col gap-0.5">
+              <p className="text-xs text-muted-foreground">Destino</p>
+              <p className="font-mono text-sm break-all">{to}</p>
             </div>
 
-            <div>
-              <div className="text-xs text-gray-500 mb-0.5">Destino</div>
-              <div className="font-mono text-sm break-all">{to}</div>
+            <div className="flex flex-col gap-0.5">
+              <p className="text-xs text-muted-foreground">Monto</p>
+              <p className="font-mono font-semibold">{amount} ETH</p>
             </div>
 
-            <div>
-              <div className="text-xs text-gray-500 mb-0.5">Monto</div>
-              <div className="font-mono font-semibold">{amount} ETH</div>
-            </div>
-
-            <div>
-              <div className="text-xs text-gray-500 mb-0.5">Gas estimado</div>
+            <div className="flex flex-col gap-0.5">
+              <p className="text-xs text-muted-foreground">Gas estimado</p>
               {gasEstimate === null && !gasError ? (
-                <div className="flex items-center gap-1 text-gray-500 text-sm">
-                  <Spinner />
+                <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                  <Spinner className="size-3" />
                   Calculando…
                 </div>
               ) : gasError ? (
-                <div className="text-red-500 text-sm">{gasError}</div>
+                <p className="text-sm text-destructive">{gasError}</p>
               ) : (
-                <div className="font-mono text-sm">~{gasEstimate} ETH</div>
+                <p className="font-mono text-sm">~{gasEstimate} ETH</p>
               )}
             </div>
-
-            <div className="flex gap-2 mt-2">
-              <button onClick={handleCancel} className="flex-1">
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirm}
-                disabled={gasEstimate === null && !gasError}
-                className="flex-1"
-              >
-                Confirmar envío
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowModal(false)} className="flex-1">
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              disabled={gasEstimate === null && !gasError}
+              className="flex-1"
+            >
+              Confirmar envío
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
