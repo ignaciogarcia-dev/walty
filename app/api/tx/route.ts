@@ -4,20 +4,15 @@ import { db } from "@/server/db"
 import { transactions } from "@/server/db/schema"
 import { requireAuth } from "@/lib/auth"
 
-// POST /api/tx — record a new transaction (status: pending)
+// POST /api/tx — record a new transaction (always pending)
 export async function POST(req: NextRequest) {
   try {
     const { userId } = requireAuth(req)
-    const { fromAddress, toAddress, amount, txHash, status } = await req.json()
+    const { fromAddress, toAddress, amount, txHash } = await req.json()
 
     if (!fromAddress || !toAddress || !amount || !txHash) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 })
     }
-
-    const validStatus = ["pending", "confirmed", "failed"] as const
-    const resolvedStatus: (typeof validStatus)[number] = validStatus.includes(status)
-      ? status
-      : "pending"
 
     await db.insert(transactions).values({
       userId,
@@ -25,7 +20,7 @@ export async function POST(req: NextRequest) {
       toAddress,
       amount,
       txHash,
-      status: resolvedStatus,
+      status: "pending",
     })
 
     return NextResponse.json({ ok: true })
@@ -34,16 +29,22 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET /api/tx — list authenticated user's transactions (newest first)
+// GET /api/tx — list authenticated user's transactions (newest first, paginated)
 export async function GET(req: NextRequest) {
   try {
     const { userId } = requireAuth(req)
+
+    const { searchParams } = new URL(req.url)
+    const limit = Math.min(Number(searchParams.get("limit") ?? 20), 100)
+    const offset = Number(searchParams.get("offset") ?? 0)
 
     const rows = await db
       .select()
       .from(transactions)
       .where(eq(transactions.userId, userId))
       .orderBy(desc(transactions.createdAt))
+      .limit(limit)
+      .offset(offset)
 
     return NextResponse.json(rows)
   } catch {
