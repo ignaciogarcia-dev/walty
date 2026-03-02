@@ -83,6 +83,10 @@ export default function LoginPage() {
             </TabsContent>
 
             <TabsContent value="register" className="mt-4 flex flex-col gap-4">
+              <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20 px-3 py-2 text-xs text-blue-700 dark:text-blue-400">
+                <p className="font-medium mb-1">Nota importante:</p>
+                <p>Después de registrarte, necesitarás crear una wallet con una contraseña diferente. Esta contraseña es solo para tu cuenta.</p>
+              </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="email-register">Email</Label>
                 <Input
@@ -96,7 +100,7 @@ export default function LoginPage() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="password-register">Contraseña</Label>
+                <Label htmlFor="password-register">Contraseña de la cuenta</Label>
                 <Input
                   id="password-register"
                   type="password"
@@ -106,6 +110,9 @@ export default function LoginPage() {
                   onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
                   autoComplete="new-password"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Esta contraseña es para acceder a tu cuenta. Después crearás otra contraseña para tu wallet.
+                </p>
               </div>
             </TabsContent>
           </Tabs>
