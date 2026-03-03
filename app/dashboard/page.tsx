@@ -5,6 +5,7 @@ import { WalletView } from "@/components/WalletView"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { ThemeSelector } from "@/components/theme/selector"
+import { LocaleSelector } from "@/components/locale/selector"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -130,6 +131,11 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-col gap-1.5">
+            <Label>Idioma</Label>
+            <LocaleSelector />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
             <Label>Tema</Label>
             <ThemeSelector />
           </div>
@@ -188,6 +194,11 @@ export default function Dashboard() {
             {unlockError && (
               <p className="text-xs text-destructive">{unlockError}</p>
             )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label>Idioma</Label>
+            <LocaleSelector />
           </div>
 
           <div className="flex flex-col gap-1.5">

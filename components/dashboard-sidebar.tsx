@@ -1,5 +1,5 @@
 "use client"
-import { ArrowSquareOut, Palette, Wallet } from "@phosphor-icons/react"
+import { ArrowSquareOut, Globe, Palette, Wallet } from "@phosphor-icons/react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
@@ -18,6 +18,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { ThemeSelector } from "@/components/theme/selector"
+import { LocaleSelector } from "@/components/locale/selector"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
@@ -38,6 +39,7 @@ const appSidebarItems: SidebarItem[] = [
 export function DashboardSidebar() {
   const pathname = usePathname()
   const [showThemeDialog, setShowThemeDialog] = useState(false)
+  const [showLocaleDialog, setShowLocaleDialog] = useState(false)
 
   return (
     <>
@@ -86,6 +88,14 @@ export function DashboardSidebar() {
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
+              <SidebarMenuButton onClick={() => setShowLocaleDialog(true)} tooltip="Idioma">
+                <Globe />
+                <span className="shrink-0 transition-[margin,opacity] duration-200 ease-in-out group-data-[collapsible=icon]:-ml-8 group-data-[collapsible=icon]:opacity-0">
+                  Idioma
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
               <SidebarMenuButton onClick={() => setShowThemeDialog(true)} tooltip="Tema">
                 <Palette />
                 <span className="shrink-0 transition-[margin,opacity] duration-200 ease-in-out group-data-[collapsible=icon]:-ml-8 group-data-[collapsible=icon]:opacity-0">
@@ -113,6 +123,17 @@ export function DashboardSidebar() {
 
         <SidebarRail />
       </Sidebar>
+
+      <Dialog open={showLocaleDialog} onOpenChange={setShowLocaleDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Seleccionar idioma</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <LocaleSelector />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showThemeDialog} onOpenChange={setShowThemeDialog}>
         <DialogContent>
