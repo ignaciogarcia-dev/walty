@@ -19,19 +19,34 @@ export function ThemeProvider({ children, initialTheme }: Props) {
 	useEffect(() => {
 		setMounted(true)
 		// Apply theme to document on mount
-		document.documentElement.classList.toggle("dark", initialTheme === "dark")
+		const root = document.documentElement
+		if (initialTheme === "dark") {
+			root.classList.add("dark")
+		} else {
+			root.classList.remove("dark")
+		}
 	}, [initialTheme])
 
 	useEffect(() => {
 		if (!mounted) return
 		// Apply theme to document when theme changes
-		document.documentElement.classList.toggle("dark", theme === "dark")
+		const root = document.documentElement
+		if (theme === "dark") {
+			root.classList.add("dark")
+		} else {
+			root.classList.remove("dark")
+		}
 	}, [theme, mounted])
 
 	function setTheme(value: Theme) {
 		setThemeState(value)
 		if (mounted) {
-			document.documentElement.classList.toggle("dark", value === "dark")
+			const root = document.documentElement
+			if (value === "dark") {
+				root.classList.add("dark")
+			} else {
+				root.classList.remove("dark")
+			}
 		}
 		
 		// Save to cookie
