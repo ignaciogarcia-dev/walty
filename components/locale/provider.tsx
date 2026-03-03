@@ -13,11 +13,19 @@ const LocaleContext = createContext<LocaleContextValue | null>(null)
 type Props = PropsWithChildren<{ initialLocale: Locale }>
 
 export function LocaleProvider({ children, initialLocale }: Props) {
+	// Start with server-provided locale to avoid hydration mismatch
 	const [locale, setLocaleState] = useState<Locale>(initialLocale)
 	const [mounted, setMounted] = useState(false)
 
 	useEffect(() => {
 		setMounted(true)
+		// Sync locale from cookie on client side after mount
+		// This ensures the client-side cookie takes precedence if it differs from server
+		const clientLocale = getLocaleClient()
+		if (clientLocale !== locale) {
+			setLocaleState(clientLocale)
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [])
 
 	function setLocale(value: Locale) {

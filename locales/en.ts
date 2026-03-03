@@ -1,0 +1,81 @@
+export const en = {
+	// Dashboard
+	"create-wallet": "Create wallet",
+	"create-wallet-description": "Create a password to protect your wallet. This password is different from your account password and will be used to encrypt your seed locally.",
+	"wallet-locked": "Wallet locked",
+	"wallet-locked-description": "Enter your wallet password to unlock. This is the password you set when creating the wallet.",
+	"wallet-password": "Wallet password",
+	"language": "Language",
+	"theme": "Theme",
+	"create": "Create wallet",
+	"unlock": "Unlock",
+	"import-backup": "Import backup",
+	"or": "or",
+	"loading": "Loading…",
+	"settings": "Settings",
+	"transfer": "Transfer",
+	"home": "Home",
+	"send": "Send",
+	"activity": "Activity",
+	"swap": "Swap",
+	
+	// Wallet
+	"balance": "Balance",
+	"send-eth": "Send ETH",
+	"destination-address": "Destination address",
+	"amount-eth": "Amount (ETH)",
+	"sending": "Sending…",
+	"history": "History",
+	"no-transactions-yet": "No transactions yet.",
+	"export-backup": "Export backup",
+	"lock": "Lock",
+	
+	// Transaction
+	"confirm-transaction": "Confirm transaction",
+	"destination": "Destination",
+	"amount": "Amount",
+	"estimated-gas": "Estimated gas",
+	"calculating": "Calculating…",
+	"cancel": "Cancel",
+	"confirm-send": "Confirm send",
+	"transaction-pending": "Transaction pending…",
+	"on-network-waiting": "On network — waiting for confirmation",
+	"confirmed": "✓ Confirmed",
+	"failed": "✗ Failed",
+	"pending": "⏳ Pending",
+	"error": "✗ Error",
+	"dismiss": "Dismiss",
+	"could-not-estimate-gas": "Could not estimate gas",
+	
+	// Swap
+	"coming-soon": "Coming soon",
+	
+	// Login/Register
+	"login": "Login",
+	"register": "Register",
+	"logging-in": "Logging in…",
+	"registering": "Registering…",
+	"email": "Email",
+	"password": "Password",
+	"account-password": "Account password",
+	"important-note": "Important note:",
+	"register-note": "After registering, you'll need to create a wallet with a different password. This password is only for your account.",
+	"account-password-description": "This password is for accessing your account. You'll create another password for your wallet later.",
+	"ethereum-wallet-sepolia": "Ethereum wallet on Sepolia",
+	"minimum-8-characters": "Minimum 8 characters",
+	"unexpected-error": "Unexpected error",
+	
+	// Theme
+	"light": "Light",
+	"dark": "Dark",
+	
+	// Errors
+	"password-too-short": "Password must be at least 8 characters",
+	"wrong-password": "Incorrect password",
+	"error-creating-wallet": "Error creating wallet",
+	"error-importing-backup": "Error importing backup",
+	"invalid-email-or-password": "Invalid email or password less than 8 characters",
+	"email-already-in-use": "Email already in use",
+	"invalid-credentials": "Invalid credentials",
+	"too-many-requests": "Too many requests",
+} as const

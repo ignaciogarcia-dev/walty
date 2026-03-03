@@ -1,0 +1,81 @@
+export const es = {
+	// Dashboard
+	"create-wallet": "Crear wallet",
+	"create-wallet-description": "Crea una contraseña para proteger tu wallet. Esta contraseña es diferente de la contraseña de tu cuenta y se usará para encriptar tu seed localmente.",
+	"wallet-locked": "Wallet bloqueada",
+	"wallet-locked-description": "Ingresa la contraseña de tu wallet para desbloquear. Esta es la contraseña que configuraste al crear la wallet.",
+	"wallet-password": "Contraseña de la wallet",
+	"language": "Idioma",
+	"theme": "Tema",
+	"create": "Crear wallet",
+	"unlock": "Desbloquear",
+	"import-backup": "Importar backup",
+	"or": "o",
+	"loading": "Cargando…",
+	"settings": "Configuración",
+	"transfer": "Transfer",
+	"home": "Inicio",
+	"send": "Enviar",
+	"activity": "Actividad",
+	"swap": "Swap",
+	
+	// Wallet
+	"balance": "Balance",
+	"send-eth": "Enviar ETH",
+	"destination-address": "Dirección destino",
+	"amount-eth": "Cantidad (ETH)",
+	"sending": "Enviando…",
+	"history": "Historial",
+	"no-transactions-yet": "Sin transacciones aún.",
+	"export-backup": "Exportar backup",
+	"lock": "Bloquear",
+	
+	// Transaction
+	"confirm-transaction": "Confirmar transacción",
+	"destination": "Destino",
+	"amount": "Monto",
+	"estimated-gas": "Gas estimado",
+	"calculating": "Calculando…",
+	"cancel": "Cancelar",
+	"confirm-send": "Confirmar envío",
+	"transaction-pending": "Transacción pendiente…",
+	"on-network-waiting": "En la red — esperando confirmación",
+	"confirmed": "✓ Confirmada",
+	"failed": "✗ Fallida",
+	"pending": "⏳ Pendiente",
+	"error": "✗ Error",
+	"dismiss": "Descartar",
+	"could-not-estimate-gas": "No se pudo estimar el gas",
+	
+	// Swap
+	"coming-soon": "Próximamente",
+	
+	// Login/Register
+	"login": "Ingresar",
+	"register": "Registrarse",
+	"logging-in": "Ingresando…",
+	"registering": "Registrando…",
+	"email": "Email",
+	"password": "Contraseña",
+	"account-password": "Contraseña de la cuenta",
+	"important-note": "Nota importante:",
+	"register-note": "Después de registrarte, necesitarás crear una wallet con una contraseña diferente. Esta contraseña es solo para tu cuenta.",
+	"account-password-description": "Esta contraseña es para acceder a tu cuenta. Después crearás otra contraseña para tu wallet.",
+	"ethereum-wallet-sepolia": "Ethereum wallet en Sepolia",
+	"minimum-8-characters": "Mínimo 8 caracteres",
+	"unexpected-error": "Error inesperado",
+	
+	// Theme
+	"light": "Claro",
+	"dark": "Oscuro",
+	
+	// Errors
+	"password-too-short": "La contraseña debe tener al menos 8 caracteres",
+	"wrong-password": "Contraseña incorrecta",
+	"error-creating-wallet": "Error al crear wallet",
+	"error-importing-backup": "Error al importar backup",
+	"invalid-email-or-password": "Email inválido o password menor a 8 caracteres",
+	"email-already-in-use": "Email ya en uso",
+	"invalid-credentials": "Credenciales inválidas",
+	"too-many-requests": "Demasiadas solicitudes",
+} as const

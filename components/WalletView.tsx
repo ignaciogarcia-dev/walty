@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { useTranslation } from "@/hooks/useTranslation"
 
 const EXPLORER_BASE = "https://sepolia.etherscan.io/tx"
 
@@ -56,6 +57,7 @@ export function WalletView({
   txError: string | null
   txHistory: TxRecord[]
 }) {
+  const { t } = useTranslation()
   const [to, setTo] = useState("")
   const [amount, setAmount] = useState("")
   const [showModal, setShowModal] = useState(false)
@@ -78,7 +80,7 @@ export function WalletView({
       const estimate = await onEstimateGas(to, amount)
       setGasEstimate(estimate)
     } catch {
-      setGasError("No se pudo estimar el gas")
+      setGasError(t("could-not-estimate-gas"))
     }
   }
 
@@ -101,17 +103,17 @@ export function WalletView({
           </Badge>
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={onExport}>
-              Exportar backup
+              {t("export-backup")}
             </Button>
             <Button size="sm" variant="outline" onClick={onLock}>
-              Bloquear
+              {t("lock")}
             </Button>
           </div>
         </div>
 
         {/* Balance card */}
         <div className="rounded-xl border bg-card p-6 flex flex-col gap-2">
-          <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Balance</p>
+          <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">{t("balance")}</p>
           <p className="text-4xl font-bold text-foreground tabular-nums">
             {balance ?? <span className="text-muted-foreground">—</span>}
             <span className="ml-2 text-lg font-medium text-muted-foreground">ETH</span>
@@ -123,10 +125,10 @@ export function WalletView({
 
         {/* Send form */}
         <div className="rounded-xl border bg-card p-6 flex flex-col gap-4">
-          <h2 className="font-semibold text-foreground">Enviar ETH</h2>
+          <h2 className="font-semibold text-foreground">{t("send-eth")}</h2>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="tx-to">Dirección destino</Label>
+            <Label htmlFor="tx-to">{t("destination-address")}</Label>
             <Input
               id="tx-to"
               type="text"
@@ -138,7 +140,7 @@ export function WalletView({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="tx-amount">Cantidad (ETH)</Label>
+            <Label htmlFor="tx-amount">{t("amount-eth")}</Label>
             <Input
               id="tx-amount"
               type="text"
@@ -152,10 +154,10 @@ export function WalletView({
             {isBusy ? (
               <>
                 <Spinner />
-                Enviando…
+                {t("sending")}
               </>
             ) : (
-              "Enviar ETH"
+              t("send-eth")
             )}
           </Button>
 
@@ -164,7 +166,7 @@ export function WalletView({
             <Alert>
               <Spinner />
               <AlertTitle>
-                {txStatus === "pending" ? "Transacción pendiente…" : "En la red — esperando confirmación"}
+                {txStatus === "pending" ? t("transaction-pending") : t("on-network-waiting")}
               </AlertTitle>
               {txHash && (
                 <AlertDescription>
@@ -177,8 +179,8 @@ export function WalletView({
           {txStatus === "confirmed" && (
             <div className="flex flex-col gap-1 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/20 px-4 py-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-green-700 dark:text-green-400">✓ Confirmada</span>
-                <Button size="icon-sm" variant="ghost" onClick={onResetTx} aria-label="Descartar" className="text-green-600 hover:text-green-800 -mr-1">
+                <span className="font-medium text-green-700 dark:text-green-400">{t("confirmed")}</span>
+                <Button size="icon-sm" variant="ghost" onClick={onResetTx} aria-label={t("dismiss")} className="text-green-600 hover:text-green-800 -mr-1">
                   ×
                 </Button>
               </div>
@@ -189,8 +191,8 @@ export function WalletView({
           {txStatus === "error" && (
             <Alert variant="destructive">
               <AlertTitle className="flex items-center justify-between">
-                <span>✗ Error</span>
-                <Button size="icon-sm" variant="ghost" onClick={onResetTx} aria-label="Descartar" className="text-destructive hover:text-destructive/80 -mr-1 -mt-1">
+                <span>{t("error")}</span>
+                <Button size="icon-sm" variant="ghost" onClick={onResetTx} aria-label={t("dismiss")} className="text-destructive hover:text-destructive/80 -mr-1 -mt-1">
                   ×
                 </Button>
               </AlertTitle>
@@ -202,12 +204,12 @@ export function WalletView({
         {/* Transaction history */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
-            <h2 className="text-sm font-semibold text-foreground shrink-0">Historial</h2>
+            <h2 className="text-sm font-semibold text-foreground shrink-0">{t("history")}</h2>
             <Separator className="flex-1" />
           </div>
 
           {txHistory.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Sin transacciones aún.</p>
+            <p className="text-xs text-muted-foreground">{t("no-transactions-yet")}</p>
           ) : (
             <div className="flex flex-col gap-2">
               {txHistory.map((tx) => (
@@ -219,7 +221,7 @@ export function WalletView({
                         tx.status === "failed" ? "destructive" : "secondary"
                       }
                     >
-                      {tx.status === "confirmed" ? "✓ Confirmada" : tx.status === "failed" ? "✗ Fallida" : "⏳ Pendiente"}
+                      {tx.status === "confirmed" ? t("confirmed") : tx.status === "failed" ? t("failed") : t("pending")}
                     </Badge>
                     <span className="font-mono text-sm font-semibold">{tx.amount} ETH</span>
                   </div>
@@ -236,7 +238,7 @@ export function WalletView({
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Confirmar transacción</DialogTitle>
+            <DialogTitle>{t("confirm-transaction")}</DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 py-2">
@@ -246,21 +248,21 @@ export function WalletView({
             </Badge>
 
             <div className="flex flex-col gap-0.5">
-              <p className="text-xs text-muted-foreground">Destino</p>
+              <p className="text-xs text-muted-foreground">{t("destination")}</p>
               <p className="font-mono text-sm break-all">{to}</p>
             </div>
 
             <div className="flex flex-col gap-0.5">
-              <p className="text-xs text-muted-foreground">Monto</p>
+              <p className="text-xs text-muted-foreground">{t("amount")}</p>
               <p className="font-mono font-semibold">{amount} ETH</p>
             </div>
 
             <div className="flex flex-col gap-0.5">
-              <p className="text-xs text-muted-foreground">Gas estimado</p>
+              <p className="text-xs text-muted-foreground">{t("estimated-gas")}</p>
               {gasEstimate === null && !gasError ? (
                 <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
                   <Spinner className="size-3" />
-                  Calculando…
+                  {t("calculating")}
                 </div>
               ) : gasError ? (
                 <p className="text-sm text-destructive">{gasError}</p>
@@ -272,14 +274,14 @@ export function WalletView({
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowModal(false)} className="flex-1">
-              Cancelar
+              {t("cancel")}
             </Button>
             <Button
               onClick={handleConfirm}
               disabled={gasEstimate === null && !gasError}
               className="flex-1"
             >
-              Confirmar envío
+              {t("confirm-send")}
             </Button>
           </DialogFooter>
         </DialogContent>

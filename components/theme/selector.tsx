@@ -2,8 +2,10 @@
 import { Moon, Sun } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { useTheme } from "./provider"
+import { useTranslation } from "@/hooks/useTranslation"
 
 export function ThemeSelector() {
+	const { t } = useTranslation()
 	const { theme, setTheme } = useTheme()
 
 	return (
@@ -15,7 +17,7 @@ export function ThemeSelector() {
 				className="flex-1"
 			>
 				<Sun className="h-4 w-4" />
-				<span className="sr-only">Light</span>
+				<span className="sr-only">{t("light")}</span>
 			</Button>
 			<Button
 				variant={theme === "dark" ? "default" : "ghost"}
@@ -24,7 +26,7 @@ export function ThemeSelector() {
 				className="flex-1"
 			>
 				<Moon className="h-4 w-4" />
-				<span className="sr-only">Dark</span>
+				<span className="sr-only">{t("dark")}</span>
 			</Button>
 		</div>
 	)
