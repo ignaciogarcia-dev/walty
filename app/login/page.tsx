@@ -10,8 +10,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
 import { ThemeSelector } from "@/components/theme/selector"
 import { LocaleSelector } from "@/components/locale/selector"
+import { useTranslation } from "@/hooks/useTranslation"
 
 export default function LoginPage() {
+  const { t } = useTranslation()
   const [tab, setTab] = useState<"login" | "register">("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -33,7 +35,10 @@ export default function LoginPage() {
         router.push("/dashboard")
       } else {
         const data = await res.json()
-        setError(data.error ?? "Error inesperado")
+        // Try to translate error messages
+        const errorKey = data.error?.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+        const translatedError = errorKey && (t(errorKey as any) !== errorKey) ? t(errorKey as any) : (data.error ?? t("unexpected-error"))
+        setError(translatedError)
       }
     } finally {
       setLoading(false)
@@ -46,20 +51,20 @@ export default function LoginPage() {
         {/* Logo / Brand */}
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Walty</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Ethereum wallet en Sepolia</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("ethereum-wallet-sepolia")}</p>
         </div>
 
         {/* Card */}
         <div className="rounded-xl border bg-card p-6 shadow-sm flex flex-col gap-6">
           <Tabs value={tab} onValueChange={(v) => { setTab(v as "login" | "register"); setError(null) }}>
             <TabsList className="w-full">
-              <TabsTrigger value="login" className="flex-1">Ingresar</TabsTrigger>
-              <TabsTrigger value="register" className="flex-1">Registrarse</TabsTrigger>
+              <TabsTrigger value="login" className="flex-1">{t("login")}</TabsTrigger>
+              <TabsTrigger value="register" className="flex-1">{t("register")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login" className="mt-4 flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="email-login">Email</Label>
+                <Label htmlFor="email-login">{t("email")}</Label>
                 <Input
                   id="email-login"
                   type="email"
@@ -71,7 +76,7 @@ export default function LoginPage() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="password-login">Contraseña</Label>
+                <Label htmlFor="password-login">{t("password")}</Label>
                 <Input
                   id="password-login"
                   type="password"
@@ -86,11 +91,11 @@ export default function LoginPage() {
 
             <TabsContent value="register" className="mt-4 flex flex-col gap-4">
               <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20 px-3 py-2 text-xs text-blue-700 dark:text-blue-400">
-                <p className="font-medium mb-1">Nota importante:</p>
-                <p>Después de registrarte, necesitarás crear una wallet con una contraseña diferente. Esta contraseña es solo para tu cuenta.</p>
+                <p className="font-medium mb-1">{t("important-note")}</p>
+                <p>{t("register-note")}</p>
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="email-register">Email</Label>
+                <Label htmlFor="email-register">{t("email")}</Label>
                 <Input
                   id="email-register"
                   type="email"
@@ -102,30 +107,30 @@ export default function LoginPage() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="password-register">Contraseña de la cuenta</Label>
+                <Label htmlFor="password-register">{t("account-password")}</Label>
                 <Input
                   id="password-register"
                   type="password"
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder={t("minimum-8-characters")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
                   autoComplete="new-password"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Esta contraseña es para acceder a tu cuenta. Después crearás otra contraseña para tu wallet.
+                  {t("account-password-description")}
                 </p>
               </div>
             </TabsContent>
           </Tabs>
 
           <div className="flex flex-col gap-1.5">
-            <Label>Idioma</Label>
+            <Label>{t("language")}</Label>
             <LocaleSelector />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label>Tema</Label>
+            <Label>{t("theme")}</Label>
             <ThemeSelector />
           </div>
 
@@ -139,10 +144,10 @@ export default function LoginPage() {
             {loading ? (
               <>
                 <Spinner className="mr-2" />
-                {tab === "login" ? "Ingresando…" : "Registrando…"}
+                {tab === "login" ? t("logging-in") : t("registering")}
               </>
             ) : (
-              tab === "login" ? "Ingresar" : "Registrarse"
+              tab === "login" ? t("login") : t("register")
             )}
           </Button>
         </div>
