@@ -2,6 +2,9 @@
 import { useRef, useState, useEffect } from "react"
 import { useWallet } from "@/hooks/useWallet"
 import { WalletView } from "@/components/WalletView"
+import { DashboardSidebar } from "@/components/dashboard-sidebar"
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
+import { ThemeSelector } from "@/components/theme/selector"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -126,6 +129,11 @@ export default function Dashboard() {
             )}
           </div>
 
+          <div className="flex flex-col gap-1.5">
+            <Label>Tema</Label>
+            <ThemeSelector />
+          </div>
+
           <Button
             onClick={handleCreate}
             disabled={password.length < 8}
@@ -182,6 +190,11 @@ export default function Dashboard() {
             )}
           </div>
 
+          <div className="flex flex-col gap-1.5">
+            <Label>Tema</Label>
+            <ThemeSelector />
+          </div>
+
           <Button
             onClick={handleUnlock}
             disabled={!password}
@@ -209,18 +222,28 @@ export default function Dashboard() {
   }
 
   return (
-    <WalletView
-      address={address}
-      balance={balance}
-      onLock={lock}
-      onExport={exportWallet}
-      onEstimateGas={estimateGasCost}
-      onSend={send}
-      onResetTx={resetTx}
-      txStatus={txStatus}
-      txHash={txHash}
-      txError={txError}
-      txHistory={txHistory}
-    />
+    <SidebarProvider>
+      <DashboardSidebar />
+      <SidebarInset>
+        <div className="flex h-16 items-center gap-2 border-b px-4">
+          <SidebarTrigger />
+        </div>
+        <div className="flex-1 overflow-auto">
+          <WalletView
+            address={address}
+            balance={balance}
+            onLock={lock}
+            onExport={exportWallet}
+            onEstimateGas={estimateGasCost}
+            onSend={send}
+            onResetTx={resetTx}
+            txStatus={txStatus}
+            txHash={txHash}
+            txError={txError}
+            txHistory={txHistory}
+          />
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
