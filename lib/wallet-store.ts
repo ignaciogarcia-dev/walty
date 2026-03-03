@@ -5,12 +5,29 @@ export type StoredWallet = {
   address: string
 }
 
+const WALLET_STORAGE_KEY = "wallet"
+
 export function getStoredWallet(): StoredWallet | null {
-  const stored = localStorage.getItem("wallet")
+  if (typeof window === "undefined") return null
+  
+  const stored = localStorage.getItem(WALLET_STORAGE_KEY)
   if (!stored) return null
-  return JSON.parse(stored) as StoredWallet
+  
+  try {
+    return JSON.parse(stored) as StoredWallet
+  } catch {
+    // Invalid JSON - clear it
+    clearStoredWallet()
+    return null
+  }
 }
 
 export function saveWallet(data: StoredWallet) {
-  localStorage.setItem("wallet", JSON.stringify(data))
+  if (typeof window === "undefined") return
+  localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify(data))
+}
+
+export function clearStoredWallet() {
+  if (typeof window === "undefined") return
+  localStorage.removeItem(WALLET_STORAGE_KEY)
 }

@@ -7,6 +7,7 @@ import { getBalance, publicClient } from "@/lib/eth"
 import { getWalletClient } from "@/lib/signer"
 import { validateTx } from "@/lib/wallet-core"
 import { getStoredWallet, saveWallet, type StoredWallet } from "@/lib/wallet-store"
+import { determineWalletStatus } from "@/lib/wallet-status"
 
 export type WalletStatus = "loading" | "new" | "locked" | "unlocked"
 export type TxStatus = "idle" | "pending" | "confirmed" | "error" | "pending_on_chain"
@@ -34,7 +35,12 @@ export function useWallet() {
   const [txHistory, setTxHistory] = useState<TxRecord[]>([])
 
   useEffect(() => {
-    setStatus(getStoredWallet() ? "locked" : "new")
+    async function checkWalletStatus() {
+      const initialStatus = await determineWalletStatus()
+      setStatus(initialStatus)
+    }
+    
+    checkWalletStatus()
   }, [])
 
   // 2.4: stable reference — password cleared on every lock path
@@ -110,6 +116,10 @@ export function useWallet() {
   }
 
   async function create(password: string) {
+    if (!password || password.length < 8) {
+      throw new Error("La contraseña debe tener al menos 8 caracteres")
+    }
+
     const { mnemonic, address } = createWallet()
     const encrypted = await encryptSeed(mnemonic, password)
 
