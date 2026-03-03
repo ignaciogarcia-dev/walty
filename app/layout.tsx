@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { ThemeProvider } from "@/components/theme/provider";
+import { LocaleProvider } from "@/components/locale/provider";
 import { getTheme } from "@/utils/theme";
+import { getLocale } from "@/utils/locale";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,15 +31,18 @@ export default async function RootLayout({
   // picks up the x-nonce set by middleware and applies it to RSC inline scripts.
   await headers();
   const theme = await getTheme();
+  const locale = await getLocale();
 
   return (
-    <html lang="en" className={theme} suppressHydrationWarning>
+    <html lang={locale} className={theme} suppressHydrationWarning>
       <body
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider initialTheme={theme}>
-          {children}
+          <LocaleProvider initialLocale={locale}>
+            {children}
+          </LocaleProvider>
         </ThemeProvider>
       </body>
     </html>
