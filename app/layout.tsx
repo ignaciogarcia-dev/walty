@@ -34,7 +34,7 @@ export default async function RootLayout({
   const locale = await getLocale();
 
   return (
-    <html lang={locale} className={theme} suppressHydrationWarning>
+    <html lang={locale} className={theme === "dark" ? "dark" : ""} suppressHydrationWarning>
       <body
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
