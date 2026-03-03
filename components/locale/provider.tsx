@@ -1,6 +1,7 @@
 "use client"
 import { createContext, useContext, useEffect, useState, type PropsWithChildren } from "react"
 import type { Locale } from "@/utils/locale"
+import { getLocaleClient } from "@/utils/locale"
 
 type LocaleContextValue = {
 	locale: Locale
