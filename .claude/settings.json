@@ -20,7 +20,10 @@
       "Bash(git add components/primitives/dialog.tsx)",
       "Bash(git commit -m \"Add dialog primitive re-exporting Radix Dialog parts\")",
       "Bash(git add server/db/schema.ts)",
-      "Bash(git commit -m \"Add FK constraints and UNIQUE\\(user_id, address\\) to schema\")"
+      "Bash(git commit -m \"Add FK constraints and UNIQUE\\(user_id, address\\) to schema\")",
+      "Bash(/home/ignacio/workspace/walty/docs/files.md:*)",
+      "Bash(grep -n \"### \\\\`components/dashboard-sidebar\\\\|### \\\\`components/locale/combobox\\\\|### \\\\`components/theme/combobox\\\\|### \\\\`components/locale/selector\\\\|### \\\\`components/theme/selector\" /home/ignacio/workspace/walty/docs/files.md)",
+      "Bash(grep -n \"### \\\\`components/\" /home/ignacio/workspace/walty/docs/files.md)"
     ]
   }
 }
