@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
+import { ThemeSelector } from "@/components/theme/selector"
 
 export default function LoginPage() {
   const [tab, setTab] = useState<"login" | "register">("login")
@@ -116,6 +117,11 @@ export default function LoginPage() {
               </div>
             </TabsContent>
           </Tabs>
+
+          <div className="flex flex-col gap-1.5">
+            <Label>Tema</Label>
+            <ThemeSelector />
+          </div>
 
           {error && (
             <Alert variant="destructive">
