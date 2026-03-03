@@ -91,7 +91,7 @@ export function WalletView({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-lg px-4 py-10 flex flex-col gap-6">
+      <div className="mx-auto max-w-2xl px-4 py-10 flex flex-col gap-6">
 
         {/* Header row: network badge + actions */}
         <div className="flex items-center justify-between">
