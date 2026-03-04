@@ -1,6 +1,6 @@
 import { mnemonicToAccount } from "viem/accounts"
 import { createWalletClient } from "viem"
-import { sepolia } from "viem/chains"
+import { mainnet } from "viem/chains"
 import { getTransport } from "@/lib/rpc"
 
 export function getWalletClient(mnemonic: string) {
@@ -8,7 +8,7 @@ export function getWalletClient(mnemonic: string) {
 
   return createWalletClient({
     account,
-    chain: sepolia,
+    chain: mainnet,
     transport: getTransport(),
   })
 }
