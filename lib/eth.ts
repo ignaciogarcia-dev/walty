@@ -1,9 +1,9 @@
 import { createPublicClient } from "viem"
-import { sepolia } from "viem/chains"
+import { mainnet } from "viem/chains"
 import { getTransport } from "@/lib/rpc"
 
 export const publicClient = createPublicClient({
-  chain: sepolia,
+  chain: mainnet,
   transport: getTransport(),
 })
 

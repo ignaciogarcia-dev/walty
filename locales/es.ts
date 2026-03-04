@@ -61,7 +61,7 @@ export const es = {
 	"important-note": "Nota importante:",
 	"register-note": "Después de registrarte, necesitarás crear una wallet con una contraseña diferente. Esta contraseña es solo para tu cuenta.",
 	"account-password-description": "Esta contraseña es para acceder a tu cuenta. Después crearás otra contraseña para tu wallet.",
-	"ethereum-wallet-sepolia": "Ethereum wallet en Sepolia",
+	"ethereum-wallet-sepolia": "Ethereum wallet",
 	"minimum-8-characters": "Mínimo 8 caracteres",
 	"unexpected-error": "Error inesperado",
 	
