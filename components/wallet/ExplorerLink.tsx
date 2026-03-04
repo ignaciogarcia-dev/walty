@@ -1,4 +1,4 @@
-const EXPLORER_BASE = "https://sepolia.etherscan.io/tx"
+const EXPLORER_BASE = "https://etherscan.io/tx"
 
 export function ExplorerLink({ hash }: { hash: string }) {
 	return (
