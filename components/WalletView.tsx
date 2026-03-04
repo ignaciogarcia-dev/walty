@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { useTranslation } from "@/hooks/useTranslation"
 
-const EXPLORER_BASE = "https://sepolia.etherscan.io/tx"
+const EXPLORER_BASE = "https://etherscan.io/tx"
 
 function ExplorerLink({ hash }: { hash: string }) {
   return (
@@ -99,7 +99,7 @@ export function WalletView({
         <div className="flex items-center justify-between">
           <Badge variant="outline" className="gap-1.5 font-mono text-amber-700 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400">
             <span className="size-1.5 rounded-full bg-amber-500 shrink-0" />
-            Sepolia — TESTNET
+            Ethereum — MAINNET
           </Badge>
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={onExport}>
@@ -244,7 +244,7 @@ export function WalletView({
           <div className="flex flex-col gap-4 py-2">
             <Badge variant="outline" className="w-fit gap-1.5 font-mono text-amber-700 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400">
               <span className="size-1.5 rounded-full bg-amber-500 shrink-0" />
-              Sepolia — TESTNET
+              Ethereum — MAINNET
             </Badge>
 
             <div className="flex flex-col gap-0.5">
