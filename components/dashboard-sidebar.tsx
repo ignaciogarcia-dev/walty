@@ -172,7 +172,7 @@ export function DashboardSidebar() {
 
                   <DropdownMenuItem asChild>
                     <a
-                      href="https://sepolia.etherscan.io"
+                      href="https://etherscan.io"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2"
