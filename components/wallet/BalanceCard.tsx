@@ -16,7 +16,7 @@ export function BalanceCard({
 			<div className="flex items-center justify-between">
 				<Badge variant="outline" className="gap-1.5 font-mono text-amber-700 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400">
 					<span className="size-1.5 rounded-full bg-amber-500 shrink-0" />
-					Sepolia — TESTNET
+					Ethereum — MAINNET
 				</Badge>
 			</div>
 
