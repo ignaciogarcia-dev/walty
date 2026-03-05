@@ -1,5 +1,5 @@
 "use client"
-import { ArrowSquareOut, ArrowsLeftRight, ClockCounterClockwise, Globe, House, Palette, PaperPlaneTilt } from "@phosphor-icons/react"
+import { AddressBook, ArrowSquareOut, ArrowsLeftRight, ClockCounterClockwise, Gear, Globe, House, Palette, PaperPlaneTilt } from "@phosphor-icons/react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -68,6 +68,11 @@ export function DashboardSidebar() {
       label: t("swap"),
       href: "/dashboard/swap",
     },
+    {
+      icon: <AddressBook />,
+      label: t("contacts"),
+      href: "/dashboard/contacts",
+    },
   ]
 
   function handleThemeChange(value: string) {
@@ -130,7 +135,7 @@ export function DashboardSidebar() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <SidebarMenuButton tooltip={t("settings")}>
-                    <Palette />
+                    <Gear />
                     <span className="shrink-0 transition-[margin,opacity] duration-200 ease-in-out group-data-[collapsible=icon]:-ml-8 group-data-[collapsible=icon]:opacity-0">
                       {t("settings")}
                     </span>
