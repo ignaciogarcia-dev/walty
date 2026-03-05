@@ -76,6 +76,8 @@ export function SwapForm({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Ref so the async callback always reads the latest price without stale closure
   const latestPriceRef = useRef<{ buyAmount: string; sellAmount: string } | null>(null)
+  const sellInputRef = useRef<HTMLInputElement>(null)
+  const buyInputRef = useRef<HTMLInputElement>(null)
 
   // Fetch sell token balance
   useEffect(() => {
@@ -381,7 +383,20 @@ export function SwapForm({
       <h2 className="font-semibold text-foreground mb-1">{t("swap")}</h2>
 
       {/* You Pay */}
-      <div className="rounded-lg border bg-muted/30 p-4 flex flex-col gap-2">
+      <div
+        onClick={(e) => {
+          // Only focus input if click wasn't on an interactive element
+          const target = e.target as HTMLElement
+          if (target.tagName !== 'SELECT' && target.tagName !== 'BUTTON' && target.tagName !== 'INPUT') {
+            sellInputRef.current?.focus()
+          }
+        }}
+        className="
+        rounded-lg border bg-muted/30 p-4 flex flex-col gap-2
+        focus-within:outline focus-within:outline-2 focus-within:outline-primary
+        cursor-text
+        "
+      >
         <p className="text-xs font-medium text-muted-foreground">{t("swap-sell")}</p>
         <div className="flex items-center gap-2">
           <select
@@ -397,6 +412,7 @@ export function SwapForm({
             ))}
           </select>
           <Input
+            ref={sellInputRef}
             type="number"
             placeholder="0.0"
             value={sellAmount}
@@ -404,7 +420,14 @@ export function SwapForm({
             disabled={isBusy}
             min="0"
             step="any"
-            className="flex-1 text-right text-xl font-semibold border-none bg-transparent shadow-none focus-visible:ring-0 disabled:opacity-50"
+            className="
+            flex-1 text-right text-xl font-semibold
+            border-none bg-transparent shadow-none
+            focus:outline-none focus:ring-0
+            hover:ring-0 hover:outline-none
+            disabled:opacity-50
+            appearance-none
+            "
           />
         </div>
         <p className="text-xs text-muted-foreground">
@@ -427,7 +450,20 @@ export function SwapForm({
       </div>
 
       {/* You Receive */}
-      <div className="rounded-lg border bg-muted/30 p-4 flex flex-col gap-2">
+      <div
+        onClick={(e) => {
+          // Only focus input if click wasn't on an interactive element
+          const target = e.target as HTMLElement
+          if (target.tagName !== 'SELECT' && target.tagName !== 'BUTTON' && target.tagName !== 'INPUT') {
+            buyInputRef.current?.focus()
+          }
+        }}
+        className="
+        rounded-lg border bg-muted/30 p-4 flex flex-col gap-2
+        focus-within:outline focus-within:outline-2 focus-within:outline-primary
+        cursor-text
+        "
+      >
         <p className="text-xs font-medium text-muted-foreground">{t("you-receive")}</p>
         <div className="flex items-center gap-2">
           <select
@@ -444,6 +480,7 @@ export function SwapForm({
           </select>
           <div className="flex-1 relative">
             <Input
+              ref={buyInputRef}
               type="number"
               placeholder="0.0"
               value={isQuoting && quoteDir === "sell" ? "" : buyAmount}
@@ -451,7 +488,15 @@ export function SwapForm({
               disabled={isBusy}
               min="0"
               step="any"
-              className="text-right text-xl font-semibold border-none bg-transparent shadow-none focus-visible:ring-0 disabled:opacity-50 w-full"
+              className="
+              text-right text-xl font-semibold
+              border-none bg-transparent shadow-none
+              focus:outline-none focus:ring-0
+              hover:ring-0 hover:outline-none
+              disabled:opacity-50
+              appearance-none
+              w-full
+              "
             />
             {isQuoting && quoteDir === "sell" && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
