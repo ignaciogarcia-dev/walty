@@ -1,5 +1,6 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { isAddress } from "viem"
 import type { TxStatus } from "@/hooks/useWallet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { TxStatus as TxStatusDisplay } from "./TxStatus"
 import { useTranslation } from "@/hooks/useTranslation"
+import { resolveEns } from "@/lib/ens"
 
 export function SendForm({
 	onEstimateGas,
@@ -37,21 +39,56 @@ export function SendForm({
 	const [showModal, setShowModal] = useState(false)
 	const [gasEstimate, setGasEstimate] = useState<string | null>(null)
 	const [gasError, setGasError] = useState<string | null>(null)
+	const [ensResolving, setEnsResolving] = useState(false)
+	const [resolvedAddress, setResolvedAddress] = useState<`0x${string}` | null>(null)
+	const [ensError, setEnsError] = useState<string | null>(null)
+	const ensDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+	// ENS resolution — debounced 600ms, only when input looks like a name
+	useEffect(() => {
+		setResolvedAddress(null)
+		setEnsError(null)
+
+		// Skip resolution if it's already a hex address or doesn't contain a dot
+		if (isAddress(to) || !to.includes(".")) return
+
+		if (ensDebounce.current) clearTimeout(ensDebounce.current)
+		setEnsResolving(true)
+
+		ensDebounce.current = setTimeout(async () => {
+			const addr = await resolveEns(to)
+			setEnsResolving(false)
+			if (addr) {
+				setResolvedAddress(addr)
+			} else {
+				setEnsError(t("ens-not-found"))
+			}
+		}, 600)
+
+		return () => {
+			if (ensDebounce.current) clearTimeout(ensDebounce.current)
+		}
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [to])
 
 	useEffect(() => {
 		if (txStatus === "confirmed") {
 			setTo("")
 			setAmount("")
+			setResolvedAddress(null)
 		}
 	}, [txStatus])
 
+	// Use resolved ENS address if available, otherwise use the raw input
+	const effectiveTo = resolvedAddress ?? to
+
 	async function handleOpenModal() {
-		if (!to || !amount) return
+		if (!effectiveTo || !amount) return
 		setGasEstimate(null)
 		setGasError(null)
 		setShowModal(true)
 		try {
-			const estimate = await onEstimateGas(to, amount)
+			const estimate = await onEstimateGas(effectiveTo, amount)
 			setGasEstimate(estimate)
 		} catch {
 			setGasError(t("could-not-estimate-gas"))
@@ -60,10 +97,11 @@ export function SendForm({
 
 	async function handleConfirm() {
 		setShowModal(false)
-		await onSend(to, amount)
+		await onSend(effectiveTo, amount)
 	}
 
 	const isBusy = txStatus === "pending" || txStatus === "pending_on_chain"
+	const canSubmit = !isBusy && !!effectiveTo && !!amount && !ensResolving && !ensError
 
 	return (
 		<>
@@ -75,11 +113,25 @@ export function SendForm({
 					<Input
 						id="tx-to"
 						type="text"
-						placeholder="0x..."
+						placeholder="0x… or name.eth"
 						value={to}
 						onChange={(e) => setTo(e.target.value)}
 						className="font-mono"
 					/>
+					{ensResolving && (
+						<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+							<Spinner className="size-3" />
+							{t("resolving-ens")}
+						</div>
+					)}
+					{resolvedAddress && (
+						<p className="text-xs text-muted-foreground font-mono break-all">
+							→ {resolvedAddress}
+						</p>
+					)}
+					{ensError && (
+						<p className="text-xs text-destructive">{ensError}</p>
+					)}
 				</div>
 
 				<div className="flex flex-col gap-1.5">
@@ -93,7 +145,7 @@ export function SendForm({
 					/>
 				</div>
 
-				<Button onClick={handleOpenModal} disabled={isBusy || !to || !amount} className="w-full">
+				<Button onClick={handleOpenModal} disabled={!canSubmit} className="w-full">
 					{isBusy ? (
 						<>
 							<Spinner />
@@ -126,7 +178,10 @@ export function SendForm({
 
 						<div className="flex flex-col gap-0.5">
 							<p className="text-xs text-muted-foreground">{t("destination")}</p>
-							<p className="font-mono text-sm break-all">{to}</p>
+							{to !== effectiveTo && (
+								<p className="text-xs text-muted-foreground">{to}</p>
+							)}
+							<p className="font-mono text-sm break-all">{effectiveTo}</p>
 						</div>
 
 						<div className="flex flex-col gap-0.5">
