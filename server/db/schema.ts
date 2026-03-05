@@ -34,3 +34,11 @@ export const walletNonces = pgTable("wallet_nonces", {
   nonce: text("nonce").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
 })
+
+export const contacts = pgTable("contacts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  address: text("address").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+})

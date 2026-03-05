@@ -21,7 +21,7 @@ export function middleware(request: NextRequest) {
     `default-src 'self'`,
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
     `style-src 'self' 'unsafe-inline'`,
-    `connect-src 'self' https://*.alchemy.com https://rpc.ankr.com https://ethereum.publicnode.com`,
+    `connect-src 'self' https://*.alchemy.com https://rpc.ankr.com https://ethereum.publicnode.com https://arb1.arbitrum.io https://mainnet.base.org https://mainnet.optimism.io https://polygon-rpc.com`,
     `object-src 'none'`,
     `base-uri 'self'`,
     `frame-ancestors 'none'`,

@@ -49,7 +49,41 @@ export const en = {
 	
 	// Swap
 	"coming-soon": "Coming soon",
-	
+	"chain": "Network",
+	"swap-sell": "You Pay",
+	"swap-buy": "Buy",
+	"swap-quote": "Get quote",
+	"swap-execute": "Swap",
+	"swap-price": "Price",
+	"you-receive": "You Receive",
+	"approving": "Approving…",
+	"swapping": "Swapping…",
+	"swap-confirmed": "✓ Swap confirmed",
+	"swap-failed": "✗ Swap failed",
+	"enter-amount": "Enter an amount",
+	"insufficient-balance": "Insufficient balance",
+	"insufficient-funds": "Insufficient funds to execute this swap",
+	"swap-fee": "Swap fee",
+	"network-fee": "Network fee",
+
+	// Portfolio
+	"portfolio": "Portfolio",
+	"total-value": "Total value",
+
+	// Address book
+	"address-book": "Address book",
+	"contacts": "Contacts",
+	"add-contact": "Add contact",
+	"contact-name": "Name",
+	"contact-address": "Address",
+	"no-contacts": "No contacts yet.",
+	"delete": "Delete",
+	"save": "Save",
+
+	// ENS
+	"resolving-ens": "Resolving ENS…",
+	"ens-not-found": "ENS name not found",
+
 	// Login/Register
 	"login": "Login",
 	"register": "Register",

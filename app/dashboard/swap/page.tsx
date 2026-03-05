@@ -1,14 +1,28 @@
 "use client"
-import { useTranslation } from "@/hooks/useTranslation"
+import { useWalletContext } from "@/components/wallet/context"
+import { SwapForm } from "@/components/wallet/SwapForm"
 
 export default function SwapPage() {
-	const { t } = useTranslation()
-	
+	const { address, password } = useWalletContext()
+
+	function handleTxRecord(hash: string, to: string, amount: string) {
+		fetch("/api/tx", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				fromAddress: address,
+				toAddress: to,
+				amount,
+				txHash: hash,
+			}),
+		}).catch(() => {})
+	}
+
+	if (!address || !password) return null
+
 	return (
 		<div className="mx-auto max-w-2xl px-4 py-10">
-			<div className="rounded-xl border bg-card p-6">
-				<p className="text-sm text-muted-foreground">{t("coming-soon")}</p>
-			</div>
+			<SwapForm address={address} password={password} onTxRecord={handleTxRecord} />
 		</div>
 	)
 }

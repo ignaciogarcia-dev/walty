@@ -2,24 +2,47 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { Globe, Palette } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
-import { ThemeSelector } from "@/components/theme/selector"
-import { LocaleSelector } from "@/components/locale/selector"
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useTranslation } from "@/hooks/useTranslation"
+import { useTheme } from "@/components/theme/provider"
+import { useLocale } from "@/components/locale/provider"
+import { isTheme } from "@/utils/theme"
+import { isLocale, localeMap, type Locale } from "@/utils/locale"
 
 export default function LoginPage() {
   const { t } = useTranslation()
+  const { theme, setTheme } = useTheme()
+  const { locale, setLocale } = useLocale()
   const [tab, setTab] = useState<"login" | "register">("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+
+  function handleThemeChange(value: string) {
+    if (!isTheme(value)) return
+    setTheme(value)
+  }
+
+  function handleLocaleChange(value: string) {
+    if (!isLocale(value)) return
+    setLocale(value as Locale)
+  }
 
   const handleSubmit = async () => {
     setError(null)
@@ -45,6 +68,46 @@ export default function LoginPage() {
     }
   }
 
+  // Settings toggles reused in both gate screens
+  const settingsButtons = (
+    <div className="absolute top-4 right-4 flex items-center gap-2">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Globe className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuGroup>
+            <DropdownMenuRadioGroup value={locale} onValueChange={handleLocaleChange}>
+              {Object.entries(localeMap).map(([value, label]) => (
+                <DropdownMenuRadioItem key={value} value={value}>
+                  {label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Palette className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuGroup>
+            <DropdownMenuRadioGroup value={theme} onValueChange={handleThemeChange}>
+              <DropdownMenuRadioItem value="light">{t("light")}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="dark">{t("dark")}</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
@@ -55,7 +118,8 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="rounded-xl border bg-card p-6 shadow-sm flex flex-col gap-6">
+        <div className="rounded-xl border bg-card p-6 shadow-sm flex flex-col gap-6 relative">
+          {settingsButtons}
           <Tabs value={tab} onValueChange={(v) => { setTab(v as "login" | "register"); setError(null) }}>
             <TabsList className="w-full">
               <TabsTrigger value="login" className="flex-1">{t("login")}</TabsTrigger>
@@ -123,16 +187,6 @@ export default function LoginPage() {
               </div>
             </TabsContent>
           </Tabs>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>{t("language")}</Label>
-            <LocaleSelector />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>{t("theme")}</Label>
-            <ThemeSelector />
-          </div>
 
           {error && (
             <Alert variant="destructive">
