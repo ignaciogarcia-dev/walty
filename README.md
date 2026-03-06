@@ -1,17 +1,17 @@
 <div align="center">
   <a href="#">
-    <img src="public/readme/banner.jpg" alt="Wallty" />
+    <img src="public/readme/banner.jpg" alt="Walty" />
   </a>
 
-  <h1>Wallty</h1>
+  <h1>Walty</h1>
 
-  <p>Wallty is a free and open-source crypto wallet dashboard focused on simplicity, privacy, and self-custody.</p>
+  <p>Walty is a free and open-source crypto wallet dashboard focused on simplicity, privacy, and self-custody.</p>
 </div>
 
 ---
-Wallty makes managing your crypto assets straightforward. Create a secure wallet, view your portfolio across multiple chains, send tokens, and swap assets—all while maintaining complete control over your private keys. The entire application can be self-hosted on your own infrastructure.
+Walty makes managing your crypto assets straightforward. Create a secure wallet, view your portfolio across multiple chains, send tokens, and swap assets. All while maintaining complete control over your private keys. The entire application can be self-hosted on your own infrastructure.
 
-Built with privacy and security as core principles, Wallty ensures your seed phrase never leaves your browser. The mnemonic is encrypted locally and stored only in your browser's localStorage. The server never sees your private keys, and all transaction signing happens client-side.
+Built with privacy and security as core principles, Walty ensures your seed phrase never leaves your browser. The mnemonic is encrypted locally and stored only in your browser's localStorage. The server never sees your private keys, and all transaction signing happens client-side.
 
 ## Features
 
@@ -63,7 +63,7 @@ Built with privacy and security as core principles, Wallty ensures your seed phr
 
 ## Quick Start
 
-The quickest way to run Wallty locally:
+The quickest way to run Walty locally:
 
 ```bash
 # Clone the repository
@@ -77,11 +77,11 @@ docker compose up --build
 open http://localhost:3000
 ```
 
-Migrations run automatically on container startup—no manual steps needed. The entrypoint script waits for PostgreSQL to be ready, applies database migrations, then starts the application.
+Migrations run automatically on container startup. No manual steps needed. The entrypoint script waits for PostgreSQL to be ready, applies database migrations, then starts the application.
 
 ## Tech Stack
 
-Wallty is built with Next.js 16, TypeScript, and Tailwind CSS. The wallet functionality uses viem for Ethereum interactions and the Web Crypto API for encryption. The backend uses PostgreSQL with Drizzle ORM, and authentication relies on JWT tokens stored in HttpOnly cookies. Token swaps integrate with the 0x Protocol API.
+Walty is built with Next.js 16, TypeScript, and Tailwind CSS. The wallet functionality uses viem for Ethereum interactions and the Web Crypto API for encryption. The backend uses PostgreSQL with Drizzle ORM, and authentication relies on JWT tokens stored in HttpOnly cookies. Token swaps integrate with the 0x Protocol API.
 
 ## Development
 
@@ -89,11 +89,11 @@ This project does not use `next dev` in development mode. Due to strict Content 
 
 ## Security
 
-Wallty implements multiple layers of security. The server never sees your mnemonic—seed phrases are generated, encrypted, and stored entirely in the browser. Authentication uses JWT tokens stored in HttpOnly cookies, and rate limiting prevents brute-force attacks. Content Security Policy is enforced with per-request nonces, and all transaction signing happens client-side.
+Walty implements multiple layers of security. The server never sees your mnemonic. Seed phrases are generated, encrypted, and stored entirely in the browser. Authentication uses JWT tokens stored in HttpOnly cookies, and rate limiting prevents brute-force attacks. Content Security Policy is enforced with per-request nonces, and all transaction signing happens client-side.
 
 ## Self-Hosting
 
-Wallty can be self-hosted using Docker. The stack includes PostgreSQL for storing user accounts, linked addresses, and transaction history. The application runs in a Node.js container with automatic database migrations on startup.
+Walty can be self-hosted using Docker. The stack includes PostgreSQL for storing user accounts, linked addresses, and transaction history. The application runs in a Node.js container with automatic database migrations on startup.
 
 Build from source:
 
