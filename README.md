@@ -2,7 +2,6 @@
   <a href="#">
     <img src="public/readme/banner.jpg" alt="Wallty" />
   </a>
-
   <h1>Wallty</h1>
 
   <p>Wallty is a free and open-source crypto wallet dashboard focused on simplicity, privacy, and self-custody.</p>
