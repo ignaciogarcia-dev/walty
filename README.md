@@ -1,5 +1,5 @@
 <div align="center">
-  <a href="">
+  <a href="#">
     <img src="public/readme/banner.jpg" alt="Wallty" />
   </a>
 
