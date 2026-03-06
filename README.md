@@ -61,6 +61,20 @@ Built with privacy and security as core principles, Walty ensures your seed phra
 - ENS name resolution for Ethereum addresses
 - Contact management for saved addresses
 
+## Requirements
+
+**Required:**
+- [Docker](https://www.docker.com/get-started) (version 20.10 or later)
+- [Docker Compose](https://docs.docker.com/compose/install/) (version 2.0 or later, usually included with Docker Desktop)
+- Git (to clone the repository)
+
+**Optional:**
+- `openssl` (for generating secure random strings - usually pre-installed on Linux/Mac, or use any online random string generator)
+
+**Not required:**
+- Node.js, pnpm, or any other build tools (everything builds inside Docker containers)
+- PostgreSQL (runs in a Docker container)
+
 ## Quick Start
 
 The quickest way to run Walty locally:
@@ -69,6 +83,15 @@ The quickest way to run Walty locally:
 # Clone the repository
 git clone https://github.com/ignaciogarcia-dev/walty.git
 cd walty
+
+# Copy the environment variables template
+cp .env.example .env
+
+# Edit .env and set your JWT_SECRET and SERVER_PEPPER
+# Generate secure random strings (choose one method):
+# - Linux/Mac: openssl rand -base64 32
+# - Online: Use any secure random string generator (64+ characters recommended)
+# - Or manually create long random strings
 
 # Build and start all services
 docker compose up --build
@@ -98,7 +121,24 @@ Walty can be self-hosted using Docker. The stack includes PostgreSQL for storing
 Build from source:
 
 ```bash
+# Copy the environment variables template
+cp .env.example .env
+
+# Edit .env and configure the required variables:
+# - DATABASE_URL: Already configured for Docker Compose
+# - JWT_SECRET: Generate with: openssl rand -base64 32
+# - SERVER_PEPPER: Generate with: openssl rand -base64 32
+# - NEXT_PUBLIC_RPC_URL: Optional, for custom RPC endpoint
+# - ZEROX_API_KEY: Optional, for token swaps
+
 docker compose up --build
 ```
 
-Environment variables required: `DATABASE_URL`, `JWT_SECRET`, and optionally `NEXT_PUBLIC_RPC_URL` and `ZEROX_API_KEY`.
+**Required environment variables:**
+- `DATABASE_URL`: PostgreSQL connection string (default: `postgresql://wallet:wallet@db:5432/wallet`)
+- `JWT_SECRET`: Secret key for JWT token signing
+- `SERVER_PEPPER`: Cryptographic pepper for wallet challenge generation
+
+**Optional environment variables:**
+- `NEXT_PUBLIC_RPC_URL`: Custom RPC URL for Ethereum interactions
+- `ZEROX_API_KEY`: API key for 0x Protocol (token swaps)
