@@ -6,13 +6,14 @@ export function middleware(request: NextRequest) {
   const hasToken = request.cookies.has("token")
 
   if (pathname === "/") {
-    return NextResponse.redirect(new URL(hasToken ? "/dashboard" : "/login", request.url))
+    return NextResponse.redirect(new URL(hasToken ? "/dashboard" : "/onboarding", request.url))
+  }
+  // Legacy /login — redirect to onboarding
+  if (pathname === "/login") {
+    return NextResponse.redirect(new URL(hasToken ? "/dashboard" : "/onboarding", request.url))
   }
   if (pathname.startsWith("/dashboard") && !hasToken) {
-    return NextResponse.redirect(new URL("/login", request.url))
-  }
-  if (pathname === "/login" && hasToken) {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
+    return NextResponse.redirect(new URL("/onboarding", request.url))
   }
 
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64")

@@ -23,7 +23,17 @@
       "Bash(git commit -m \"Add FK constraints and UNIQUE\\(user_id, address\\) to schema\")",
       "Bash(/home/ignacio/workspace/walty/docs/files.md:*)",
       "Bash(grep -n \"### \\\\`components/dashboard-sidebar\\\\|### \\\\`components/locale/combobox\\\\|### \\\\`components/theme/combobox\\\\|### \\\\`components/locale/selector\\\\|### \\\\`components/theme/selector\" /home/ignacio/workspace/walty/docs/files.md)",
-      "Bash(grep -n \"### \\\\`components/\" /home/ignacio/workspace/walty/docs/files.md)"
+      "Bash(grep -n \"### \\\\`components/\" /home/ignacio/workspace/walty/docs/files.md)",
+      "Bash(docker compose ps)",
+      "Bash(docker exec walty-db-1 psql -U wallet -d wallet -c \"\\\\dt\")",
+      "Bash(docker exec walty-db-1 psql -U wallet -d wallet -c \"SELECT * FROM drizzle.__drizzle_migrations\")",
+      "Bash(docker exec walty-app-1 ls drizzle/)",
+      "Bash(docker exec walty-app-1 cat drizzle/meta/_journal.json)",
+      "Bash(docker exec -e DATABASE_URL=postgresql://wallet:wallet@db:5432/wallet walty-app-1 pnpm drizzle-kit migrate)",
+      "Bash(docker exec walty-db-1 psql -U wallet -d wallet -c \"SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY id\")",
+      "Bash(docker exec walty-db-1 psql -U wallet -d wallet -c \"CREATE TABLE \"\"wallet_backups\"\" \\(\"\"id\"\" serial PRIMARY KEY NOT NULL, \"\"user_id\"\" integer NOT NULL REFERENCES \"\"users\"\"\\(\"\"id\"\"\\) ON DELETE CASCADE, \"\"wallet_address\"\" text NOT NULL, \"\"ciphertext\"\" text NOT NULL, \"\"iv\"\" text NOT NULL, \"\"salt\"\" text NOT NULL, \"\"version\"\" integer NOT NULL, \"\"created_at\"\" timestamp DEFAULT now\\(\\), \"\"updated_at\"\" timestamp DEFAULT now\\(\\)\\)\")",
+      "Bash(docker exec walty-app-1 node -e \":*)",
+      "Bash(docker exec walty-db-1 psql -U wallet -d wallet -c \"INSERT INTO drizzle.__drizzle_migrations \\(hash, created_at\\) VALUES \\(''7b078cbf702b35cbffd500994420cb3a667d6d06ef1827245a216c0390ca8689'', 1772200000000\\)\")"
     ]
   }
 }

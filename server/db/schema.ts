@@ -42,3 +42,22 @@ export const contacts = pgTable("contacts", {
   address: text("address").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 })
+
+export const userProfiles = pgTable("user_profiles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  username: text("username").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+})
+
+export const walletBackups = pgTable("wallet_backups", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  walletAddress: text("wallet_address").notNull(),
+  ciphertext: text("ciphertext").notNull(),
+  iv: text("iv").notNull(),
+  salt: text("salt").notNull(),
+  version: integer("version").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+})

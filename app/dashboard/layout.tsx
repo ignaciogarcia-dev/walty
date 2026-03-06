@@ -1,5 +1,6 @@
 "use client"
 import { useRef, useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Globe, Palette } from "@phosphor-icons/react"
 import { useWallet } from "@/hooks/useWallet"
 import { WalletContext } from "@/components/wallet/context"
@@ -28,13 +29,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 	const { t } = useTranslation()
 	const { theme, setTheme } = useTheme()
 	const { locale, setLocale } = useLocale()
+	const router = useRouter()
 	const wallet = useWallet()
-	const { status, password, setPassword, create, unlock, lock, exportWallet, importWallet } = wallet
+	const { status, password, setPassword, unlock, lock, exportWallet, importWallet, createBackup } = wallet
 
 	const fileInputRef = useRef<HTMLInputElement>(null)
 	const [unlockError, setUnlockError] = useState<string | null>(null)
-	const [createError, setCreateError] = useState<string | null>(null)
 	const [importError, setImportError] = useState<string | null>(null)
+
+	// PIN backup setup state (shown in unlocked toolbar)
+	const [showPinSetup, setShowPinSetup] = useState(false)
+	const [backupPin, setBackupPin] = useState("")
+	const [backupError, setBackupError] = useState<string | null>(null)
+	const [backupSuccess, setBackupSuccess] = useState(false)
+	const [savingBackup, setSavingBackup] = useState(false)
+
+	// Redirect states that now live in onboarding
+	useEffect(() => {
+		if (status === "new") router.replace("/onboarding/create-wallet")
+		if (status === "recoverable") router.replace("/onboarding/recover")
+	}, [status, router])
+
+	// Auto-unlock after onboarding: the create-pin page leaves the PIN in
+	// sessionStorage so the first dashboard load doesn't ask for it again.
+	useEffect(() => {
+		if (status !== "locked") return
+		const pending = sessionStorage.getItem("pending_unlock")
+		if (!pending) return
+		sessionStorage.removeItem("pending_unlock")
+		unlock(pending).catch(() => {})
+	}, [status]) // eslint-disable-line react-hooks/exhaustive-deps
+
+	useEffect(() => {
+		if (status !== "locked") setUnlockError(null)
+		setImportError(null)
+	}, [status])
 
 	function handleThemeChange(value: string) {
 		if (!isTheme(value)) return
@@ -46,11 +75,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 		setLocale(value as Locale)
 	}
 
-	useEffect(() => {
-		if (status !== "locked") setUnlockError(null)
-		if (status !== "new") setCreateError(null)
-		setImportError(null)
-	}, [status])
+	const handleCreateBackup = async () => {
+		setBackupError(null)
+		setBackupSuccess(false)
+		setSavingBackup(true)
+		try {
+			await createBackup(backupPin)
+			setBackupSuccess(true)
+			setBackupPin("")
+			setTimeout(() => { setShowPinSetup(false); setBackupSuccess(false) }, 2000)
+		} catch (err) {
+			setBackupError(err instanceof Error ? err.message : t("error-creating-backup"))
+		} finally {
+			setSavingBackup(false)
+		}
+	}
 
 	async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
 		const file = e.target.files?.[0]
@@ -64,19 +103,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 		}
 	}
 
-	const handleCreate = async () => {
-		if (password.length < 8) {
-			setCreateError(t("password-too-short"))
-			return
-		}
-		setCreateError(null)
-		try {
-			await create(password)
-		} catch (err) {
-			setCreateError(err instanceof Error ? err.message : t("error-creating-wallet"))
-		}
-	}
-
 	const handleUnlock = async () => {
 		setUnlockError(null)
 		try {
@@ -86,7 +112,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 		}
 	}
 
-	// Settings toggles reused in both gate screens
+	// Settings toggles
 	const settingsButtons = (
 		<div className="absolute top-4 right-4 flex items-center gap-2">
 			<DropdownMenu>
@@ -126,57 +152,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 		</div>
 	)
 
-	if (status === "loading") {
+	if (status === "loading" || status === "new" || status === "recoverable") {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-background">
 				<div className="flex flex-col items-center gap-3 text-muted-foreground">
 					<Spinner className="size-6" />
 					<span className="text-sm">{t("loading")}</span>
-				</div>
-			</div>
-		)
-	}
-
-	if (status === "new") {
-		return (
-			<div className="min-h-screen flex items-center justify-center bg-background px-4">
-				<div className="w-full max-w-sm rounded-xl border bg-card p-6 shadow-sm flex flex-col gap-5 relative">
-					{settingsButtons}
-
-					<div>
-						<h2 className="text-lg font-semibold text-foreground">{t("create-wallet")}</h2>
-						<p className="mt-1 text-sm text-muted-foreground">{t("create-wallet-description")}</p>
-					</div>
-
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="new-password">{t("wallet-password")}</Label>
-						<Input
-							id="new-password"
-							type="password"
-							placeholder="••••••••"
-							value={password}
-							onChange={(e) => { setPassword(e.target.value); if (createError) setCreateError(null) }}
-							onKeyDown={(e) => e.key === "Enter" && password.length >= 8 && handleCreate()}
-							autoComplete="new-password"
-						/>
-						{createError && <p className="text-xs text-destructive">{createError}</p>}
-					</div>
-
-					<Button onClick={handleCreate} disabled={password.length < 8} className="w-full">
-						{t("create")}
-					</Button>
-
-					<div className="flex items-center gap-3">
-						<Separator className="flex-1" />
-						<span className="text-xs text-muted-foreground">{t("or")}</span>
-						<Separator className="flex-1" />
-					</div>
-
-					<input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
-					<Button variant="outline" onClick={() => fileInputRef.current?.click()} className="w-full">
-						{t("import-backup")}
-					</Button>
-					{importError && <p className="text-xs text-destructive text-center">{importError}</p>}
 				</div>
 			</div>
 		)
@@ -203,6 +184,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 							onChange={(e) => { setPassword(e.target.value); if (unlockError) setUnlockError(null) }}
 							onKeyDown={(e) => e.key === "Enter" && password && handleUnlock()}
 							autoComplete="current-password"
+							autoFocus
 						/>
 						{unlockError && <p className="text-xs text-destructive">{unlockError}</p>}
 					</div>
@@ -239,10 +221,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 						<Button size="sm" variant="ghost" onClick={exportWallet}>
 							{t("export-backup")}
 						</Button>
+						<Button size="sm" variant="ghost" onClick={() => { setShowPinSetup((v) => !v); setBackupPin(""); setBackupError(null); setBackupSuccess(false) }}>
+							{t("setup-pin-backup")}
+						</Button>
 						<Button size="sm" variant="outline" onClick={lock}>
 							{t("lock")}
 						</Button>
 					</div>
+
+					{showPinSetup && (
+						<div className="border-b bg-muted/40 px-4 py-4">
+							<p className="text-sm text-muted-foreground mb-3">{t("setup-pin-backup-description")}</p>
+							<div className="flex items-end gap-3">
+								<div className="flex flex-col gap-1.5 flex-1">
+									<Label htmlFor="backup-pin">{t("recovery-pin")}</Label>
+									<Input
+										id="backup-pin"
+										type="password"
+										inputMode="numeric"
+										placeholder="····"
+										maxLength={6}
+										value={backupPin}
+										onChange={(e) => { setBackupPin(e.target.value.replace(/\D/g, "")); setBackupError(null); setBackupSuccess(false) }}
+										onKeyDown={(e) => e.key === "Enter" && backupPin.length >= 4 && handleCreateBackup()}
+									/>
+								</div>
+								<Button size="sm" onClick={handleCreateBackup} disabled={savingBackup || backupPin.length < 4}>
+									{savingBackup ? t("setting-up-backup") : t("save")}
+								</Button>
+							</div>
+							{backupError && <p className="mt-2 text-xs text-destructive">{backupError}</p>}
+							{backupSuccess && <p className="mt-2 text-xs text-green-600 dark:text-green-400">{t("backup-created")}</p>}
+						</div>
+					)}
+
 					<div className="flex-1 overflow-auto">
 						{children}
 					</div>
