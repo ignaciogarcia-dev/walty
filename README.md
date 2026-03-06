@@ -61,6 +61,20 @@ Built with privacy and security as core principles, Walty ensures your seed phra
 - ENS name resolution for Ethereum addresses
 - Contact management for saved addresses
 
+## Requirements
+
+**Required:**
+- [Docker](https://www.docker.com/get-started) (version 20.10 or later)
+- [Docker Compose](https://docs.docker.com/compose/install/) (version 2.0 or later, usually included with Docker Desktop)
+- Git (to clone the repository)
+
+**Optional:**
+- `openssl` (for generating secure random strings - usually pre-installed on Linux/Mac, or use any online random string generator)
+
+**Not required:**
+- Node.js, pnpm, or any other build tools (everything builds inside Docker containers)
+- PostgreSQL (runs in a Docker container)
+
 ## Quick Start
 
 The quickest way to run Walty locally:
@@ -74,9 +88,10 @@ cd walty
 cp .env.example .env
 
 # Edit .env and set your JWT_SECRET and SERVER_PEPPER
-# Generate secure random strings:
-# openssl rand -base64 32  # Use this for JWT_SECRET
-# openssl rand -base64 32  # Use this for SERVER_PEPPER
+# Generate secure random strings (choose one method):
+# - Linux/Mac: openssl rand -base64 32
+# - Online: Use any secure random string generator (64+ characters recommended)
+# - Or manually create long random strings
 
 # Build and start all services
 docker compose up --build
