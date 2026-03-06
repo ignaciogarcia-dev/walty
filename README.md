@@ -70,6 +70,14 @@ The quickest way to run Walty locally:
 git clone https://github.com/ignaciogarcia-dev/walty.git
 cd walty
 
+# Copy the environment variables template
+cp .env.example .env
+
+# Edit .env and set your JWT_SECRET and SERVER_PEPPER
+# Generate secure random strings:
+# openssl rand -base64 32  # Use this for JWT_SECRET
+# openssl rand -base64 32  # Use this for SERVER_PEPPER
+
 # Build and start all services
 docker compose up --build
 
@@ -98,7 +106,24 @@ Walty can be self-hosted using Docker. The stack includes PostgreSQL for storing
 Build from source:
 
 ```bash
+# Copy the environment variables template
+cp .env.example .env
+
+# Edit .env and configure the required variables:
+# - DATABASE_URL: Already configured for Docker Compose
+# - JWT_SECRET: Generate with: openssl rand -base64 32
+# - SERVER_PEPPER: Generate with: openssl rand -base64 32
+# - NEXT_PUBLIC_RPC_URL: Optional, for custom RPC endpoint
+# - ZEROX_API_KEY: Optional, for token swaps
+
 docker compose up --build
 ```
 
-Environment variables required: `DATABASE_URL`, `JWT_SECRET`, and optionally `NEXT_PUBLIC_RPC_URL` and `ZEROX_API_KEY`.
+**Required environment variables:**
+- `DATABASE_URL`: PostgreSQL connection string (default: `postgresql://wallet:wallet@db:5432/wallet`)
+- `JWT_SECRET`: Secret key for JWT token signing
+- `SERVER_PEPPER`: Cryptographic pepper for wallet challenge generation
+
+**Optional environment variables:**
+- `NEXT_PUBLIC_RPC_URL`: Custom RPC URL for Ethereum interactions
+- `ZEROX_API_KEY`: API key for 0x Protocol (token swaps)
