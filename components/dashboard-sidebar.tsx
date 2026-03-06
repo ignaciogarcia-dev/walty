@@ -1,5 +1,5 @@
 "use client"
-import { AddressBook, ArrowSquareOut, ArrowsLeftRight, ClockCounterClockwise, Gear, Globe, House, Palette, PaperPlaneTilt } from "@phosphor-icons/react"
+import { AddressBook, ArrowsLeftRight, ClockCounterClockwise, House, PaperPlaneTilt } from "@phosphor-icons/react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -16,24 +16,8 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useTheme } from "@/components/theme/provider"
-import { useLocale } from "@/components/locale/provider"
-import { isTheme } from "@/utils/theme"
-import { isLocale, localeMap, type Locale } from "@/utils/locale"
 import { useTranslation } from "@/hooks/useTranslation"
+import { UserMenu } from "@/components/user/user-menu"
 
 type SidebarItem = {
   icon: React.ReactNode
@@ -44,8 +28,6 @@ type SidebarItem = {
 export function DashboardSidebar() {
   const pathname = usePathname()
   const { t } = useTranslation()
-  const { theme, setTheme } = useTheme()
-  const { locale, setLocale } = useLocale()
 
   const appSidebarItems: SidebarItem[] = [
     {
@@ -74,16 +56,6 @@ export function DashboardSidebar() {
       href: "/dashboard/contacts",
     },
   ]
-
-  function handleThemeChange(value: string) {
-    if (!isTheme(value)) return
-    setTheme(value)
-  }
-
-  function handleLocaleChange(value: string) {
-    if (!isLocale(value)) return
-    setLocale(value as Locale)
-  }
 
   return (
     <>
@@ -130,66 +102,7 @@ export function DashboardSidebar() {
         <SidebarSeparator />
 
         <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <SidebarMenuButton tooltip={t("settings")}>
-                    <Gear />
-                    <span className="shrink-0 transition-[margin,opacity] duration-200 ease-in-out group-data-[collapsible=icon]:-ml-8 group-data-[collapsible=icon]:opacity-0">
-                      {t("settings")}
-                    </span>
-                  </SidebarMenuButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" side="top">
-                  <DropdownMenuGroup>
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        <Globe />
-                        {t("language")}
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="max-h-[400px] overflow-y-auto">
-                        <DropdownMenuRadioGroup value={locale} onValueChange={handleLocaleChange}>
-                          {Object.entries(localeMap).map(([value, label]) => (
-                            <DropdownMenuRadioItem key={value} value={value}>
-                              {label}
-                            </DropdownMenuRadioItem>
-                          ))}
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        <Palette />
-                        {t("theme")}
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        <DropdownMenuRadioGroup value={theme} onValueChange={handleThemeChange}>
-                          <DropdownMenuRadioItem value="light">{t("light")}</DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value="dark">{t("dark")}</DropdownMenuRadioItem>
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  </DropdownMenuGroup>
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem asChild>
-                    <a
-                      href="https://etherscan.io"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2"
-                    >
-                      <ArrowSquareOut />
-                      Etherscan
-                    </a>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          <UserMenu />
         </SidebarFooter>
 
         <SidebarRail />

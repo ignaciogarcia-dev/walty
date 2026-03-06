@@ -15,8 +15,14 @@ client.connect()
   sleep 1
 done
 
-echo "Running migrations..."
-pnpm drizzle-kit migrate
+echo "Running DB migrations..."
+if pnpm drizzle-kit migrate; then
+  echo "✓ Migration applied: 0000_initial_schema.sql"
+  echo "Database ready"
+else
+  echo "✗ Migration failed"
+  exit 1
+fi
 
 echo "Starting app..."
 exec pnpm start

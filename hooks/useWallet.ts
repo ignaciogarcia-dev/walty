@@ -2,14 +2,14 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { formatEther, isAddress, parseEther } from "viem"
 import { createWallet } from "@/lib/wallet"
-import { encryptSeed, decryptSeed } from "@/lib/crypto"
+import { encryptSeed, decryptSeed, encryptSeedWithPin, decryptSeedWithPin, type PinEncryptedSeed } from "@/lib/crypto"
 import { getBalance, publicClient } from "@/lib/eth"
 import { getWalletClient } from "@/lib/signer"
 import { validateTx } from "@/lib/wallet-core"
 import { getStoredWallet, saveWallet, type StoredWallet } from "@/lib/wallet-store"
 import { determineWalletStatus } from "@/lib/wallet-status"
 
-export type WalletStatus = "loading" | "new" | "locked" | "unlocked"
+export type WalletStatus = "loading" | "new" | "locked" | "unlocked" | "recoverable"
 export type TxStatus = "idle" | "pending" | "confirmed" | "error" | "pending_on_chain"
 
 export type TxRecord = {
@@ -171,6 +171,69 @@ export function useWallet() {
     setStatus("locked")
   }
 
+  async function fetchChallenge(): Promise<string> {
+    const res = await fetch("/api/wallet/challenge")
+    if (!res.ok) throw new Error("Error obteniendo challenge del servidor")
+    const { challenge } = await res.json()
+    return challenge
+  }
+
+  // Creates a PIN-encrypted backup of the seed on the server.
+  // Seed is decrypted locally using the current wallet password, then re-encrypted with PIN+challenge.
+  // The server never sees the seed or the PIN.
+  async function createBackup(pin: string): Promise<void> {
+    if (!password || !address) throw new Error("Wallet bloqueada")
+    if (pin.length < 4) throw new Error("El PIN debe tener al menos 4 dígitos")
+
+    const stored = getStoredWallet()!
+    const mnemonic = await decryptSeed(stored.encrypted, password)
+
+    const challenge = await fetchChallenge()
+    const pinEncrypted = await encryptSeedWithPin(mnemonic, pin, challenge)
+
+    const res = await fetch("/api/wallet/backup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ciphertext: pinEncrypted.ciphertext,
+        iv: pinEncrypted.iv,
+        salt: pinEncrypted.salt,
+        version: pinEncrypted.version,
+        walletAddress: address,
+      }),
+    })
+
+    if (!res.ok) throw new Error("Error guardando backup en el servidor")
+  }
+
+  // Recovers the wallet from the server backup using a PIN.
+  // Downloads the encrypted backup, decrypts with PIN+challenge, then re-encrypts locally
+  // with a new local password and saves to localStorage.
+  async function recoverWallet(pin: string, newPassword: string): Promise<void> {
+    if (newPassword.length < 8) throw new Error("La contraseña debe tener al menos 8 caracteres")
+
+    const [backupRes, challenge] = await Promise.all([
+      fetch("/api/wallet/backup").then((r) => r.json()),
+      fetchChallenge(),
+    ])
+
+    const backup = backupRes.backup as PinEncryptedSeed | null
+    if (!backup) throw new Error("No se encontró backup en el servidor")
+
+    const backupFull = backupRes.backup as PinEncryptedSeed & { walletAddress: string }
+    const mnemonic = await decryptSeedWithPin(backupFull, pin, challenge)
+
+    // Re-encrypt locally with the new password and save
+    const encrypted = await encryptSeed(mnemonic, newPassword)
+    const addr = backupFull.walletAddress
+
+    saveWallet({ encrypted, address: addr })
+    setAddress(addr)
+    setPassword(newPassword)
+    setStatus("unlocked")
+    loadBalance(addr)
+  }
+
   // 4.1: Returns estimated gas cost in ETH string for the confirm modal
   async function estimateGasCost(to: string, amount: string): Promise<string> {
     if (!address || !isAddress(to) || Number(amount) <= 0) {
@@ -291,6 +354,8 @@ export function useWallet() {
     lock,
     exportWallet,
     importWallet,
+    createBackup,
+    recoverWallet,
     estimateGasCost,
     send,
     txStatus,

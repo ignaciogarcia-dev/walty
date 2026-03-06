@@ -53,15 +53,27 @@ export function clearStaleWallet(linkedAddresses: LinkedAddress[]): void {
   }
 }
 
+async function hasServerBackup(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/wallet/backup")
+    if (!res.ok) return false
+    const { backup } = await res.json()
+    return backup !== null
+  } catch {
+    return false
+  }
+}
+
 /**
  * Determines the initial wallet status based on:
  * - User's linked addresses in the database
  * - Wallet stored in localStorage
- * 
- * @returns "new" if user needs to create/import a wallet, "locked" if wallet exists and is locked
+ * - Server-side encrypted backup
+ *
+ * @returns "new" | "locked" | "recoverable"
  */
 export async function determineWalletStatus(): Promise<
-  "new" | "locked"
+  "new" | "locked" | "recoverable"
 > {
   try {
     const linkedAddresses = await fetchLinkedAddresses()
@@ -75,7 +87,7 @@ export async function determineWalletStatus(): Promise<
 
     // User has linked addresses - verify stored wallet belongs to them
     clearStaleWallet(linkedAddresses)
-    
+
     const stored = getStoredWallet()
     if (stored) {
       // Verify the stored wallet belongs to this user
@@ -86,8 +98,10 @@ export async function determineWalletStatus(): Promise<
       clearStoredWallet()
     }
 
-    // User has linked addresses but no wallet in localStorage
-    // They can import their backup or create a new wallet
+    // User has linked address but no local wallet — check for server backup
+    const backupExists = await hasServerBackup()
+    if (backupExists) return "recoverable"
+
     return "new"
   } catch (err) {
     // On error, fallback to localStorage check
