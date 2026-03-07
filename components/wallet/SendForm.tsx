@@ -24,11 +24,25 @@ import { cn } from "@/utils/style"
 function TokenSelectList({
 	positions,
 	onSelect,
+	search,
 }: {
 	positions: TokenPosition[]
 	onSelect: (position: TokenPosition) => void
+	search: string
 }) {
 	const { t } = useTranslation()
+
+	// Filter positions based on search query
+	const filteredPositions = positions.filter((position) => {
+		if (!search.trim()) return true
+
+		const searchLower = search.toLowerCase().trim()
+		const symbolMatch = position.token.symbol.toLowerCase().includes(searchLower)
+		const nameMatch = position.token.name.toLowerCase().includes(searchLower)
+		const addressMatch = position.token.address?.toLowerCase().includes(searchLower) ?? false
+
+		return symbolMatch || nameMatch || addressMatch
+	})
 
 	if (positions.length === 0) {
 		return (
@@ -38,9 +52,17 @@ function TokenSelectList({
 		)
 	}
 
+	if (filteredPositions.length === 0) {
+		return (
+			<p className="text-sm text-muted-foreground text-center py-8">
+				No tokens found
+			</p>
+		)
+	}
+
 	return (
 		<div className="flex flex-col gap-1">
-			{positions.map((position) => (
+			{filteredPositions.map((position) => (
 				<button
 					key={position.token.symbol}
 					onClick={() => onSelect(position)}
@@ -85,6 +107,7 @@ export function SendForm({
 }) {
 	const { t } = useTranslation()
 	const [selectedPosition, setSelectedPosition] = useState<TokenPosition | null>(null)
+	const [search, setSearch] = useState("")
 	const [to, setTo] = useState("")
 	const [amount, setAmount] = useState("")
 	const [showModal, setShowModal] = useState(false)
@@ -131,13 +154,14 @@ export function SendForm({
 		return () => {
 			if (resolveDebounce.current) clearTimeout(resolveDebounce.current)
 		}
-	// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [to])
 
 	useEffect(() => {
 		if (txStatus === "confirmed") {
 			setTo("")
 			setAmount("")
+			setSearch("")
 			setResolvedAddress(null)
 			setResolvedUsername(null)
 			setSelectedPosition(null)
@@ -167,6 +191,7 @@ export function SendForm({
 
 	function handleBack() {
 		setSelectedPosition(null)
+		setSearch("")
 		setTo("")
 		setAmount("")
 		setResolvedAddress(null)
@@ -183,7 +208,13 @@ export function SendForm({
 		return (
 			<div className="rounded-xl border bg-card p-6 flex flex-col gap-4">
 				<h2 className="font-semibold text-foreground">{t("select-token")}</h2>
-				<TokenSelectList positions={positions} onSelect={setSelectedPosition} />
+				<Input
+					type="text"
+					placeholder="Token name or contract address"
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+				/>
+				<TokenSelectList positions={positions} onSelect={setSelectedPosition} search={search} />
 			</div>
 		)
 	}
