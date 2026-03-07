@@ -87,6 +87,14 @@ export const en = {
 	"resolving-ens": "Resolving ENS…",
 	"ens-not-found": "ENS name not found",
 
+	// Send flow
+	"select-token": "Select token",
+	"recipient": "Recipient",
+	"username-or-address": "@username or 0x address",
+	"resolving-username": "Resolving…",
+	"username-not-found": "Username not found",
+	"no-tokens-with-balance": "No tokens with balance",
+
 	// Login/Register
 	"login": "Login",
 	"register": "Register",

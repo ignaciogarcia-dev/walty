@@ -1,7 +1,10 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
 import { isAddress } from "viem"
+import { ArrowLeft } from "@phosphor-icons/react"
 import type { TxStatus } from "@/hooks/useWallet"
+import type { TokenPosition } from "@/hooks/usePortfolio"
+import type { Token } from "@/lib/tokens"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,9 +19,55 @@ import {
 } from "@/components/ui/dialog"
 import { TxStatus as TxStatusDisplay } from "./TxStatus"
 import { useTranslation } from "@/hooks/useTranslation"
-import { resolveEns } from "@/lib/ens"
+import { cn } from "@/utils/style"
+
+function TokenSelectList({
+	positions,
+	onSelect,
+}: {
+	positions: TokenPosition[]
+	onSelect: (position: TokenPosition) => void
+}) {
+	const { t } = useTranslation()
+
+	if (positions.length === 0) {
+		return (
+			<p className="text-sm text-muted-foreground text-center py-8">
+				{t("loading")}
+			</p>
+		)
+	}
+
+	return (
+		<div className="flex flex-col gap-1">
+			{positions.map((position) => (
+				<button
+					key={position.token.symbol}
+					onClick={() => onSelect(position)}
+					className="flex items-center gap-3 rounded-lg p-3 text-left hover:bg-accent transition-colors"
+				>
+					<div className="size-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+						<span className="text-xs font-bold text-muted-foreground">
+							{position.token.symbol.slice(0, 4)}
+						</span>
+					</div>
+					<div>
+						<p className="font-medium text-sm">{position.token.symbol}</p>
+						<p className="text-xs text-muted-foreground">{position.token.name}</p>
+					</div>
+					<div className="ml-auto text-right">
+						<p className="text-sm font-mono">
+							{parseFloat(position.balance).toFixed(4)}
+						</p>
+					</div>
+				</button>
+			))}
+		</div>
+	)
+}
 
 export function SendForm({
+	positions,
 	onEstimateGas,
 	onSend,
 	txStatus,
@@ -26,47 +75,61 @@ export function SendForm({
 	txError,
 	onResetTx,
 }: {
-	onEstimateGas: (to: string, amount: string) => Promise<string>
-	onSend: (to: string, amount: string) => Promise<void>
+	positions: TokenPosition[]
+	onEstimateGas: (token: Token, to: string, amount: string) => Promise<string>
+	onSend: (token: Token, to: string, amount: string) => Promise<void>
 	txStatus: TxStatus
 	txHash: string | null
 	txError: string | null
 	onResetTx: () => void
 }) {
 	const { t } = useTranslation()
+	const [selectedPosition, setSelectedPosition] = useState<TokenPosition | null>(null)
 	const [to, setTo] = useState("")
 	const [amount, setAmount] = useState("")
 	const [showModal, setShowModal] = useState(false)
 	const [gasEstimate, setGasEstimate] = useState<string | null>(null)
 	const [gasError, setGasError] = useState<string | null>(null)
-	const [ensResolving, setEnsResolving] = useState(false)
-	const [resolvedAddress, setResolvedAddress] = useState<`0x${string}` | null>(null)
-	const [ensError, setEnsError] = useState<string | null>(null)
-	const ensDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-	// ENS resolution — debounced 600ms, only when input looks like a name
+	// Username resolution state
+	const [usernameResolving, setUsernameResolving] = useState(false)
+	const [resolvedAddress, setResolvedAddress] = useState<`0x${string}` | null>(null)
+	const [resolvedUsername, setResolvedUsername] = useState<string | null>(null)
+	const [usernameError, setUsernameError] = useState<string | null>(null)
+	const resolveDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+
 	useEffect(() => {
 		setResolvedAddress(null)
-		setEnsError(null)
+		setUsernameError(null)
+		setResolvedUsername(null)
+		setUsernameResolving(false)
 
-		// Skip resolution if it's already a hex address or doesn't contain a dot
-		if (isAddress(to) || !to.includes(".")) return
+		if (!to.startsWith("@")) return
+		const username = to.slice(1).trim()
+		if (!username) return
 
-		if (ensDebounce.current) clearTimeout(ensDebounce.current)
-		setEnsResolving(true)
+		if (resolveDebounce.current) clearTimeout(resolveDebounce.current)
+		setUsernameResolving(true)
 
-		ensDebounce.current = setTimeout(async () => {
-			const addr = await resolveEns(to)
-			setEnsResolving(false)
-			if (addr) {
-				setResolvedAddress(addr)
-			} else {
-				setEnsError(t("ens-not-found"))
+		resolveDebounce.current = setTimeout(async () => {
+			try {
+				const res = await fetch(`/api/username/resolve?username=${encodeURIComponent(username)}`)
+				if (res.ok) {
+					const { address } = await res.json()
+					setResolvedAddress(address)
+					setResolvedUsername(username)
+				} else {
+					setUsernameError(t("username-not-found"))
+				}
+			} catch {
+				setUsernameError(t("username-not-found"))
+			} finally {
+				setUsernameResolving(false)
 			}
 		}, 600)
 
 		return () => {
-			if (ensDebounce.current) clearTimeout(ensDebounce.current)
+			if (resolveDebounce.current) clearTimeout(resolveDebounce.current)
 		}
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [to])
@@ -76,19 +139,20 @@ export function SendForm({
 			setTo("")
 			setAmount("")
 			setResolvedAddress(null)
+			setResolvedUsername(null)
+			setSelectedPosition(null)
 		}
 	}, [txStatus])
 
-	// Use resolved ENS address if available, otherwise use the raw input
-	const effectiveTo = resolvedAddress ?? to
+	const effectiveTo: string | null = resolvedAddress ?? (isAddress(to) ? to : null)
 
 	async function handleOpenModal() {
-		if (!effectiveTo || !amount) return
+		if (!effectiveTo || !amount || !selectedPosition) return
 		setGasEstimate(null)
 		setGasError(null)
 		setShowModal(true)
 		try {
-			const estimate = await onEstimateGas(effectiveTo, amount)
+			const estimate = await onEstimateGas(selectedPosition.token, effectiveTo, amount)
 			setGasEstimate(estimate)
 		} catch {
 			setGasError(t("could-not-estimate-gas"))
@@ -96,50 +160,90 @@ export function SendForm({
 	}
 
 	async function handleConfirm() {
+		if (!effectiveTo || !selectedPosition) return
 		setShowModal(false)
-		await onSend(effectiveTo, amount)
+		await onSend(selectedPosition.token, effectiveTo, amount)
+	}
+
+	function handleBack() {
+		setSelectedPosition(null)
+		setTo("")
+		setAmount("")
+		setResolvedAddress(null)
+		setResolvedUsername(null)
+		setUsernameError(null)
+		onResetTx()
 	}
 
 	const isBusy = txStatus === "pending" || txStatus === "pending_on_chain"
-	const canSubmit = !isBusy && !!effectiveTo && !!amount && !ensResolving && !ensError
+	const canSubmit = !isBusy && !!effectiveTo && !!amount && !usernameResolving && !usernameError
 
+	// Step 1 — token selection
+	if (!selectedPosition) {
+		return (
+			<div className="rounded-xl border bg-card p-6 flex flex-col gap-4">
+				<h2 className="font-semibold text-foreground">{t("select-token")}</h2>
+				<TokenSelectList positions={positions} onSelect={setSelectedPosition} />
+			</div>
+		)
+	}
+
+	const { token, balance } = selectedPosition
+
+	// Step 2 — send form
 	return (
 		<>
 			<div className="rounded-xl border bg-card p-6 flex flex-col gap-4">
-				<h2 className="font-semibold text-foreground">{t("send-eth")}</h2>
+				<div className="flex items-center gap-2">
+					<button
+						onClick={handleBack}
+						className="rounded-md p-1 hover:bg-accent transition-colors"
+						aria-label="Back"
+					>
+						<ArrowLeft className="size-4" />
+					</button>
+					<h2 className="font-semibold text-foreground">
+						{t("send")} {token.symbol}
+					</h2>
+					<Badge variant="outline" className="ml-auto font-mono text-xs">
+						{parseFloat(balance).toFixed(4)} {token.symbol}
+					</Badge>
+				</div>
 
 				<div className="flex flex-col gap-1.5">
-					<Label htmlFor="tx-to">{t("destination-address")}</Label>
+					<Label htmlFor="tx-to">{t("recipient")}</Label>
 					<Input
 						id="tx-to"
 						type="text"
-						placeholder="0x… or name.eth"
+						placeholder={t("username-or-address")}
 						value={to}
 						onChange={(e) => setTo(e.target.value)}
-						className="font-mono"
+						className={cn("font-mono", isAddress(to) && "text-sm")}
 					/>
-					{ensResolving && (
+					{usernameResolving && (
 						<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 							<Spinner className="size-3" />
-							{t("resolving-ens")}
+							{t("resolving-username")}
 						</div>
 					)}
-					{resolvedAddress && (
+					{resolvedAddress && resolvedUsername && (
 						<p className="text-xs text-muted-foreground font-mono break-all">
-							→ {resolvedAddress}
+							@{resolvedUsername} → {resolvedAddress}
 						</p>
 					)}
-					{ensError && (
-						<p className="text-xs text-destructive">{ensError}</p>
+					{usernameError && (
+						<p className="text-xs text-destructive">{usernameError}</p>
 					)}
 				</div>
 
 				<div className="flex flex-col gap-1.5">
-					<Label htmlFor="tx-amount">{t("amount-eth")}</Label>
+					<Label htmlFor="tx-amount">
+						{t("amount")} ({token.symbol})
+					</Label>
 					<Input
 						id="tx-amount"
 						type="text"
-						placeholder="0.001"
+						placeholder="0.00"
 						value={amount}
 						onChange={(e) => setAmount(e.target.value)}
 					/>
@@ -152,7 +256,7 @@ export function SendForm({
 							{t("sending")}
 						</>
 					) : (
-						t("send-eth")
+						`${t("send")} ${token.symbol}`
 					)}
 				</Button>
 
@@ -178,15 +282,17 @@ export function SendForm({
 
 						<div className="flex flex-col gap-0.5">
 							<p className="text-xs text-muted-foreground">{t("destination")}</p>
-							{to !== effectiveTo && (
-								<p className="text-xs text-muted-foreground">{to}</p>
+							{resolvedUsername && (
+								<p className="text-xs text-muted-foreground">@{resolvedUsername}</p>
 							)}
 							<p className="font-mono text-sm break-all">{effectiveTo}</p>
 						</div>
 
 						<div className="flex flex-col gap-0.5">
 							<p className="text-xs text-muted-foreground">{t("amount")}</p>
-							<p className="font-mono font-semibold">{amount} ETH</p>
+							<p className="font-mono font-semibold">
+								{amount} {token.symbol}
+							</p>
 						</div>
 
 						<div className="flex flex-col gap-0.5">

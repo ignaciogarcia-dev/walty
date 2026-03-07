@@ -1,7 +1,8 @@
 "use client"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { formatEther, isAddress, parseEther } from "viem"
+import { formatEther, isAddress, parseEther, parseUnits, erc20Abi } from "viem"
 import { createWallet } from "@/lib/wallet"
+import type { Token } from "@/lib/tokens"
 import { encryptSeed, decryptSeed, encryptSeedWithPin, decryptSeedWithPin, type PinEncryptedSeed } from "@/lib/crypto"
 import { getBalance, publicClient } from "@/lib/eth"
 import { getWalletClient } from "@/lib/signer"
@@ -248,6 +249,129 @@ export function useWallet() {
     return formatEther(gas * gasPrice)
   }
 
+  // Returns estimated gas cost in ETH for native ETH or ERC-20 transfers
+  async function estimateTokenGasCost(token: Token, to: string, amount: string): Promise<string> {
+    if (!address || !isAddress(to) || Number(amount) <= 0) {
+      throw new Error("Parámetros inválidos")
+    }
+    const gasPrice = await publicClient.getGasPrice()
+    if (token.address === null) {
+      const gas = await publicClient.estimateGas({
+        account: address as `0x${string}`,
+        to: to as `0x${string}`,
+        value: parseEther(amount),
+      })
+      return formatEther(gas * gasPrice)
+    } else {
+      const gas = await publicClient.estimateContractGas({
+        address: token.address,
+        abi: erc20Abi,
+        functionName: "transfer",
+        args: [to as `0x${string}`, parseUnits(amount, token.decimals)],
+        account: address as `0x${string}`,
+      })
+      return formatEther(gas * gasPrice)
+    }
+  }
+
+  // Unified send for native ETH and ERC-20 tokens
+  async function sendToken(token: Token, to: string, amount: string) {
+    if (!password || !address) {
+      setTxStatus("error")
+      setTxError("Wallet locked")
+      return
+    }
+
+    try {
+      setTxStatus("pending")
+      setTxHash(null)
+      setTxError(null)
+
+      if (!isAddress(to)) throw new Error("Invalid address")
+      if (to.toLowerCase() === address.toLowerCase()) throw new Error("Cannot send to yourself")
+      if (Number(amount) <= 0) throw new Error("Invalid amount")
+
+      const stored = getStoredWallet()!
+      const mnemonic = await decryptSeed(stored.encrypted, password)
+      const walletClient = getWalletClient(mnemonic)
+      const gasPrice = await publicClient.getGasPrice()
+
+      let hash: `0x${string}`
+
+      if (token.address === null) {
+        // Native ETH
+        const currentBalance = await publicClient.getBalance({ address: address as `0x${string}` })
+        const value = parseEther(amount)
+        const gas = await publicClient.estimateGas({
+          account: address as `0x${string}`,
+          to: to as `0x${string}`,
+          value,
+        })
+        if (currentBalance < value + gas * gasPrice) {
+          throw new Error("Fondos insuficientes (incluye gas)")
+        }
+        hash = await walletClient.sendTransaction({
+          to: to as `0x${string}`,
+          value,
+          gas,
+          gasPrice,
+        })
+      } else {
+        // ERC-20
+        const tokenAmount = parseUnits(amount, token.decimals)
+        const gas = await publicClient.estimateContractGas({
+          address: token.address,
+          abi: erc20Abi,
+          functionName: "transfer",
+          args: [to as `0x${string}`, tokenAmount],
+          account: address as `0x${string}`,
+        })
+        hash = await walletClient.writeContract({
+          address: token.address,
+          abi: erc20Abi,
+          functionName: "transfer",
+          args: [to as `0x${string}`, tokenAmount],
+          gas,
+          gasPrice,
+        })
+      }
+
+      setTxHash(hash)
+      await recordTx(hash, to, amount).catch(() => {})
+
+      let receipt
+      try {
+        receipt = await Promise.race([
+          publicClient.waitForTransactionReceipt({ hash }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("timeout")), 60_000)
+          ),
+        ])
+      } catch (err) {
+        if (err instanceof Error && err.message === "timeout") {
+          setTxStatus("pending_on_chain")
+          loadTxHistory().catch(() => {})
+          return
+        }
+        throw err
+      }
+
+      if (receipt.status === "success") {
+        setTxStatus("confirmed")
+        await updateTxRecord(hash, "confirmed").catch(() => {})
+        if (address) loadBalance(address)
+      } else {
+        setTxStatus("error")
+        setTxError("La transacción falló en la red")
+        await updateTxRecord(hash, "failed").catch(() => {})
+      }
+      loadTxHistory().catch(() => {})
+    } catch (err: unknown) {
+      setTxStatus("error")
+      setTxError(err instanceof Error ? err.message : "Error desconocido")
+    }
+  }
+
   // Persists a transaction record as pending; failures are silent so they never block the send flow
   async function recordTx(txHash: string, to: string, amount: string) {
     if (!address) return
@@ -357,7 +481,9 @@ export function useWallet() {
     createBackup,
     recoverWallet,
     estimateGasCost,
+    estimateTokenGasCost,
     send,
+    sendToken,
     txStatus,
     txHash,
     txError,
