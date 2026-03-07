@@ -20,7 +20,9 @@ export const es = {
 	"home": "Inicio",
 	"send": "Enviar",
 	"activity": "Actividad",
-	"swap": "Swap",
+	"swap": "Intercambiar",
+	"receive": "Recibir",
+	"buy": "Comprar",
 	
 	// Wallet
 	"balance": "Balance",
