@@ -21,6 +21,8 @@ export const en = {
 	"send": "Send",
 	"activity": "Activity",
 	"swap": "Swap",
+	"receive": "Receive",
+	"buy": "Buy",
 	
 	// Wallet
 	"balance": "Balance",
