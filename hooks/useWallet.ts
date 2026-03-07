@@ -58,6 +58,8 @@ export function useWallet() {
   useEffect(() => {
     if (status !== "unlocked") return
 
+    const isDev = process.env.NODE_ENV === "development"
+
     const schedule = () => {
       if (timerRef.current) clearTimeout(timerRef.current)
       timerRef.current = setTimeout(lock, LOCK_TIMEOUT_MS)
@@ -69,12 +71,18 @@ export function useWallet() {
 
     const events = ["mousemove", "keydown", "click", "touchstart"] as const
     events.forEach((e) => window.addEventListener(e, reset, { passive: true }))
-    window.addEventListener("blur", lock)
+    
+    // Only lock on blur in production, not in development
+    if (!isDev) {
+      window.addEventListener("blur", lock)
+    }
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
       events.forEach((e) => window.removeEventListener(e, reset))
-      window.removeEventListener("blur", lock)
+      if (!isDev) {
+        window.removeEventListener("blur", lock)
+      }
     }
   }, [status, lock])
 

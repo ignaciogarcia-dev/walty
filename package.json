@@ -7,7 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "docker": "docker compose up -d --build"
+    "docker": "docker compose up -d --build",
+    "docker:dev": "docker compose -f compose.dev.yml up -d",
+    "docker:dev:down": "docker compose -f compose.dev.yml down",
+    "dev:clean": "bash scripts/dev-clean.sh",
+    "db:migrate": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
