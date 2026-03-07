@@ -74,6 +74,9 @@ export const en = {
 	// Portfolio
 	"portfolio": "Portfolio",
 	"total-value": "Total value",
+	"tokens": "Tokens",
+	"no-assets-found": "No assets found",
+	"recent-activity": "Recent Activity",
 
 	// Address book
 	"address-book": "Address book",
