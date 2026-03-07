@@ -41,14 +41,14 @@ export function DashboardSidebar() {
       href: "/dashboard/send",
     },
     {
-      icon: <ClockCounterClockwise />,
-      label: t("activity"),
-      href: "/dashboard/activity",
-    },
-    {
       icon: <ArrowsLeftRight />,
       label: t("swap"),
       href: "/dashboard/swap",
+    },
+    {
+      icon: <ClockCounterClockwise />,
+      label: t("activity"),
+      href: "/dashboard/activity",
     },
     {
       icon: <AddressBook />,
