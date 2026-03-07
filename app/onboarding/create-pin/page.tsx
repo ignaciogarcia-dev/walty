@@ -65,7 +65,12 @@ export default function CreatePinPage() {
         }),
       })
       // Backup failures are non-fatal — wallet is already saved locally
-      if (!backupRes.ok) console.warn("Backup upload failed, continuing")
+      if (!backupRes.ok) {
+        // Only log in development, silently fail in production
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Backup upload failed, continuing (non-fatal)")
+        }
+      }
 
       // 3. Link wallet via nonce + EIP-191 signature
       const nonceRes = await fetch("/api/wallet/nonce", { method: "POST" })

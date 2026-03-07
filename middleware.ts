@@ -18,15 +18,28 @@ export function middleware(request: NextRequest) {
 
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64")
 
-  const csp = [
-    `default-src 'self'`,
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
-    `style-src 'self' 'unsafe-inline'`,
-    `connect-src 'self' https://*.alchemy.com https://rpc.ankr.com https://ethereum.publicnode.com https://arb1.arbitrum.io https://mainnet.base.org https://mainnet.optimism.io https://polygon-rpc.com`,
-    `object-src 'none'`,
-    `base-uri 'self'`,
-    `frame-ancestors 'none'`,
-  ].join("; ")
+  // Relax CSP in development mode for hot-reload
+  const isDev = process.env.NODE_ENV === "development"
+  
+  const csp = isDev
+    ? [
+        `default-src 'self'`,
+        `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`, // 'unsafe-eval' needed for Next.js dev
+        `style-src 'self' 'unsafe-inline'`,
+        `connect-src 'self' https://*.alchemy.com https://rpc.ankr.com https://ethereum.publicnode.com https://arb1.arbitrum.io https://mainnet.base.org https://mainnet.optimism.io https://polygon-rpc.com ws://localhost:* http://localhost:*`, // WebSocket for HMR
+        `object-src 'none'`,
+        `base-uri 'self'`,
+        `frame-ancestors 'none'`,
+      ].join("; ")
+    : [
+        `default-src 'self'`,
+        `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+        `style-src 'self' 'unsafe-inline'`,
+        `connect-src 'self' https://*.alchemy.com https://rpc.ankr.com https://ethereum.publicnode.com https://arb1.arbitrum.io https://mainnet.base.org https://mainnet.optimism.io https://polygon-rpc.com`,
+        `object-src 'none'`,
+        `base-uri 'self'`,
+        `frame-ancestors 'none'`,
+      ].join("; ")
 
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set("x-nonce", nonce)
