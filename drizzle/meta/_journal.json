@@ -8,13 +8,6 @@
       "when": 1771986750053,
       "tag": "0000_initial_schema",
       "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1772818238246,
-      "tag": "0001_zippy_kylun",
-      "breakpoints": true
     }
   ]
 }
