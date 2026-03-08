@@ -27,7 +27,7 @@ export function AddressBook() {
     fetch("/api/contacts")
       .then((r) => r.json())
       .then((data: Contact[]) => setContacts(data))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false))
   }, [])
 
@@ -71,11 +71,11 @@ export function AddressBook() {
   }
 
   return (
-    <div className="rounded-xl border bg-card p-6 flex flex-col gap-5">
+    <div className="flex flex-col gap-6 p-4">
       <h2 className="font-semibold text-foreground">{t("address-book")}</h2>
 
       {/* Add contact form */}
-      <div className="flex flex-col gap-3 rounded-lg bg-muted/30 border p-4">
+      <div className="flex flex-col gap-3 rounded-2xl bg-muted/30 border p-4 r">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="contact-name">{t("contact-name")}</Label>
           <Input
@@ -83,6 +83,7 @@ export function AddressBook() {
             placeholder="Alice"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            className="rounded-2xl"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -92,11 +93,11 @@ export function AddressBook() {
             placeholder="0x..."
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            className="font-mono"
+            className="font-mono rounded-2xl"
           />
         </div>
         {error && <p className="text-xs text-destructive">{error}</p>}
-        <Button onClick={handleAdd} disabled={!name || !address || saving}>
+        <Button onClick={handleAdd} disabled={!name || !address || saving} className="rounded-2xl">
           {saving ? <Spinner /> : null}
           {t("add-contact")}
         </Button>

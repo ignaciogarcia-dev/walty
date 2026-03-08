@@ -1,4 +1,5 @@
 import type { TokenPosition } from "@/hooks/usePortfolio"
+import { TokenAvatar } from "./TokenAvatar"
 
 function formatBalance(balance: string): string {
   const num = parseFloat(balance)
@@ -11,14 +12,12 @@ function formatBalance(balance: string): string {
 }
 
 export function TokenCard({ position }: { position: TokenPosition }) {
-  const { token, balance, valueUsd } = position
+  const { token, balance, valueUsd, imageUrl } = position
 
   return (
-    <div className="rounded-xl border bg-card p-4 flex items-center justify-between gap-4">
+    <div className="rounded-2xl border bg-card p-4 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className="size-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold shrink-0">
-          {token.symbol.slice(0, 2)}
-        </div>
+        <TokenAvatar symbol={token.symbol} imageUrl={imageUrl} />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium leading-none truncate">{token.symbol}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{token.name}</p>

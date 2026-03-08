@@ -1,5 +1,5 @@
 "use client"
-import { AddressBook, ArrowsLeftRight, ClockCounterClockwise, House, PaperPlaneTilt } from "@phosphor-icons/react"
+import { AddressBook, ArrowsLeftRight, ClockCounterClockwise, House, PaperPlaneTilt, SidebarSimpleIcon } from "@phosphor-icons/react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -8,16 +8,17 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
+  useSidebarState,
 } from "@/components/ui/sidebar"
 import { useTranslation } from "@/hooks/useTranslation"
 import { UserMenu } from "@/components/user/user-menu"
+import { cn } from "@/utils/style"
 
 type SidebarItem = {
   icon: React.ReactNode
@@ -28,30 +29,38 @@ type SidebarItem = {
 export function DashboardSidebar() {
   const pathname = usePathname()
   const { t } = useTranslation()
+  const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebarState()
+  const isCollapsed = state === "collapsed"
+
+  function handleMobileNavigation() {
+    if (isMobile) {
+      setOpenMobile(false)
+    }
+  }
 
   const appSidebarItems: SidebarItem[] = [
     {
-      icon: <House />,
+      icon: <House size={18} weight="regular" />,
       label: t("home"),
       href: "/dashboard/home",
     },
     {
-      icon: <PaperPlaneTilt />,
+      icon: <PaperPlaneTilt size={18} weight="regular" />,
       label: t("send"),
       href: "/dashboard/send",
     },
     {
-      icon: <ArrowsLeftRight />,
+      icon: <ArrowsLeftRight size={18} weight="regular" />,
       label: t("swap"),
       href: "/dashboard/swap",
     },
     {
-      icon: <ClockCounterClockwise />,
+      icon: <ClockCounterClockwise size={18} weight="regular" />,
       label: t("activity"),
       href: "/dashboard/activity",
     },
     {
-      icon: <AddressBook />,
+      icon: <AddressBook size={18} weight="regular" />,
       label: t("contacts"),
       href: "/dashboard/contacts",
     },
@@ -59,34 +68,68 @@ export function DashboardSidebar() {
 
   return (
     <>
-      <Sidebar variant="floating" collapsible="icon">
+      <Sidebar
+        variant="floating"
+        collapsible="icon"
+        className={cn(isCollapsed && "[&_[data-sidebar=sidebar]]:bg-dashboard-shell")}
+      >
         <SidebarHeader>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild className="h-auto justify-center">
-                <Link href="/">
-                  <span className="text-lg font-bold">Walty</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          {isCollapsed ? (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+              className="group/logo relative flex size-9 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            >
+              <span className="text-lg font-bold transition-opacity duration-200 group-hover/logo:opacity-0">W</span>
+              <SidebarSimpleIcon className="absolute size-[18px] opacity-0 transition-opacity duration-200 group-hover/logo:opacity-100" />
+            </button>
+          ) : (
+            <div className="flex w-full items-center justify-between gap-2">
+              <Link
+                href="/dashboard/home"
+                aria-label={t("home")}
+                onClick={handleMobileNavigation}
+                className="flex size-9 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              >
+                <span className="text-lg font-bold">W</span>
+              </Link>
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+                className="flex size-9 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              >
+                <SidebarSimpleIcon className="size-[18px]" />
+              </button>
+            </div>
+          )}
         </SidebarHeader>
 
-        <SidebarSeparator />
+
 
         <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupLabel>Wallet</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {appSidebarItems.map((item) => {
                   const isActive = pathname === item.href
                   return (
                     <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
-                        <Link href={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={item.label}
+                        className={cn(
+                          !isCollapsed &&
+                          "rounded-xl hover:bg-sidebar-highlight data-[active=true]:rounded-xl data-[active=true]:bg-sidebar-highlight",
+                        )}
+                      >
+                        <Link href={item.href} onClick={handleMobileNavigation}>
                           {item.icon}
-                          <span className="shrink-0 transition-[margin,opacity] duration-200 ease-in-out group-data-[collapsible=icon]:-ml-8 group-data-[collapsible=icon]:opacity-0">
+                          <span className="truncate whitespace-nowrap">
                             {item.label}
                           </span>
                         </Link>
@@ -98,8 +141,6 @@ export function DashboardSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
-
-        <SidebarSeparator />
 
         <SidebarFooter>
           <UserMenu />

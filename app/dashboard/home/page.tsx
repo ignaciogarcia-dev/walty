@@ -12,6 +12,8 @@ export default function HomePage() {
 	const { address, balance } = useWalletContext()
 	const { positions, loading } = usePortfolio(address)
 	const router = useRouter()
+	const quickActionClassName =
+		"flex-1 rounded-2xl border border-quick-action-border bg-quick-action-surface text-quick-action-foreground backdrop-blur-md transition-all hover:border-quick-action-hover-border hover:bg-quick-action-hover"
 	// Filter tokens with balance > 0
 	const tokensWithBalance = positions.filter((p) => parseFloat(p.balance) > 0)
 
@@ -29,13 +31,13 @@ export default function HomePage() {
 		<div className="mx-auto max-w-2xl px-4 py-10 flex flex-col gap-6">
 			<BalanceCard address={address} balance={balance} />
 			<div className="flex gap-3 ">
-				<Button onClick={() => router.push("/dashboard/send")} variant="ghost" className="flex-1 rounded-2xl bg-white/80 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 hover:bg-white/20 dark:hover:bg-white/10 transition-all text-foreground font-semibold" size="lg"><ArrowUpRight className="mr-2 h-4 w-4" />
+				<Button onClick={() => router.push("/dashboard/send")} variant="ghost" className={quickActionClassName} size="lg"><ArrowUpRight className="mr-2 h-4 w-4" />
 					{t("send")}</Button>
-				<Button onClick={() => router.push("/dashboard/swap")} variant="ghost" className="flex-1 rounded-2xl bg-white/80 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 hover:bg-white/20 dark:hover:bg-white/10 transition-all text-foreground font-semibold" size="lg"><ArrowsLeftRight className="mr-2 h-4 w-4" />
+				<Button onClick={() => router.push("/dashboard/swap")} variant="ghost" className={quickActionClassName} size="lg"><ArrowsLeftRight className="mr-2 h-4 w-4" />
 					{t("swap")}</Button>
-				<Button onClick={() => router.push("/dashboard/receive")} variant="ghost" className="flex-1 rounded-2xl bg-white/80 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 hover:bg-white/20 dark:hover:bg-white/10 transition-all text-foreground font-semibold" size="lg"><ArrowDownRight className="mr-2 h-4 w-4" />
+				<Button onClick={() => router.push("/dashboard/receive")} variant="ghost" className={quickActionClassName} size="lg"><ArrowDownRight className="mr-2 h-4 w-4" />
 					{t("receive")}</Button>
-				<Button onClick={() => router.push("/dashboard/buy")} variant="ghost" className="flex-1 rounded-2xl bg-white/80 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 hover:bg-white/20 dark:hover:bg-white/10 transition-all text-foreground font-semibold" size="lg"><CurrencyDollar className="mr-2 h-4 w-4" />
+				<Button onClick={() => router.push("/dashboard/buy")} variant="ghost" className={quickActionClassName} size="lg"><CurrencyDollar className="mr-2 h-4 w-4" />
 					{t("buy")}</Button>
 			</div>
 			{loading ? (

@@ -1,16 +1,33 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import { parseUnits, formatUnits } from "viem"
+import { CaretUpDown, Check } from "@phosphor-icons/react"
 import { TOKENS, type Token } from "@/lib/tokens"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import { getWalletClient } from "@/lib/signer"
 import { decryptSeed } from "@/lib/crypto"
 import { getStoredWallet } from "@/lib/wallet-store"
 import { publicClient } from "@/lib/eth"
 import { useTranslation } from "@/hooks/useTranslation"
 import type { ZeroxQuoteResponse } from "@/lib/0x"
+import { TokenAvatar } from "./TokenAvatar"
+import { cn } from "@/utils/style"
 
 const erc20Abi = [
   {
@@ -47,6 +64,88 @@ type QuoteDir = "sell" | "buy"
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
+function TokenSelector({
+  selectedToken,
+  options,
+  tokenImages,
+  disabled,
+  onChange,
+}: {
+  selectedToken: Token
+  options: Token[]
+  tokenImages: Record<string, string>
+  disabled: boolean
+  onChange: (symbol: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          data-token-selector="true"
+          className="w-[132px] justify-between gap-2 rounded-full px-2.5"
+        >
+          <span className="flex items-center gap-2 min-w-0">
+            <TokenAvatar
+              symbol={selectedToken.symbol}
+              imageUrl={tokenImages[selectedToken.symbol] ?? null}
+              sizeClass="size-5"
+            />
+            <span className="truncate text-sm font-medium">{selectedToken.symbol}</span>
+          </span>
+          <CaretUpDown className="size-3.5 shrink-0 opacity-60" />
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent data-token-selector="true" className="w-[240px] rounded-3xl p-0" align="start">
+        <Command className="rounded-3xl">
+          <CommandInput placeholder="Search token..." />
+          <CommandList>
+            <CommandEmpty>No tokens found</CommandEmpty>
+            <CommandGroup>
+              {options.map((token) => (
+                <CommandItem
+                  key={token.symbol}
+                  value={token.symbol}
+                  keywords={[
+                    token.symbol.toLowerCase(),
+                    token.name.toLowerCase(),
+                    token.address?.toLowerCase() ?? "",
+                  ]}
+                  onSelect={() => {
+                    onChange(token.symbol)
+                    setOpen(false)
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 size-4 shrink-0 transition-opacity",
+                      selectedToken.symbol === token.symbol ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  <span className="flex items-center gap-2 min-w-0">
+                    <TokenAvatar
+                      symbol={token.symbol}
+                      imageUrl={tokenImages[token.symbol] ?? null}
+                      sizeClass="size-5"
+                    />
+                    <span className="truncate">{token.symbol}</span>
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 export function SwapForm({
   address,
   password,
@@ -64,6 +163,7 @@ export function SwapForm({
   const [priceInfo, setPriceInfo] = useState<{ buyAmount: string; sellAmount: string } | null>(null)
   const [quoteDir, setQuoteDir] = useState<QuoteDir>("sell")
   const [sellBalance, setSellBalance] = useState<bigint>(0n)
+  const [buyBalance, setBuyBalance] = useState<bigint>(0n)
   const [status, setStatus] = useState<SwapStatus>("idle")
   const [swapError, setSwapError] = useState<string | null>(null)
   const [swapHash, setSwapHash] = useState<string | null>(null)
@@ -72,12 +172,34 @@ export function SwapForm({
     feePercent: number
   } | null>(null)
   const [networkFeeUsd, setNetworkFeeUsd] = useState<number | null>(null)
+  const [tokenImages, setTokenImages] = useState<Record<string, string>>({})
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Ref so the async callback always reads the latest price without stale closure
   const latestPriceRef = useRef<{ buyAmount: string; sellAmount: string } | null>(null)
   const sellInputRef = useRef<HTMLInputElement>(null)
   const buyInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    fetch("/api/token-images")
+      .then((res) => (res.ok ? res.json() : {}))
+      .then((images: Record<string, string>) => {
+        if (!cancelled) {
+          setTokenImages(images)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTokenImages({})
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Fetch sell token balance
   useEffect(() => {
@@ -104,7 +226,34 @@ export function SwapForm({
     return () => {
       cancelled = true
     }
-  }, [sellToken.symbol, address])
+  }, [sellToken.address, address])
+
+  // Fetch buy token balance
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        let bal: bigint
+        if (buyToken.address === null) {
+          bal = await publicClient.getBalance({ address: address as `0x${string}` })
+        } else {
+          bal = (await publicClient.readContract({
+            address: buyToken.address as `0x${string}`,
+            abi: erc20Abi,
+            functionName: "balanceOf",
+            args: [address as `0x${string}`],
+          })) as bigint
+        }
+        if (!cancelled) setBuyBalance(bal)
+      } catch {
+        if (!cancelled) setBuyBalance(0n)
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [buyToken.address, address])
 
   // Debounced price fetch — called imperatively from handlers to avoid dep-loop
   function schedulePriceFetch(direction: QuoteDir, amount: string, sTok: Token, bTok: Token) {
@@ -344,6 +493,11 @@ export function SwapForm({
   const insufficientBalance = sellAmountWei > 0n && sellAmountWei > sellBalance
   const isBusy = status === "approving" || status === "swapping"
   const isQuoting = status === "quoting"
+  const hasEnteredAmount = (
+    (sellAmount && parseFloat(sellAmount) > 0) ||
+    (buyAmount && parseFloat(buyAmount) > 0)
+  )
+  const showDetailSkeleton = isQuoting || isBusy
 
   const buyOptions = TOKENS.filter((t) => t.symbol !== sellToken.symbol)
   const sellOptions = TOKENS.filter((t) => t.symbol !== buyToken.symbol)
@@ -379,7 +533,7 @@ export function SwapForm({
   }
 
   return (
-    <div className="rounded-xl border bg-card p-6 flex flex-col gap-3">
+    <div className="rounded-4xl p-4 flex flex-col gap-3">
       <h2 className="font-semibold text-foreground mb-1">{t("swap")}</h2>
 
       {/* You Pay */}
@@ -387,42 +541,38 @@ export function SwapForm({
         onClick={(e) => {
           // Only focus input if click wasn't on an interactive element
           const target = e.target as HTMLElement
-          if (target.tagName !== 'SELECT' && target.tagName !== 'BUTTON' && target.tagName !== 'INPUT') {
+          if (target.closest("[data-token-selector='true']")) return
+          if (target.tagName !== 'BUTTON' && target.tagName !== 'INPUT') {
             sellInputRef.current?.focus()
           }
         }}
         className="
-        rounded-lg border bg-muted/30 p-4 flex flex-col gap-2
-        focus-within:outline focus-within:outline-2 focus-within:outline-primary
+        rounded-3xl border bg-muted/80 dark:bg-muted/20 p-4 flex flex-col gap-2
         cursor-text
         "
       >
         <p className="text-xs font-medium text-muted-foreground">{t("swap-sell")}</p>
         <div className="flex items-center gap-2">
-          <select
-            value={sellToken.symbol}
-            onChange={(e) => handleSellTokenChange(e.target.value)}
+          <TokenSelector
+            selectedToken={sellToken}
+            options={sellOptions}
+            tokenImages={tokenImages}
             disabled={isBusy}
-            className="rounded-md border bg-background px-3 py-1.5 text-sm font-medium text-foreground disabled:opacity-50"
-          >
-            {sellOptions.map((tok) => (
-              <option key={tok.symbol} value={tok.symbol}>
-                {tok.symbol}
-              </option>
-            ))}
-          </select>
+            onChange={handleSellTokenChange}
+          />
           <Input
             ref={sellInputRef}
             type="number"
-            placeholder="0.0"
+            placeholder="0"
             value={sellAmount}
             onChange={(e) => handleSellAmountChange(e.target.value)}
             disabled={isBusy}
             min="0"
             step="any"
             className="
-            flex-1 text-right text-xl font-semibold
+            flex-1 rounded-2xl text-right text-xl font-semibold
             border-none bg-transparent shadow-none
+            focus:bg-transparent focus-visible:bg-transparent active:bg-transparent
             focus:outline-none focus:ring-0
             hover:ring-0 hover:outline-none
             disabled:opacity-50
@@ -437,11 +587,10 @@ export function SwapForm({
       </div>
 
       {/* Flip button */}
-      <div className="flex justify-center -my-0.5">
+      <div className="flex justify-center -my-5">
         <Button
-          variant="outline"
           size="icon"
-          className="rounded-full size-8 border-2"
+          className="rounded-full size-8 border-2 z-10 border-input"
           onClick={handleFlipTokens}
           disabled={isBusy}
         >
@@ -454,43 +603,39 @@ export function SwapForm({
         onClick={(e) => {
           // Only focus input if click wasn't on an interactive element
           const target = e.target as HTMLElement
-          if (target.tagName !== 'SELECT' && target.tagName !== 'BUTTON' && target.tagName !== 'INPUT') {
+          if (target.closest("[data-token-selector='true']")) return
+          if (target.tagName !== 'BUTTON' && target.tagName !== 'INPUT') {
             buyInputRef.current?.focus()
           }
         }}
         className="
-        rounded-lg border bg-muted/30 p-4 flex flex-col gap-2
-        focus-within:outline focus-within:outline-2 focus-within:outline-primary
+        rounded-3xl border bg-muted/80 dark:bg-muted/20 p-4 flex flex-col gap-2
         cursor-text
         "
       >
         <p className="text-xs font-medium text-muted-foreground">{t("you-receive")}</p>
         <div className="flex items-center gap-2">
-          <select
-            value={buyToken.symbol}
-            onChange={(e) => handleBuyTokenChange(e.target.value)}
+          <TokenSelector
+            selectedToken={buyToken}
+            options={buyOptions}
+            tokenImages={tokenImages}
             disabled={isBusy}
-            className="rounded-md border bg-background px-3 py-1.5 text-sm font-medium text-foreground disabled:opacity-50"
-          >
-            {buyOptions.map((tok) => (
-              <option key={tok.symbol} value={tok.symbol}>
-                {tok.symbol}
-              </option>
-            ))}
-          </select>
+            onChange={handleBuyTokenChange}
+          />
           <div className="flex-1 relative">
             <Input
               ref={buyInputRef}
               type="number"
-              placeholder="0.0"
+              placeholder="0"
               value={isQuoting && quoteDir === "sell" ? "" : buyAmount}
               onChange={(e) => handleBuyAmountChange(e.target.value)}
               disabled={isBusy}
               min="0"
               step="any"
               className="
-              text-right text-xl font-semibold
+              rounded-2xl text-right text-xl font-semibold
               border-none bg-transparent shadow-none
+              focus:bg-transparent focus-visible:bg-transparent active:bg-transparent
               focus:outline-none focus:ring-0
               hover:ring-0 hover:outline-none
               disabled:opacity-50
@@ -505,30 +650,43 @@ export function SwapForm({
             )}
           </div>
         </div>
+        <p className="text-xs text-muted-foreground">
+          {t("balance")}: {parseFloat(formatUnits(buyBalance, buyToken.decimals)).toFixed(4)}{" "}
+          {buyToken.symbol}
+        </p>
       </div>
 
       {/* Fee breakdown */}
-      {(priceDisplay || feeInfo || networkFeeUsd) && !isQuoting && (
-        <div className="rounded-lg border bg-muted/20 p-3 flex flex-col gap-2 text-xs">
-          {priceDisplay && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("swap-price")}</span>
-              <span className="font-mono">{priceDisplay}</span>
-            </div>
-          )}
-          {feeInfo && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("swap-fee")}</span>
+      {hasEnteredAmount && (
+        <div className="rounded-2xl border bg-muted/20 p-3 flex flex-col gap-4 text-xs">
+          <div className="flex justify-between items-center gap-3">
+            <span className="text-muted-foreground">{t("swap-price")}</span>
+            {showDetailSkeleton ? (
+              <Skeleton className="h-4 w-40 rounded-full" />
+            ) : (
+              <span className="font-mono">{priceDisplay ?? "-"}</span>
+            )}
+          </div>
+          <div className="flex justify-between items-center gap-3">
+            <span className="text-muted-foreground">{t("swap-fee")}</span>
+            {showDetailSkeleton ? (
+              <Skeleton className="h-4 w-32 rounded-full" />
+            ) : (
               <span className="font-mono">
-                {feeInfo.feePercent.toFixed(2)}%{" "}
-                ({feeInfo.feeAmount.toFixed(6)} {buyToken.symbol})
+                {feeInfo
+                  ? `${feeInfo.feePercent.toFixed(2)}% (${feeInfo.feeAmount.toFixed(6)} ${buyToken.symbol})`
+                  : "-"}
               </span>
-            </div>
-          )}
-          {networkFeeUsd !== null && (
+            )}
+          </div>
+          {(networkFeeUsd !== null || isBusy) && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t("network-fee")}</span>
-              <span className="font-mono">~${networkFeeUsd.toFixed(2)}</span>
+              {showDetailSkeleton ? (
+                <Skeleton className="h-4 w-20 rounded-full" />
+              ) : (
+                <span className="font-mono">~${networkFeeUsd?.toFixed(2) ?? "-"}</span>
+              )}
             </div>
           )}
         </div>
@@ -551,7 +709,7 @@ export function SwapForm({
         onClick={handleSwap}
         disabled={buttonDisabled}
         variant={buttonDestructive ? "destructive" : "default"}
-        className="w-full mt-1"
+        className="mt-1 w-full rounded-2xl"
       >
         {isBusy && <Spinner />}
         {buttonLabel}

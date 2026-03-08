@@ -26,6 +26,7 @@ export function middleware(request: NextRequest) {
         `default-src 'self'`,
         `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`, // 'unsafe-eval' needed for Next.js dev
         `style-src 'self' 'unsafe-inline'`,
+        `img-src 'self' data: https://assets.coingecko.com https://coin-images.coingecko.com https://static.coingecko.com`,
         `connect-src 'self' https://*.alchemy.com https://rpc.ankr.com https://ethereum.publicnode.com https://arb1.arbitrum.io https://mainnet.base.org https://mainnet.optimism.io https://polygon-rpc.com ws://localhost:* http://localhost:*`, // WebSocket for HMR
         `object-src 'none'`,
         `base-uri 'self'`,
@@ -35,6 +36,7 @@ export function middleware(request: NextRequest) {
         `default-src 'self'`,
         `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
         `style-src 'self' 'unsafe-inline'`,
+        `img-src 'self' data: https://assets.coingecko.com https://coin-images.coingecko.com https://static.coingecko.com`,
         `connect-src 'self' https://*.alchemy.com https://rpc.ankr.com https://ethereum.publicnode.com https://arb1.arbitrum.io https://mainnet.base.org https://mainnet.optimism.io https://polygon-rpc.com`,
         `object-src 'none'`,
         `base-uri 'self'`,

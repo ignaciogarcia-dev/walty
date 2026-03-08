@@ -47,7 +47,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-md rounded-3xl sm:max-w-md 2xl:max-w-md">
         <DialogHeader>
           <DialogTitle>{t("settings")}</DialogTitle>
           <DialogDescription>{t("settings-description") || "Manage your preferences"}</DialogDescription>
@@ -69,7 +69,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-32 justify-between">
+                  <Button variant="outline" className="w-32 justify-between rounded-2xl">
                     {theme === "dark" ? t("dark") : t("light")}
                   </Button>
                 </DropdownMenuTrigger>
@@ -91,7 +91,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-32 justify-between">
+                  <Button variant="outline" className="w-32 justify-between rounded-2xl">
                     {localeMap[locale]}
                   </Button>
                 </DropdownMenuTrigger>

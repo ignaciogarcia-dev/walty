@@ -130,6 +130,7 @@ cp .env.example .env
 # - SERVER_PEPPER: Generate with: openssl rand -base64 32
 # - NEXT_PUBLIC_RPC_URL: Optional, for custom RPC endpoint
 # - ZEROX_API_KEY: Optional, for token swaps
+# - COINGECKO_API_KEY: Optional, for token images
 
 docker compose up --build
 ```
@@ -142,3 +143,4 @@ docker compose up --build
 **Optional environment variables:**
 - `NEXT_PUBLIC_RPC_URL`: Custom RPC URL for Ethereum interactions
 - `ZEROX_API_KEY`: API key for 0x Protocol (token swaps)
+- `COINGECKO_API_KEY`: API key for CoinGecko (token images)

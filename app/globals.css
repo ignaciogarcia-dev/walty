@@ -21,20 +21,38 @@
   --border: #e4e4e7;
   --input: #e4e4e7;
   --ring: #18181b;
-  --sidebar: #fafafa;
+  --sidebar: #f4f4f4;
+  --dashboard-shell: #ffffff;
   --sidebar-foreground: #09090b;
   --sidebar-primary: #18181b;
   --sidebar-primary-foreground: #fafafa;
   --sidebar-accent: #f4f4f5;
   --sidebar-accent-foreground: #18181b;
+  --sidebar-highlight: #e9e8e8;
   --sidebar-border: #e4e4e7;
   --sidebar-ring: #18181b;
+  --dialog-surface: #ffffff;
+  --dialog-overlay: rgb(0 0 0 / 0.5);
+  --sheet-overlay: rgb(0 0 0 / 0.1);
+  --quick-action-surface: #fafafa;
+  --quick-action-border: #d4d4d8;
+  --quick-action-hover: #f4f4f5;
+  --quick-action-hover-border: #a1a1aa;
+  --quick-action-foreground: var(--foreground);
+  --wallet-balance-gradient-start: #0f47d4;
+  --wallet-balance-gradient-middle: #1a6bff;
+  --wallet-balance-gradient-end: #4da8ff;
+  --wallet-balance-border: rgb(255 255 255 / 0.1);
+  --wallet-balance-label: rgb(255 255 255 / 0.8);
+  --wallet-balance-meta: rgb(255 255 255 / 0.5);
+  --wallet-balance-spinner: rgb(255 255 255 / 0.4);
+  --wallet-balance-foreground: #ffffff;
 }
 
 .dark {
   --background: #09090b;
   --foreground: #fafafa;
-  --card: #09090b;
+  --card: #303030;
   --card-foreground: #fafafa;
   --popover: #09090b;
   --popover-foreground: #fafafa;
@@ -51,14 +69,32 @@
   --border: #27272a;
   --input: #27272a;
   --ring: #d4d4d8;
-  --sidebar: #09090b;
+  --sidebar: #181818;
+  --dashboard-shell: #212121;
   --sidebar-foreground: #fafafa;
   --sidebar-primary: #fafafa;
   --sidebar-primary-foreground: #09090b;
   --sidebar-accent: #27272a;
   --sidebar-accent-foreground: #fafafa;
+  --sidebar-highlight: #2f2f2f;
   --sidebar-border: #27272a;
   --sidebar-ring: #d4d4d8;
+  --dialog-surface: #212121;
+  --dialog-overlay: rgb(0 0 0 / 0.5);
+  --sheet-overlay: rgb(0 0 0 / 0.1);
+  --quick-action-surface: #030712;
+  --quick-action-border: #1f2937;
+  --quick-action-hover: #27272a;
+  --quick-action-hover-border: #3f3f46;
+  --quick-action-foreground: #f3f4f6;
+  --wallet-balance-gradient-start: #0f47d4;
+  --wallet-balance-gradient-middle: #1a6bff;
+  --wallet-balance-gradient-end: #4da8ff;
+  --wallet-balance-border: rgb(255 255 255 / 0.1);
+  --wallet-balance-label: rgb(255 255 255 / 0.8);
+  --wallet-balance-meta: rgb(255 255 255 / 0.5);
+  --wallet-balance-spinner: rgb(255 255 255 / 0.4);
+  --wallet-balance-foreground: #ffffff;
 }
 
 @theme inline {
@@ -82,13 +118,28 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-sidebar: var(--sidebar);
+  --color-dashboard-shell: var(--dashboard-shell);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-highlight: var(--sidebar-highlight);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-dialog-surface: var(--dialog-surface);
+  --color-dialog-overlay: var(--dialog-overlay);
+  --color-sheet-overlay: var(--sheet-overlay);
+  --color-quick-action-surface: var(--quick-action-surface);
+  --color-quick-action-border: var(--quick-action-border);
+  --color-quick-action-hover: var(--quick-action-hover);
+  --color-quick-action-hover-border: var(--quick-action-hover-border);
+  --color-quick-action-foreground: var(--quick-action-foreground);
+  --color-wallet-balance-border: var(--wallet-balance-border);
+  --color-wallet-balance-label: var(--wallet-balance-label);
+  --color-wallet-balance-meta: var(--wallet-balance-meta);
+  --color-wallet-balance-spinner: var(--wallet-balance-spinner);
+  --color-wallet-balance-foreground: var(--wallet-balance-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -111,5 +162,14 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 input[type="number"] {
+  appearance: textfield;
   -moz-appearance: textfield;
+}
+
+button:focus,
+button:focus-visible,
+input:focus,
+input:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
