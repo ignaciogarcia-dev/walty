@@ -18,8 +18,8 @@ import {
 	DialogFooter,
 } from "@/components/ui/dialog"
 import { TxStatus as TxStatusDisplay } from "./TxStatus"
+import { TokenAvatar } from "./TokenAvatar"
 import { useTranslation } from "@/hooks/useTranslation"
-import { cn } from "@/utils/style"
 
 function TokenSelectList({
 	positions,
@@ -66,13 +66,14 @@ function TokenSelectList({
 				<button
 					key={position.token.symbol}
 					onClick={() => onSelect(position)}
-					className="flex items-center gap-3 rounded-lg p-3 text-left hover:bg-accent transition-colors"
+					className="flex items-center gap-3 rounded-2xl p-3 text-left transition-colors hover:bg-accent"
 				>
-					<div className="size-9 rounded-full bg-muted flex items-center justify-center shrink-0">
-						<span className="text-xs font-bold text-muted-foreground">
-							{position.token.symbol.slice(0, 4)}
-						</span>
-					</div>
+					<TokenAvatar
+						symbol={position.token.symbol}
+						imageUrl={position.imageUrl}
+						sizeClass="size-9"
+						fallbackChars={4}
+					/>
 					<div>
 						<p className="font-medium text-sm">{position.token.symbol}</p>
 						<p className="text-xs text-muted-foreground">{position.token.name}</p>
@@ -206,33 +207,35 @@ export function SendForm({
 	// Step 1 — token selection
 	if (!selectedPosition) {
 		return (
-			<div className="rounded-xl border bg-card p-6 flex flex-col gap-4">
+			<div className="rounded-4xl border bg-card p-6 flex flex-col gap-4">
 				<h2 className="font-semibold text-foreground">{t("select-token")}</h2>
 				<Input
 					type="text"
 					placeholder="Token name or contract address"
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
+					className="rounded-2xl"
 				/>
 				<TokenSelectList positions={positions} onSelect={setSelectedPosition} search={search} />
 			</div>
 		)
 	}
 
-	const { token, balance } = selectedPosition
+	const { token, balance, imageUrl } = selectedPosition
 
 	// Step 2 — send form
 	return (
 		<>
-			<div className="rounded-xl border bg-card p-6 flex flex-col gap-4">
+			<div className="rounded-4xl border bg-card p-6 flex flex-col gap-4">
 				<div className="flex items-center gap-2">
 					<button
 						onClick={handleBack}
-						className="rounded-md p-1 hover:bg-accent transition-colors"
+						className="rounded-full p-1.5 transition-colors hover:bg-accent"
 						aria-label="Back"
 					>
 						<ArrowLeft className="size-4" />
 					</button>
+					<TokenAvatar symbol={token.symbol} imageUrl={imageUrl} />
 					<h2 className="font-semibold text-foreground">
 						{t("send")} {token.symbol}
 					</h2>
@@ -249,7 +252,7 @@ export function SendForm({
 						placeholder={t("username-or-address")}
 						value={to}
 						onChange={(e) => setTo(e.target.value)}
-						className={cn("font-mono", isAddress(to) && "text-sm")}
+						className="rounded-2xl"
 					/>
 					{usernameResolving && (
 						<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -277,10 +280,11 @@ export function SendForm({
 						placeholder="0.00"
 						value={amount}
 						onChange={(e) => setAmount(e.target.value)}
+						className="rounded-2xl"
 					/>
 				</div>
 
-				<Button onClick={handleOpenModal} disabled={!canSubmit} className="w-full">
+				<Button onClick={handleOpenModal} disabled={!canSubmit} className="w-full rounded-2xl">
 					{isBusy ? (
 						<>
 							<Spinner />
@@ -300,7 +304,7 @@ export function SendForm({
 			</div>
 
 			<Dialog open={showModal} onOpenChange={setShowModal}>
-				<DialogContent className="sm:max-w-sm">
+				<DialogContent className="rounded-3xl sm:max-w-sm">
 					<DialogHeader>
 						<DialogTitle>{t("confirm-transaction")}</DialogTitle>
 					</DialogHeader>
@@ -342,13 +346,13 @@ export function SendForm({
 					</div>
 
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setShowModal(false)} className="flex-1">
+						<Button variant="outline" onClick={() => setShowModal(false)} className="flex-1 rounded-2xl">
 							{t("cancel")}
 						</Button>
 						<Button
 							onClick={handleConfirm}
 							disabled={gasEstimate === null && !gasError}
-							className="flex-1"
+							className="flex-1 rounded-2xl"
 						>
 							{t("confirm-send")}
 						</Button>

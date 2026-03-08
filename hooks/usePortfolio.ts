@@ -11,6 +11,7 @@ export type TokenPosition = {
   priceUsd: number
   valueUsd: number
   allocation: number
+  imageUrl: string | null
 }
 
 export type PortfolioState = {
@@ -40,9 +41,12 @@ export function usePortfolio(address: string | null): PortfolioState {
       setError(null)
 
       try {
-        const [balances, pricesRes] = await Promise.all([
+        const [balances, pricesRes, tokenImagesRes] = await Promise.all([
           getAllTokenBalances(address as `0x${string}`, TOKENS),
           fetch("/api/prices").then((r) => r.json()) as Promise<Record<string, number>>,
+          fetch("/api/token-images")
+            .then((r) => (r.ok ? r.json() : {}))
+            .catch(() => ({})) as Promise<Record<string, string>>,
         ])
 
         if (cancelled) return
@@ -52,7 +56,8 @@ export function usePortfolio(address: string | null): PortfolioState {
           const balance = formatUnits(balanceRaw, token.decimals)
           const priceUsd = pricesRes[token.symbol] ?? 0
           const valueUsd = parseFloat(balance) * priceUsd
-          return { token, balance, balanceRaw, priceUsd, valueUsd, allocation: 0 }
+          const imageUrl = tokenImagesRes[token.symbol] ?? null
+          return { token, balance, balanceRaw, priceUsd, valueUsd, allocation: 0, imageUrl }
         })
 
         const total = raw.reduce((sum, p) => sum + p.valueUsd, 0)

@@ -1,4 +1,5 @@
 import type { TokenPosition } from "@/hooks/usePortfolio"
+import { TokenAvatar } from "./TokenAvatar"
 
 function formatBalance(balance: string): string {
   const num = parseFloat(balance)
@@ -17,16 +18,14 @@ export function TokenRow({
   position: TokenPosition
   dim?: boolean
 }) {
-  const { token, balance, valueUsd } = position
+  const { token, balance, valueUsd, imageUrl } = position
 
   return (
     <div
       className={`flex items-center justify-between py-3 transition-opacity ${dim ? "opacity-35" : ""}`}
     >
       <div className="flex items-center gap-3">
-        <div className="size-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold shrink-0">
-          {token.symbol.slice(0, 2)}
-        </div>
+        <TokenAvatar symbol={token.symbol} imageUrl={imageUrl} />
         <div>
           <p className="text-sm font-medium leading-none">{token.symbol}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{token.name}</p>
