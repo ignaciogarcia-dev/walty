@@ -31,18 +31,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 	const { locale, setLocale } = useLocale()
 	const router = useRouter()
 	const wallet = useWallet()
-	const { status, password, setPassword, unlock, lock, exportWallet, importWallet, createBackup } = wallet
+	const { status, password, setPassword, unlock, importWallet } = wallet
 
 	const fileInputRef = useRef<HTMLInputElement>(null)
 	const [unlockError, setUnlockError] = useState<string | null>(null)
 	const [importError, setImportError] = useState<string | null>(null)
-
-	// PIN backup setup state (shown in unlocked toolbar)
-	const [showPinSetup, setShowPinSetup] = useState(false)
-	const [backupPin, setBackupPin] = useState("")
-	const [backupError, setBackupError] = useState<string | null>(null)
-	const [backupSuccess, setBackupSuccess] = useState(false)
-	const [savingBackup, setSavingBackup] = useState(false)
 
 	// Redirect states that now live in onboarding
 	useEffect(() => {
@@ -57,7 +50,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 		const pending = sessionStorage.getItem("pending_unlock")
 		if (!pending) return
 		sessionStorage.removeItem("pending_unlock")
-		unlock(pending).catch(() => {})
+		unlock(pending).catch(() => { })
 	}, [status]) // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
@@ -73,22 +66,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 	function handleLocaleChange(value: string) {
 		if (!isLocale(value)) return
 		setLocale(value as Locale)
-	}
-
-	const handleCreateBackup = async () => {
-		setBackupError(null)
-		setBackupSuccess(false)
-		setSavingBackup(true)
-		try {
-			await createBackup(backupPin)
-			setBackupSuccess(true)
-			setBackupPin("")
-			setTimeout(() => { setShowPinSetup(false); setBackupSuccess(false) }, 2000)
-		} catch (err) {
-			setBackupError(err instanceof Error ? err.message : t("error-creating-backup"))
-		} finally {
-			setSavingBackup(false)
-		}
 	}
 
 	async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -154,7 +131,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 	if (status === "loading" || status === "new" || status === "recoverable") {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-background">
+			<div className="min-h-screen flex items-center justify-center bg-">
 				<div className="flex flex-col items-center gap-3 text-muted-foreground">
 					<Spinner className="size-6" />
 					<span className="text-sm">{t("loading")}</span>
@@ -166,7 +143,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 	if (status === "locked") {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-background px-4">
-				<div className="w-full max-w-sm rounded-xl border bg-card p-6 shadow-sm flex flex-col gap-5 relative">
+				<div className="w-full max-w-sm rounded-4xl border bg-card p-6 shadow-sm flex flex-col gap-6 relative">
 					{settingsButtons}
 
 					<div>
@@ -184,12 +161,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 							onChange={(e) => { setPassword(e.target.value); if (unlockError) setUnlockError(null) }}
 							onKeyDown={(e) => e.key === "Enter" && password && handleUnlock()}
 							autoComplete="current-password"
+							className="rounded-xl"
 							autoFocus
 						/>
 						{unlockError && <p className="text-xs text-destructive">{unlockError}</p>}
 					</div>
 
-					<Button onClick={handleUnlock} disabled={!password} className="w-full">
+					<Button onClick={handleUnlock} disabled={!password} className="w-full rounded-xl">
 						{t("unlock")}
 					</Button>
 
@@ -200,7 +178,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 					</div>
 
 					<input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
-					<Button variant="outline" onClick={() => fileInputRef.current?.click()} className="w-full">
+					<Button variant="outline" onClick={() => fileInputRef.current?.click()} className="w-full rounded-xl">
 						{t("import-backup")}
 					</Button>
 					{importError && <p className="text-xs text-destructive text-center">{importError}</p>}
@@ -212,49 +190,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 	// status === "unlocked"
 	return (
 		<WalletContext.Provider value={wallet}>
-			<SidebarProvider>
+			<SidebarProvider className="bg-dashboard-shell">
 				<DashboardSidebar />
-				<SidebarInset>
-					<div className="flex h-16 items-center gap-2 border-b px-4">
-						<SidebarTrigger />
-						<div className="flex-1" />
-						<Button size="sm" variant="ghost" onClick={exportWallet}>
-							{t("export-backup")}
-						</Button>
-						<Button size="sm" variant="ghost" onClick={() => { setShowPinSetup((v) => !v); setBackupPin(""); setBackupError(null); setBackupSuccess(false) }}>
-							{t("setup-pin-backup")}
-						</Button>
-						<Button size="sm" variant="outline" onClick={lock}>
-							{t("lock")}
-						</Button>
+				<SidebarInset className="bg-dashboard-shell">
+					<div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-dashboard-shell/95 px-4 backdrop-blur md:hidden">
+						<SidebarTrigger className="size-9 rounded-xl border bg-background shadow-xs hover:bg-accent" />
+						<span className="text-sm font-semibold text-foreground">Walty</span>
 					</div>
-
-					{showPinSetup && (
-						<div className="border-b bg-muted/40 px-4 py-4">
-							<p className="text-sm text-muted-foreground mb-3">{t("setup-pin-backup-description")}</p>
-							<div className="flex items-end gap-3">
-								<div className="flex flex-col gap-1.5 flex-1">
-									<Label htmlFor="backup-pin">{t("recovery-pin")}</Label>
-									<Input
-										id="backup-pin"
-										type="password"
-										inputMode="numeric"
-										placeholder="····"
-										maxLength={6}
-										value={backupPin}
-										onChange={(e) => { setBackupPin(e.target.value.replace(/\D/g, "")); setBackupError(null); setBackupSuccess(false) }}
-										onKeyDown={(e) => e.key === "Enter" && backupPin.length >= 4 && handleCreateBackup()}
-									/>
-								</div>
-								<Button size="sm" onClick={handleCreateBackup} disabled={savingBackup || backupPin.length < 4}>
-									{savingBackup ? t("setting-up-backup") : t("save")}
-								</Button>
-							</div>
-							{backupError && <p className="mt-2 text-xs text-destructive">{backupError}</p>}
-							{backupSuccess && <p className="mt-2 text-xs text-green-600 dark:text-green-400">{t("backup-created")}</p>}
-						</div>
-					)}
-
 					<div className="flex-1 overflow-auto">
 						{children}
 					</div>
