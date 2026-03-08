@@ -42,7 +42,7 @@ function DialogClose(props: DialogCloseProps) {
 type DialogOverlayProps = DialogOverlayPrimitiveProps;
 
 function DialogOverlay({ className, ...props }: DialogOverlayProps) {
-	return <DialogOverlayPrimitive className={cn("fixed inset-0 z-50 bg-black/50", className)} {...props} />;
+	return <DialogOverlayPrimitive className={cn("fixed inset-0 z-50 bg-dialog-overlay", className)} {...props} />;
 }
 
 type DialogContentProps = DialogContentPrimitiveProps;
@@ -53,7 +53,7 @@ function DialogContent({ className, children, ...props }: DialogContentProps) {
 			<DialogOverlay />
 			<DialogContentPrimitive
 				className={cn(
-					"fixed top-[50%] left-[50%] z-50 grid max-h-[calc(100%-2rem)] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-lg border bg-background p-6 shadow-lg sm:max-w-2xl 2xl:max-w-4xl",
+					"fixed top-[50%] left-[50%] z-50 grid max-h-[calc(100%-2rem)] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-lg border bg-dialog-surface p-6 shadow-lg sm:max-w-2xl 2xl:max-w-4xl",
 					className,
 				)}
 				{...props}
