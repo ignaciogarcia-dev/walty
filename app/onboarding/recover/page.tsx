@@ -67,13 +67,14 @@ export default function RecoverPage() {
           onChange={(e) => { setPin(e.target.value.replace(/\D/g, "")); setError(null) }}
           onKeyDown={(e) => e.key === "Enter" && pin.length >= 4 && handleRecover()}
           autoFocus
+          className="rounded-xl"
         />
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
       <Button
-        className="w-full"
+        className="w-full rounded-xl"
         onClick={handleRecover}
         disabled={loading || pin.length < 4}
       >
