@@ -30,7 +30,7 @@ export default function RecoveryPhrasePage() {
         {words.map((word, i) => (
           <div
             key={i}
-            className="flex items-center gap-1.5 rounded-lg border bg-muted/50 px-2.5 py-2"
+            className="flex items-center gap-1.5 rounded-2xl border bg-muted/50 px-2.5 py-2"
           >
             <span className="text-xs text-muted-foreground w-4 text-right shrink-0">{i + 1}</span>
             <span className="text-sm font-mono font-medium text-foreground">{word}</span>
@@ -38,11 +38,11 @@ export default function RecoveryPhrasePage() {
         ))}
       </div>
 
-      <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-400">
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400">
         Write these words down in order. Never share them with anyone.
       </div>
 
-      <Button className="w-full" onClick={() => router.push("/onboarding/confirm-recovery")}>
+      <Button className="w-full rounded-xl" onClick={() => router.push("/onboarding/confirm-recovery")}>
         {t("onboarding-i-saved-phrase")}
       </Button>
     </OnboardingShell>

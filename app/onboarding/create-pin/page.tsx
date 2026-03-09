@@ -123,6 +123,7 @@ export default function CreatePinPage() {
             maxLength={6}
             value={pin}
             onChange={(e) => { setPin(e.target.value.replace(/\D/g, "")); setError(null) }}
+            className="rounded-xl"
           />
           <p className="text-xs text-muted-foreground">{t("pin-description")}</p>
         </div>
@@ -138,6 +139,7 @@ export default function CreatePinPage() {
             value={confirmPin}
             onChange={(e) => { setConfirmPin(e.target.value.replace(/\D/g, "")); setError(null) }}
             onKeyDown={(e) => e.key === "Enter" && pin.length >= 4 && confirmPin.length >= 4 && handleSubmit()}
+            className="rounded-xl"
           />
         </div>
       </div>
@@ -145,7 +147,7 @@ export default function CreatePinPage() {
       {error && <p className="text-xs text-destructive">{error}</p>}
 
       <Button
-        className="w-full"
+        className="w-full rounded-xl"
         onClick={handleSubmit}
         disabled={loading || pin.length < 4 || confirmPin.length < 4}
       >

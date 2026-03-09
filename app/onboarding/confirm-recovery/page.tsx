@@ -24,11 +24,11 @@ export default function ConfirmRecoveryPage() {
         <p className="mt-1 text-sm text-muted-foreground">{t("onboarding-confirm-description")}</p>
       </div>
 
-      <div className="flex flex-col gap-3 mt-2">
-        <Button className="w-full" onClick={() => router.push("/onboarding/create-pin")}>
+      <div className="mt-2 flex flex-col gap-3">
+        <Button className="w-full rounded-xl" onClick={() => router.push("/onboarding/create-pin")}>
           {t("onboarding-yes-saved")}
         </Button>
-        <Button variant="outline" className="w-full" onClick={() => router.back()}>
+        <Button variant="outline" className="w-full rounded-xl" onClick={() => router.back()}>
           {t("cancel")}
         </Button>
       </div>

@@ -54,6 +54,7 @@ export default function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
             autoComplete="email"
+            className="rounded-xl"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -66,23 +67,25 @@ export default function RegisterPage() {
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
             autoComplete="new-password"
+            className="rounded-xl"
           />
         </div>
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
-      <Button onClick={handleSubmit} disabled={loading || !email || password.length < 8} className="w-full">
+      <Button onClick={handleSubmit} disabled={loading || !email || password.length < 8} className="w-full rounded-xl">
         {loading ? <><Spinner className="mr-2" />{t("registering")}</> : t("register")}
       </Button>
 
-      <button
+      <Button
         type="button"
-        className="text-xs text-muted-foreground hover:text-foreground text-center transition-colors"
+        variant="ghost"
+        className="w-full rounded-xl text-xs text-muted-foreground hover:text-foreground"
         onClick={() => router.push("/onboarding/login")}
       >
         {t("go-to-login")}
-      </button>
+      </Button>
     </OnboardingShell>
   )
 }

@@ -8,7 +8,7 @@ export type TokenPosition = {
   token: Token
   chainId: number
   balance: string
-  balanceRaw: bigint
+  balanceRaw?: bigint
   priceUsd: number
   valueUsd: number
   allocation: number
