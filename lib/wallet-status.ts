@@ -6,25 +6,47 @@ export type LinkedAddress = {
   address: string
 }
 
+export type InitialWalletStatus =
+  | "new"
+  | "locked"
+  | "recoverable"
+  | "invalid-local"
+
+type LinkedAddressesResult = {
+  addresses: LinkedAddress[]
+  isAuthenticated: boolean
+}
+
+function normalizeAddress(address: string): string {
+  return address.trim().toLowerCase()
+}
+
 /**
  * Fetches the user's linked addresses from the server
  * @returns Array of linked addresses, or empty array on error
  */
-export async function fetchLinkedAddresses(): Promise<LinkedAddress[]> {
+export async function fetchLinkedAddresses(): Promise<LinkedAddressesResult | null> {
   try {
     const res = await fetch("/api/addresses")
+    if (res.status === 401) {
+      return { addresses: [], isAuthenticated: false }
+    }
     if (!res.ok) {
-      return []
+      return null
     }
+
     const data = await res.json()
-    // Validate response structure
     if (!Array.isArray(data.addresses)) {
-      return []
+      return null
     }
-    return data.addresses
+
+    return {
+      addresses: data.addresses as LinkedAddress[],
+      isAuthenticated: true,
+    }
   } catch (err) {
     console.error("Error fetching linked addresses:", err)
-    return []
+    return null
   }
 }
 
@@ -36,75 +58,46 @@ export function isAddressLinked(
   linkedAddresses: LinkedAddress[]
 ): boolean {
   return linkedAddresses.some(
-    (addr) => addr.address.toLowerCase() === address.toLowerCase()
+    (addr) => normalizeAddress(addr.address) === normalizeAddress(address)
   )
-}
-
-/**
- * Clears localStorage if the stored wallet doesn't belong to the current user
- */
-export function clearStaleWallet(linkedAddresses: LinkedAddress[]): void {
-  const stored = getStoredWallet()
-  if (!stored) return
-
-  const addressMatches = isAddressLinked(stored.address, linkedAddresses)
-  if (!addressMatches) {
-    clearStoredWallet()
-  }
-}
-
-async function hasServerBackup(): Promise<boolean> {
-  try {
-    const res = await fetch("/api/wallet/backup")
-    if (!res.ok) return false
-    const { backup } = await res.json()
-    return backup !== null
-  } catch {
-    return false
-  }
 }
 
 /**
  * Determines the initial wallet status based on:
  * - User's linked addresses in the database
  * - Wallet stored in localStorage
- * - Server-side encrypted backup
  *
- * @returns "new" | "locked" | "recoverable"
+ * @returns "new" | "locked" | "recoverable" | "invalid-local"
  */
-export async function determineWalletStatus(): Promise<
-  "new" | "locked" | "recoverable"
-> {
+export async function determineWalletStatus(): Promise<InitialWalletStatus> {
   try {
-    const linkedAddresses = await fetchLinkedAddresses()
+    const stored = getStoredWallet()
+    const linkedResult = await fetchLinkedAddresses()
+
+    // Keep local wallet intact until we can confirm the authenticated identity.
+    if (!linkedResult || !linkedResult.isAuthenticated) {
+      return stored ? "locked" : "new"
+    }
+
+    const linkedAddresses = linkedResult.addresses
     const hasLinkedAddresses = linkedAddresses.length > 0
 
     if (!hasLinkedAddresses) {
-      // New user - clear any stale localStorage from other users
+      // Authenticated user with no linked addresses is the only true "new" case.
       clearStoredWallet()
       return "new"
     }
 
-    // User has linked addresses - verify stored wallet belongs to them
-    clearStaleWallet(linkedAddresses)
-
-    const stored = getStoredWallet()
     if (stored) {
-      // Verify the stored wallet belongs to this user
       if (isAddressLinked(stored.address, linkedAddresses)) {
         return "locked"
       }
-      // If we get here, clearStaleWallet should have cleared it, but double-check
-      clearStoredWallet()
+
+      return "invalid-local"
     }
 
-    // User has linked address but no local wallet — check for server backup
-    const backupExists = await hasServerBackup()
-    if (backupExists) return "recoverable"
-
-    return "new"
+    return "recoverable"
   } catch (err) {
-    // On error, fallback to localStorage check
     console.error("Error determining wallet status:", err)
     return getStoredWallet() ? "locked" : "new"
   }
