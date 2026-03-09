@@ -10,9 +10,9 @@ import { validateTx } from "@/lib/transactions/validate"
 import { estimateTokenGasCost as estimateGas } from "@/lib/transactions/estimate"
 import { sendToken as sendTokenTx } from "@/lib/transactions/send"
 import { getStoredWallet, saveWallet, type StoredWallet } from "@/lib/wallet-store"
-import { determineWalletStatus } from "@/lib/wallet-status"
+import { determineWalletStatus, type InitialWalletStatus } from "@/lib/wallet-status"
 
-export type WalletStatus = "loading" | "new" | "locked" | "unlocked" | "recoverable"
+export type WalletStatus = "loading" | "unlocked" | InitialWalletStatus
 export type TxStatus = "idle" | "pending" | "confirmed" | "error" | "pending_on_chain"
 
 export type TxRecord = {
