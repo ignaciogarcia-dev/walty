@@ -1,5 +1,7 @@
 import type { TokenPosition } from "@/hooks/usePortfolio"
 import { TokenAvatar } from "./TokenAvatar"
+import { getNetwork } from "@/lib/networks/networks"
+import { Badge } from "@/components/ui/badge"
 
 function formatBalance(balance: string): string {
   const num = parseFloat(balance)
@@ -12,14 +14,24 @@ function formatBalance(balance: string): string {
 }
 
 export function TokenCard({ position }: { position: TokenPosition }) {
-  const { token, balance, valueUsd, imageUrl } = position
+  const { token, balance, valueUsd, imageUrl, chainId } = position
+  const network = (() => {
+    try { return getNetwork(chainId) } catch { return null }
+  })()
 
   return (
     <div className="rounded-2xl border bg-card p-4 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <TokenAvatar symbol={token.symbol} imageUrl={imageUrl} />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium leading-none truncate">{token.symbol}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs font-medium leading-none truncate">{token.symbol}</p>
+            {network && (
+              <Badge variant="outline" className="text-[10px] px-1 py-0 leading-tight">
+                {network.name}
+              </Badge>
+            )}
+          </div>
           <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{token.name}</p>
         </div>
       </div>

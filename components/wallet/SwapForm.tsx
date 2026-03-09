@@ -2,7 +2,10 @@
 import { useState, useEffect, useRef } from "react"
 import { parseUnits, formatUnits } from "viem"
 import { CaretUpDown, Check } from "@phosphor-icons/react"
-import { TOKENS, type Token } from "@/lib/tokens"
+import { getTokensByChain, type Token } from "@/lib/tokens/tokenRegistry"
+import { getPublicClient } from "@/lib/rpc/getPublicClient"
+import { getWalletClient } from "@/lib/rpc/getWalletClient"
+import { getNetwork } from "@/lib/networks/networks"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
@@ -20,12 +23,10 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { getWalletClient } from "@/lib/signer"
 import { decryptSeed } from "@/lib/crypto"
 import { getStoredWallet } from "@/lib/wallet-store"
-import { publicClient } from "@/lib/eth"
 import { useTranslation } from "@/hooks/useTranslation"
-import type { ZeroxQuoteResponse } from "@/lib/0x"
+import type { SwapQuote } from "@/lib/providers/swap/swapRouter"
 import { TokenAvatar } from "./TokenAvatar"
 import { cn } from "@/utils/style"
 
@@ -149,15 +150,18 @@ function TokenSelector({
 export function SwapForm({
   address,
   password,
+  chainId,
   onTxRecord,
 }: {
   address: string
   password: string
+  chainId: number
   onTxRecord: (hash: string, to: string, amount: string) => void
 }) {
   const { t } = useTranslation()
-  const [sellToken, setSellToken] = useState<Token>(TOKENS[0])
-  const [buyToken, setBuyToken] = useState<Token>(TOKENS[1])
+  const tokens = getTokensByChain(chainId)
+  const [sellToken, setSellToken] = useState<Token>(tokens[0])
+  const [buyToken, setBuyToken] = useState<Token>(tokens[1] ?? tokens[0])
   const [sellAmount, setSellAmount] = useState("")
   const [buyAmount, setBuyAmount] = useState("")
   const [priceInfo, setPriceInfo] = useState<{ buyAmount: string; sellAmount: string } | null>(null)
@@ -179,6 +183,25 @@ export function SwapForm({
   const latestPriceRef = useRef<{ buyAmount: string; sellAmount: string } | null>(null)
   const sellInputRef = useRef<HTMLInputElement>(null)
   const buyInputRef = useRef<HTMLInputElement>(null)
+
+  const publicClient = getPublicClient(chainId)
+  const network = getNetwork(chainId)
+
+  // Reset tokens when chain changes
+  useEffect(() => {
+    const chainTokens = getTokensByChain(chainId)
+    if (chainTokens.length > 0) {
+      setSellToken(chainTokens[0])
+      setBuyToken(chainTokens[1] ?? chainTokens[0])
+    }
+    setSellAmount("")
+    setBuyAmount("")
+    setPriceInfo(null)
+    latestPriceRef.current = null
+    setStatus("idle")
+    setSwapError(null)
+    setSwapHash(null)
+  }, [chainId])
 
   useEffect(() => {
     let cancelled = false
@@ -207,7 +230,7 @@ export function SwapForm({
     async function load() {
       try {
         let bal: bigint
-        if (sellToken.address === null) {
+        if (sellToken.type === "native") {
           bal = await publicClient.getBalance({ address: address as `0x${string}` })
         } else {
           bal = (await publicClient.readContract({
@@ -226,7 +249,7 @@ export function SwapForm({
     return () => {
       cancelled = true
     }
-  }, [sellToken.address, address])
+  }, [sellToken.address, sellToken.type, address, chainId])
 
   // Fetch buy token balance
   useEffect(() => {
@@ -234,7 +257,7 @@ export function SwapForm({
     async function load() {
       try {
         let bal: bigint
-        if (buyToken.address === null) {
+        if (buyToken.type === "native") {
           bal = await publicClient.getBalance({ address: address as `0x${string}` })
         } else {
           bal = (await publicClient.readContract({
@@ -253,7 +276,7 @@ export function SwapForm({
     return () => {
       cancelled = true
     }
-  }, [buyToken.address, address])
+  }, [buyToken.address, buyToken.type, address, chainId])
 
   // Debounced price fetch — called imperatively from handlers to avoid dep-loop
   function schedulePriceFetch(direction: QuoteDir, amount: string, sTok: Token, bTok: Token) {
@@ -290,10 +313,10 @@ export function SwapForm({
         }
 
         const params = new URLSearchParams({
-          sellToken: sTok.address ?? "ETH",
-          buyToken: bTok.address ?? "ETH",
+          sellToken: sTok.address ?? sTok.symbol,
+          buyToken: bTok.address ?? bTok.symbol,
           sellAmount: fetchSellWei,
-          chainId: "1",
+          chainId: String(chainId),
         })
 
         const res = await fetch(`/api/swap/price?${params}`)
@@ -351,7 +374,7 @@ export function SwapForm({
   }
 
   function handleSellTokenChange(sym: string) {
-    const tok = TOKENS.find((t) => t.symbol === sym)
+    const tok = tokens.find((t) => t.symbol === sym)
     if (!tok) return
     setSellToken(tok)
     resetQuote()
@@ -359,7 +382,7 @@ export function SwapForm({
   }
 
   function handleBuyTokenChange(sym: string) {
-    const tok = TOKENS.find((t) => t.symbol === sym)
+    const tok = tokens.find((t) => t.symbol === sym)
     if (!tok) return
     setBuyToken(tok)
     resetQuote()
@@ -398,11 +421,11 @@ export function SwapForm({
     try {
       const sellAmountWei = parseUnits(sellAmount, sellToken.decimals).toString()
       const params = new URLSearchParams({
-        sellToken: sellToken.address ?? "ETH",
-        buyToken: buyToken.address ?? "ETH",
+        sellToken: sellToken.address ?? sellToken.symbol,
+        buyToken: buyToken.address ?? buyToken.symbol,
         sellAmount: sellAmountWei,
         takerAddress: address,
-        chainId: "1",
+        chainId: String(chainId),
       })
 
       const res = await fetch(`/api/swap/quote?${params}`)
@@ -411,7 +434,7 @@ export function SwapForm({
         throw new Error(err.error ?? "Quote failed")
       }
 
-      const quote: ZeroxQuoteResponse = await res.json()
+      const quote: SwapQuote = await res.json()
       const tx = quote.transaction
 
       // Calculate network fee from quote gas data
@@ -423,7 +446,10 @@ export function SwapForm({
         const pricesRes = await fetch("/api/prices")
         if (pricesRes.ok) {
           const prices: Record<string, number> = await pricesRes.json()
-          if (prices.ETH) {
+          const nativeSymbol = network.nativeCurrency.symbol
+          if (prices[nativeSymbol]) {
+            setNetworkFeeUsd(gasCostEth * prices[nativeSymbol])
+          } else if (prices.ETH) {
             setNetworkFeeUsd(gasCostEth * prices.ETH)
           } else {
             setNetworkFeeUsd(gasCostEth)
@@ -437,11 +463,11 @@ export function SwapForm({
 
       const stored = getStoredWallet()!
       const mnemonic = await decryptSeed(stored.encrypted, password)
-      const walletClient = getWalletClient(mnemonic)
+      const walletClient = getWalletClient(mnemonic, chainId)
 
       // Approve spender if needed
       const spender = quote.issues?.allowance?.spender
-      if (sellToken.address !== null && spender && spender !== ZERO_ADDRESS) {
+      if (sellToken.type === "erc20" && sellToken.address && spender && spender !== ZERO_ADDRESS) {
         setStatus("approving")
         const approveTx = await walletClient.writeContract({
           address: sellToken.address as `0x${string}`,
@@ -499,8 +525,8 @@ export function SwapForm({
   )
   const showDetailSkeleton = isQuoting || isBusy
 
-  const buyOptions = TOKENS.filter((t) => t.symbol !== sellToken.symbol)
-  const sellOptions = TOKENS.filter((t) => t.symbol !== buyToken.symbol)
+  const buyOptions = tokens.filter((t) => t.symbol !== sellToken.symbol)
+  const sellOptions = tokens.filter((t) => t.symbol !== buyToken.symbol)
 
   let priceDisplay: string | null = null
   if (priceInfo && parseFloat(priceInfo.sellAmount) > 0 && parseFloat(priceInfo.buyAmount) > 0) {
