@@ -29,7 +29,9 @@ export default function RegisterPage() {
         router.push("/onboarding/create-wallet")
       } else {
         const data = await res.json()
-        setError(data.error ?? t("unexpected-error"))
+        const errorKey = data.error?.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+        const translatedError = errorKey && (t(errorKey as any) !== errorKey) ? t(errorKey as any) : (data.error ?? t("unexpected-error"))
+        setError(translatedError)
       }
     } finally {
       setLoading(false)
