@@ -113,5 +113,3 @@ docker compose up --build
 - `COINGECKO_API_KEY`: Improves token price and image rate limits
 - `COINGECKO_API_BASE_URL`: Overrides the default CoinGecko API base URL
 - `COOKIE_SECURE`: Forces the JWT cookie `Secure` flag in local HTTPS setups
-
-For deeper implementation details, see `docs/architecture.md`.
