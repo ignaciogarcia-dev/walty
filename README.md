@@ -5,75 +5,56 @@
 
   <h1>Walty</h1>
 
-  <p>Walty is a free and open-source crypto wallet dashboard focused on simplicity, privacy, and self-custody.</p>
+  <p>Walty is a free and open-source multichain EVM wallet focused on simplicity, privacy, and self-custody.</p>
+
+  <p><a href="#quick-start">Get Started</a> · <a href="#self-hosting">Self-Hosting</a> · <a href="docs/architecture.md">Learn More</a></p>
 </div>
 
 ---
-Walty makes managing your crypto assets straightforward. Create a secure wallet, view your portfolio across multiple EVM chains, send tokens, and swap assets. All while maintaining complete control over your private keys. The entire application can be self-hosted on your own infrastructure.
+Walty makes managing your crypto assets straightforward. Create a secure wallet, view your portfolio across multiple EVM chains, send tokens, and swap assets. All while maintaining complete control over your private keys.
 
-Built with privacy and security as core principles, Walty ensures your seed phrase never leaves your browser. The mnemonic is encrypted locally and stored only in your browser's localStorage. The server never sees your private keys, and all transaction signing happens client-side.
+Built with privacy as a core principle, Walty keeps your seed phrase in the browser, encrypts it locally, and signs transactions client-side. The entire application can also be self-hosted on your own infrastructure.
 
 ## Features
 
-**Wallet Management**
+**Wallet**
 
-- BIP-39 mnemonic generation with 24-word seed phrases
-- Local encryption using AES-GCM with PBKDF2 (210,000 iterations)
-- Auto-lock after 5 minutes of inactivity or immediate lock on tab blur
+- Create and import wallets with 24-word seed phrases
+- Local encryption and automatic wallet lock
 - Export and import encrypted wallet backups
-- Server-verified wallet linking via cryptographic nonce signatures
+- Address book and saved contacts
 
-**Multi-Chain Support**
+**Multichain EVM**
 
-- Native support for Ethereum, Arbitrum, Base, Optimism, and Polygon
-- View token balances across all supported chains
-- Token portfolio with USD value calculations
-- ERC-20 token support with multicall balance queries
+- Support for Ethereum, Arbitrum, Base, Optimism, and Polygon
+- Cross-chain portfolio view with token balances and USD values
+- ERC-20 token support across supported networks
 
 **Transactions**
 
-- Send ETH and tokens with real-time gas estimation
-- Transaction history with on-chain status synchronization
-- Automatic transaction status updates on wallet unlock
-- Etherscan integration for transaction tracking
+- Send native tokens and ERC-20s
+- Real-time gas estimation
+- Transaction history with on-chain status updates
+- Explorer links for tracking transactions
 
-**Token Swaps**
+**Swaps**
 
-- Swap tokens using 0x Protocol aggregation
-- Price quotes with real-time market data
+- Token swaps with live quotes
 - Automatic ERC-20 approval handling
 - Transaction simulation before execution
 
-**Privacy & Security**
+**Privacy & Control**
 
 - Self-host on your own infrastructure
 - No tracking or analytics by default
-- Content Security Policy with per-request cryptographic nonces
-- HttpOnly JWT cookies for authentication
-- Rate limiting on authentication endpoints
 - Server never sees your mnemonic or private keys
 
-**User Experience**
+**Extras**
 
 - Multi-language support (English and Spanish)
-- Dark mode with theme persistence
-- Responsive design with mobile support
+- Dark mode
+- Responsive design
 - ENS name resolution for Ethereum addresses
-- Contact management for saved addresses
-
-## Requirements
-
-**Required:**
-- [Docker](https://www.docker.com/get-started) (version 20.10 or later)
-- [Docker Compose](https://docs.docker.com/compose/install/) (version 2.0 or later, usually included with Docker Desktop)
-- Git (to clone the repository)
-
-**Optional:**
-- `openssl` (for generating secure random strings - usually pre-installed on Linux/Mac, or use any online random string generator)
-
-**Not required:**
-- Node.js, pnpm, or any other build tools (everything builds inside Docker containers)
-- PostgreSQL (runs in a Docker container)
 
 ## Quick Start
 
@@ -87,48 +68,32 @@ cd walty
 # Copy the environment variables template
 cp .env.example .env
 
-# Edit .env and set your secrets
+# Edit .env
 # Required: JWT_SECRET and SERVER_PEPPER
 # Recommended: ALCHEMY_API_KEY
-# Needed for swaps: ZEROX_API_KEY
-# Generate secure random strings (choose one method):
-# - Linux/Mac: openssl rand -base64 32
-# - Online: Use any secure random string generator (64+ characters recommended)
-# - Or manually create long random strings
+# Optional: ZEROX_API_KEY for swaps
 
 # Build and start all services
 docker compose up --build
 
 # Access the app
-open http://localhost:3000
+xdg-open http://localhost:3000
 ```
 
-Migrations run automatically on container startup. No manual steps needed.
+Migrations run automatically on container startup. For the full environment variable list, see `.env.example`.
 
 ## Development
 
-This project does not use `next dev` in development mode. Due to strict Content Security Policy constraints, the app must run in production mode via Docker Compose. Always use `docker compose up --build` after making code changes.
-
-## Security
-
-Walty implements multiple layers of security. The server never sees your mnemonic. Seed phrases are generated, encrypted, and stored entirely in the browser. Authentication uses JWT tokens stored in HttpOnly cookies, and rate limiting prevents brute-force attacks. Content Security Policy is enforced with per-request nonces, and all transaction signing happens client-side.
+This project runs through Docker Compose. Because of the app's CSP setup, use `docker compose up --build` instead of `next dev` while developing.
 
 ## Self-Hosting
 
-Walty can be self-hosted using Docker. PostgreSQL runs as part of the stack, and migrations are applied automatically on startup.
+Walty can be self-hosted with Docker. PostgreSQL runs as part of the stack, and database migrations are applied automatically on startup.
 
-Build from source:
+Basic environment setup:
 
 ```bash
-# Copy the environment variables template
 cp .env.example .env
-
-# Edit .env and configure the values you need
-# - DATABASE_URL is already configured for Docker Compose
-# - JWT_SECRET and SERVER_PEPPER are required
-# - ALCHEMY_API_KEY is recommended
-# - ZEROX_API_KEY is needed for swaps
-# - See .env.example for the full list of optional variables
 
 docker compose up --build
 ```
@@ -141,7 +106,7 @@ docker compose up --build
 **Recommended:**
 - `ALCHEMY_API_KEY`: Improves reliability for multichain RPC calls
 
-**Optional environment variables:**
+**Optional:**
 - `ZEROX_API_KEY`: Enables swaps
 - `ANKR_API_KEY`: Optional RPC fallback
 - `ONEINCH_API_KEY`: Optional swap fallback
@@ -149,4 +114,4 @@ docker compose up --build
 - `COINGECKO_API_BASE_URL`: Overrides the default CoinGecko API base URL
 - `COOKIE_SECURE`: Forces the JWT cookie `Secure` flag in local HTTPS setups
 
-For deeper implementation details, see `docs/architecture.md` and `.env.example`.
+For deeper implementation details, see `docs/architecture.md`.

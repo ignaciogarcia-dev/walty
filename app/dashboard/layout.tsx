@@ -41,6 +41,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 	useEffect(() => {
 		if (status === "new") router.replace("/onboarding/create-wallet")
 		if (status === "recoverable") router.replace("/onboarding/recover")
+		if (status === "invalid-local") router.replace("/onboarding/recover?reason=invalid-local")
 	}, [status, router])
 
 	// Auto-unlock after onboarding: the create-pin page leaves the PIN in
@@ -129,7 +130,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 		</div>
 	)
 
-	if (status === "loading" || status === "new" || status === "recoverable") {
+	if (status === "loading" || status === "new" || status === "recoverable" || status === "invalid-local") {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-">
 				<div className="flex flex-col items-center gap-3 text-muted-foreground">
