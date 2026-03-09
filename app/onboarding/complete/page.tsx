@@ -16,7 +16,7 @@ export default function CompletePage() {
         <p className="text-sm text-muted-foreground">{t("onboarding-complete-description")}</p>
       </div>
 
-      <Button className="w-full" onClick={() => router.push("/dashboard")}>
+      <Button className="w-full rounded-xl" onClick={() => router.push("/dashboard")}>
         {t("onboarding-enter-app")}
       </Button>
     </OnboardingShell>

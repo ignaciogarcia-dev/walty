@@ -74,7 +74,7 @@ export default function UsernamePage() {
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
           <Input
             id="username"
-            className="pl-7"
+            className="rounded-xl pl-7"
             placeholder={t("onboarding-username-placeholder")}
             value={username}
             onChange={(e) => { setUsername(e.target.value); setError(null) }}
@@ -98,13 +98,13 @@ export default function UsernamePage() {
 
       <div className="flex flex-col gap-2">
         <Button
-          className="w-full"
+          className="w-full rounded-xl"
           onClick={handleSubmit}
           disabled={loading || checkState === "taken" || checkState === "checking" || (!!username.trim() && checkState !== "available")}
         >
           {loading ? <><Spinner className="mr-2" />{t("checking")}</> : t("onboarding-continue")}
         </Button>
-        <Button variant="ghost" className="w-full" onClick={() => router.push("/onboarding/complete")}>
+        <Button variant="ghost" className="w-full rounded-xl" onClick={() => router.push("/onboarding/complete")}>
           {t("onboarding-skip")}
         </Button>
       </div>

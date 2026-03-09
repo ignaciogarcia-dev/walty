@@ -79,7 +79,7 @@ export function ReceiveModal({ open, onOpenChange, address }: ReceiveModalProps)
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-sm">
+			<DialogContent className="max-w-sm rounded-4xl border bg-card p-6 shadow-sm">
 				<DialogHeader>
 					<DialogTitle>Receive</DialogTitle>
 				</DialogHeader>
@@ -120,12 +120,12 @@ export function ReceiveModal({ open, onOpenChange, address }: ReceiveModalProps)
 					</DropdownMenu>
 
 					{/* QR code */}
-					<div className="rounded-2xl bg-white p-4">
+					<div className="rounded-2xl border bg-white p-4 shadow-xs">
 						<QRCodeSVG value={qrValue} size={200} level="M" includeMargin={false} />
 					</div>
 
 					{/* Address + copy */}
-					<div className="flex w-full flex-col items-center gap-3">
+					<div className="flex w-full flex-col items-center gap-3 rounded-2xl border bg-secondary/20 p-4">
 						<span className="font-mono text-sm text-muted-foreground">
 							{truncateAddress(address)}
 						</span>
