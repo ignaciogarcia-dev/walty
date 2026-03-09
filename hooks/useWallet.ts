@@ -1,12 +1,14 @@
 "use client"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { formatEther, isAddress, parseEther, parseUnits, erc20Abi } from "viem"
+import { formatEther, isAddress, parseEther } from "viem"
 import { createWallet } from "@/lib/wallet"
-import type { Token } from "@/lib/tokens"
+import type { Token } from "@/lib/tokens/tokenRegistry"
 import { encryptSeed, decryptSeed, encryptSeedWithPin, decryptSeedWithPin, type PinEncryptedSeed } from "@/lib/crypto"
-import { getBalance, publicClient } from "@/lib/eth"
-import { getWalletClient } from "@/lib/signer"
-import { validateTx } from "@/lib/wallet-core"
+import { getPublicClient } from "@/lib/rpc/getPublicClient"
+import { getWalletClient } from "@/lib/rpc/getWalletClient"
+import { validateTx } from "@/lib/transactions/validate"
+import { estimateTokenGasCost as estimateGas } from "@/lib/transactions/estimate"
+import { sendToken as sendTokenTx } from "@/lib/transactions/send"
 import { getStoredWallet, saveWallet, type StoredWallet } from "@/lib/wallet-store"
 import { determineWalletStatus } from "@/lib/wallet-status"
 
@@ -17,9 +19,15 @@ export type TxRecord = {
   id: number
   fromAddress: string
   toAddress: string
-  amount: string
-  txHash: string
+  value: string
+  hash: string
+  chainId: number
+  chainType: string
+  tokenAddress: string | null
+  tokenSymbol: string
   status: "pending" | "confirmed" | "failed"
+  gasUsed: string | null
+  blockNumber: string | null
   createdAt: string | null
 }
 
@@ -100,7 +108,8 @@ export function useWallet() {
   }, [status])
 
   async function loadBalance(addr: string) {
-    const b = await getBalance(addr as `0x${string}`)
+    const publicClient = getPublicClient(1)
+    const b = await publicClient.getBalance({ address: addr as `0x${string}` })
     setBalance(formatEther(b))
   }
 
@@ -132,7 +141,7 @@ export function useWallet() {
     const { mnemonic, address } = createWallet()
     const encrypted = await encryptSeed(mnemonic, password)
 
-    const walletClient = getWalletClient(mnemonic)
+    const walletClient = getWalletClient(mnemonic, 1)
     await linkWallet(address, walletClient)
 
     saveWallet({ encrypted, address } satisfies StoredWallet)
@@ -243,47 +252,14 @@ export function useWallet() {
     loadBalance(addr)
   }
 
-  // 4.1: Returns estimated gas cost in ETH string for the confirm modal
-  async function estimateGasCost(to: string, amount: string): Promise<string> {
-    if (!address || !isAddress(to) || Number(amount) <= 0) {
-      throw new Error("Parámetros inválidos")
-    }
-    const gas = await publicClient.estimateGas({
-      account: address as `0x${string}`,
-      to: to as `0x${string}`,
-      value: parseEther(amount),
-    })
-    const gasPrice = await publicClient.getGasPrice()
-    return formatEther(gas * gasPrice)
+  // Returns estimated gas cost in native currency string for the confirm modal
+  async function estimateTokenGasCost(token: Token, to: string, amount: string, chainId: number = 1): Promise<string> {
+    if (!address) throw new Error("Wallet locked")
+    return estimateGas(token, to, amount, address, chainId)
   }
 
-  // Returns estimated gas cost in ETH for native ETH or ERC-20 transfers
-  async function estimateTokenGasCost(token: Token, to: string, amount: string): Promise<string> {
-    if (!address || !isAddress(to) || Number(amount) <= 0) {
-      throw new Error("Parámetros inválidos")
-    }
-    const gasPrice = await publicClient.getGasPrice()
-    if (token.address === null) {
-      const gas = await publicClient.estimateGas({
-        account: address as `0x${string}`,
-        to: to as `0x${string}`,
-        value: parseEther(amount),
-      })
-      return formatEther(gas * gasPrice)
-    } else {
-      const gas = await publicClient.estimateContractGas({
-        address: token.address,
-        abi: erc20Abi,
-        functionName: "transfer",
-        args: [to as `0x${string}`, parseUnits(amount, token.decimals)],
-        account: address as `0x${string}`,
-      })
-      return formatEther(gas * gasPrice)
-    }
-  }
-
-  // Unified send for native ETH and ERC-20 tokens
-  async function sendToken(token: Token, to: string, amount: string) {
+  // Unified send for native and ERC-20 tokens, multichain
+  async function sendToken(token: Token, to: string, amount: string, chainId: number = 1) {
     if (!password || !address) {
       setTxStatus("error")
       setTxError("Wallet locked")
@@ -295,62 +271,26 @@ export function useWallet() {
       setTxHash(null)
       setTxError(null)
 
-      if (!isAddress(to)) throw new Error("Invalid address")
-      if (to.toLowerCase() === address.toLowerCase()) throw new Error("Cannot send to yourself")
-      if (Number(amount) <= 0) throw new Error("Invalid amount")
-
       const stored = getStoredWallet()!
       const mnemonic = await decryptSeed(stored.encrypted, password)
-      const walletClient = getWalletClient(mnemonic)
-      const gasPrice = await publicClient.getGasPrice()
 
-      let hash: `0x${string}`
-
-      if (token.address === null) {
-        // Native ETH
-        const currentBalance = await publicClient.getBalance({ address: address as `0x${string}` })
-        const value = parseEther(amount)
-        const gas = await publicClient.estimateGas({
-          account: address as `0x${string}`,
-          to: to as `0x${string}`,
-          value,
-        })
-        if (currentBalance < value + gas * gasPrice) {
-          throw new Error("Fondos insuficientes (incluye gas)")
-        }
-        hash = await walletClient.sendTransaction({
-          to: to as `0x${string}`,
-          value,
-          gas,
-          gasPrice,
-        })
-      } else {
-        // ERC-20
-        const tokenAmount = parseUnits(amount, token.decimals)
-        const gas = await publicClient.estimateContractGas({
-          address: token.address,
-          abi: erc20Abi,
-          functionName: "transfer",
-          args: [to as `0x${string}`, tokenAmount],
-          account: address as `0x${string}`,
-        })
-        hash = await walletClient.writeContract({
-          address: token.address,
-          abi: erc20Abi,
-          functionName: "transfer",
-          args: [to as `0x${string}`, tokenAmount],
-          gas,
-          gasPrice,
-        })
-      }
+      const hash = await sendTokenTx({
+        token,
+        to,
+        amount,
+        chainId,
+        from: address,
+        mnemonic,
+      })
 
       setTxHash(hash)
-      await recordTx(hash, to, amount).catch(() => {})
+      await recordTx(hash, to, amount, chainId, token).catch(() => {})
 
+      const publicClient = getPublicClient(chainId)
       let receipt
       try {
         receipt = await Promise.race([
-          publicClient.waitForTransactionReceipt({ hash }),
+          publicClient.waitForTransactionReceipt({ hash: hash as `0x${string}` }),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("timeout")), 60_000)
           ),
@@ -381,23 +321,33 @@ export function useWallet() {
   }
 
   // Persists a transaction record as pending; failures are silent so they never block the send flow
-  async function recordTx(txHash: string, to: string, amount: string) {
+  async function recordTx(hash: string, to: string, value: string, chainId: number, token: Token) {
     if (!address) return
     await fetch("/api/tx", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fromAddress: address, toAddress: to, amount, txHash }),
+      body: JSON.stringify({
+        hash,
+        chainId,
+        chainType: "EVM",
+        fromAddress: address,
+        toAddress: to,
+        tokenAddress: token.address ?? null,
+        tokenSymbol: token.symbol,
+        value,
+      }),
     })
   }
 
-  async function updateTxRecord(txHash: string, status: "confirmed" | "failed") {
+  async function updateTxRecord(hash: string, status: "confirmed" | "failed") {
     await fetch("/api/tx", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ txHash, status }),
+      body: JSON.stringify({ hash, status }),
     })
   }
 
+  // Legacy send for backwards compat (ETH-only on mainnet)
   async function send(to: string, amount: string) {
     if (!password || !address) {
       setTxStatus("error")
@@ -410,10 +360,17 @@ export function useWallet() {
       setTxHash(null)
       setTxError(null)
 
+      const publicClient = getPublicClient(1)
       const currentBalance = await publicClient.getBalance({ address: address as `0x${string}` })
 
       // Basic validation: address format, self-send, amount > 0, rough balance check
-      await validateTx({ to, amount, balance: currentBalance, address })
+      await validateTx({
+        to,
+        amount,
+        balance: currentBalance,
+        address,
+        token: { symbol: "ETH", type: "native", address: null, name: "Ethereum", decimals: 18, chainId: 1, coingeckoId: "ethereum" },
+      })
 
       const gas = await publicClient.estimateGas({
         account: address as `0x${string}`,
@@ -428,7 +385,7 @@ export function useWallet() {
       // sendSecure: decrypt on demand — mnemonic stays local, never stored in state
       const stored = getStoredWallet()!
       const mnemonic = await decryptSeed(stored.encrypted, password)
-      const walletClient = getWalletClient(mnemonic)
+      const walletClient = getWalletClient(mnemonic, 1)
       const hash = await walletClient.sendTransaction({
         to: to as `0x${string}`,
         value: parseEther(amount),
@@ -439,7 +396,8 @@ export function useWallet() {
 
       setTxHash(hash)
       // persist as pending immediately after broadcast
-      await recordTx(hash, to, amount).catch(() => {})
+      const ethToken: Token = { symbol: "ETH", type: "native", address: null, name: "Ethereum", decimals: 18, chainId: 1, coingeckoId: "ethereum" }
+      await recordTx(hash, to, amount, 1, ethToken).catch(() => {})
 
       let receipt
       try {
@@ -488,7 +446,10 @@ export function useWallet() {
     importWallet,
     createBackup,
     recoverWallet,
-    estimateGasCost,
+    estimateGasCost: (to: string, amount: string) => estimateTokenGasCost(
+      { symbol: "ETH", type: "native", address: null, name: "Ethereum", decimals: 18, chainId: 1, coingeckoId: "ethereum" },
+      to, amount, 1
+    ),
     estimateTokenGasCost,
     send,
     sendToken,
