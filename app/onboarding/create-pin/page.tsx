@@ -10,7 +10,7 @@ import { useOnboarding } from "../context"
 import { useTranslation } from "@/hooks/useTranslation"
 import { encryptSeed, encryptSeedWithPin } from "@/lib/crypto"
 import { saveWallet } from "@/lib/wallet-store"
-import { getWalletClient } from "@/lib/signer"
+import { getWalletClient } from "@/lib/rpc/getWalletClient"
 
 export default function CreatePinPage() {
   const { t } = useTranslation()
@@ -77,7 +77,7 @@ export default function CreatePinPage() {
       if (!nonceRes.ok) throw new Error("Nonce error")
       const { nonce } = await nonceRes.json()
 
-      const walletClient = getWalletClient(mnemonic)
+      const walletClient = getWalletClient(mnemonic, 1)
       const message = `Link wallet ${address} nonce ${nonce}`
       const signature = await walletClient.signMessage({ message })
 

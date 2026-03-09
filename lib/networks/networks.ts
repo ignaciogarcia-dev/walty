@@ -1,57 +1,83 @@
-export type SupportedChain = {
-  id: number
-  name: string
-  nativeCurrency: { symbol: string; decimals: number }
-  rpcUrls: string[]
-  explorer: string
-  zeroxBaseUrl: string
+export enum ChainType {
+  EVM = "EVM",
+  BITCOIN = "BITCOIN",
+  SOLANA = "SOLANA",
+  COSMOS = "COSMOS",
 }
 
-export const SUPPORTED_CHAINS: SupportedChain[] = [
+export type Network = {
+  id: number
+  name: string
+  chainType: ChainType
+  nativeCurrency: { symbol: string; decimals: number }
+  rpc: string[]
+  explorer: string
+  zeroxBaseUrl: string
+  multicall?: `0x${string}`
+  icon: string
+}
+
+export const NETWORKS: Network[] = [
   {
     id: 1,
     name: "Ethereum",
+    chainType: ChainType.EVM,
     nativeCurrency: { symbol: "ETH", decimals: 18 },
-    rpcUrls: ["https://rpc.ankr.com/eth", "https://ethereum.publicnode.com"],
+    rpc: [],
     explorer: "https://etherscan.io",
     zeroxBaseUrl: "https://api.0x.org",
+    icon: "EthereumLogo",
   },
   {
     id: 42161,
     name: "Arbitrum",
+    chainType: ChainType.EVM,
     nativeCurrency: { symbol: "ETH", decimals: 18 },
-    rpcUrls: ["https://arb1.arbitrum.io/rpc", "https://rpc.ankr.com/arbitrum"],
+    rpc: [],
     explorer: "https://arbiscan.io",
     zeroxBaseUrl: "https://arbitrum.api.0x.org",
+    icon: "ArbitrumLogo",
   },
   {
     id: 8453,
     name: "Base",
+    chainType: ChainType.EVM,
     nativeCurrency: { symbol: "ETH", decimals: 18 },
-    rpcUrls: ["https://mainnet.base.org", "https://rpc.ankr.com/base"],
+    rpc: [],
     explorer: "https://basescan.org",
     zeroxBaseUrl: "https://base.api.0x.org",
+    icon: "BaseLogo",
   },
   {
     id: 10,
     name: "Optimism",
+    chainType: ChainType.EVM,
     nativeCurrency: { symbol: "ETH", decimals: 18 },
-    rpcUrls: ["https://mainnet.optimism.io", "https://rpc.ankr.com/optimism"],
+    rpc: [],
     explorer: "https://optimistic.etherscan.io",
     zeroxBaseUrl: "https://optimism.api.0x.org",
+    icon: "OptimismLogo",
   },
   {
     id: 137,
     name: "Polygon",
+    chainType: ChainType.EVM,
     nativeCurrency: { symbol: "MATIC", decimals: 18 },
-    rpcUrls: ["https://polygon-rpc.com", "https://rpc.ankr.com/polygon"],
+    rpc: [],
     explorer: "https://polygonscan.com",
     zeroxBaseUrl: "https://polygon.api.0x.org",
+    icon: "PolygonLogo",
   },
 ]
 
-export const DEFAULT_CHAIN = SUPPORTED_CHAINS[0]
+const networkMap = new Map<number, Network>(NETWORKS.map((n) => [n.id, n]))
 
-export function getChainById(id: number): SupportedChain | undefined {
-  return SUPPORTED_CHAINS.find((c) => c.id === id)
+export function getNetwork(chainId: number): Network {
+  const network = networkMap.get(chainId)
+  if (!network) throw new Error(`Unsupported chainId: ${chainId}`)
+  return network
+}
+
+export function getEVMNetworks(): Network[] {
+  return NETWORKS.filter((n) => n.chainType === ChainType.EVM)
 }

@@ -20,12 +20,18 @@ export const addresses = pgTable("addresses", {
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  hash: text("hash").notNull().unique(),
+  chainId: integer("chain_id").notNull().default(1),
+  chainType: text("chain_type").notNull().default("EVM"),
   fromAddress: text("from_address").notNull(),
   toAddress: text("to_address").notNull(),
-  amount: text("amount").notNull(),
-  txHash: text("tx_hash").notNull().unique(),
+  tokenAddress: text("token_address"),
+  tokenSymbol: text("token_symbol").notNull(),
+  value: text("value").notNull(),
   status: txStatusEnum("status").notNull().default("pending"),
-  createdAt: timestamp("created_at").defaultNow(),
+  gasUsed: text("gas_used"),
+  blockNumber: text("block_number"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
 export const walletNonces = pgTable("wallet_nonces", {

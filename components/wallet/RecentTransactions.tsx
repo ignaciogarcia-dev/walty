@@ -97,7 +97,7 @@ export function RecentTransactions({
                             <button
                                 key={tx.id}
                                 className="rounded-lg border bg-card px-4 py-3 flex flex-col gap-1.5 hover:bg-accent transition-colors text-left"
-                                onClick={() => window.open(`https://etherscan.io/tx/${tx.txHash}`, "_blank")}
+                                onClick={() => window.open(`https://etherscan.io/tx/${tx.hash}`, "_blank")}
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -118,7 +118,7 @@ export function RecentTransactions({
                                     </div>
                                     <div className="flex flex-col items-end gap-0.5">
                                         <span className="font-mono text-sm font-semibold">
-                                            {tx.amount} ETH
+                                            {tx.value} {tx.tokenSymbol}
                                         </span>
                                         {tx.createdAt && (
                                             <span className="text-[10px] text-muted-foreground">

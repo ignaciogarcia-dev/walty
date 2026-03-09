@@ -4,7 +4,8 @@ import { isAddress } from "viem"
 import { ArrowLeft } from "@phosphor-icons/react"
 import type { TxStatus } from "@/hooks/useWallet"
 import type { TokenPosition } from "@/hooks/usePortfolio"
-import type { Token } from "@/lib/tokens"
+import type { Token } from "@/lib/tokens/tokenRegistry"
+import { getNetwork, NETWORKS } from "@/lib/networks/networks"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -64,7 +65,7 @@ function TokenSelectList({
 		<div className="flex flex-col gap-1">
 			{filteredPositions.map((position) => (
 				<button
-					key={position.token.symbol}
+					key={`${position.chainId}-${position.token.symbol}`}
 					onClick={() => onSelect(position)}
 					className="flex items-center gap-3 rounded-2xl p-3 text-left transition-colors hover:bg-accent"
 				>
@@ -97,14 +98,18 @@ export function SendForm({
 	txHash,
 	txError,
 	onResetTx,
+	selectedChainId,
+	onChainChange,
 }: {
 	positions: TokenPosition[]
-	onEstimateGas: (token: Token, to: string, amount: string) => Promise<string>
-	onSend: (token: Token, to: string, amount: string) => Promise<void>
+	onEstimateGas: (token: Token, to: string, amount: string, chainId: number) => Promise<string>
+	onSend: (token: Token, to: string, amount: string, chainId: number) => Promise<void>
 	txStatus: TxStatus
 	txHash: string | null
 	txError: string | null
 	onResetTx: () => void
+	selectedChainId: number
+	onChainChange: (chainId: number) => void
 }) {
 	const { t } = useTranslation()
 	const [selectedPosition, setSelectedPosition] = useState<TokenPosition | null>(null)
@@ -121,6 +126,13 @@ export function SendForm({
 	const [resolvedUsername, setResolvedUsername] = useState<string | null>(null)
 	const [usernameError, setUsernameError] = useState<string | null>(null)
 	const resolveDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+	// Filter positions by selected chain
+	const chainPositions = positions.filter((p) => p.chainId === selectedChainId)
+
+	const network = (() => {
+		try { return getNetwork(selectedChainId) } catch { return null }
+	})()
 
 	useEffect(() => {
 		setResolvedAddress(null)
@@ -177,7 +189,7 @@ export function SendForm({
 		setGasError(null)
 		setShowModal(true)
 		try {
-			const estimate = await onEstimateGas(selectedPosition.token, effectiveTo, amount)
+			const estimate = await onEstimateGas(selectedPosition.token, effectiveTo, amount, selectedChainId)
 			setGasEstimate(estimate)
 		} catch {
 			setGasError(t("could-not-estimate-gas"))
@@ -187,7 +199,7 @@ export function SendForm({
 	async function handleConfirm() {
 		if (!effectiveTo || !selectedPosition) return
 		setShowModal(false)
-		await onSend(selectedPosition.token, effectiveTo, amount)
+		await onSend(selectedPosition.token, effectiveTo, amount, selectedChainId)
 	}
 
 	function handleBack() {
@@ -204,11 +216,31 @@ export function SendForm({
 	const isBusy = txStatus === "pending" || txStatus === "pending_on_chain"
 	const canSubmit = !isBusy && !!effectiveTo && !!amount && !usernameResolving && !usernameError
 
+	const gasSymbol = network?.nativeCurrency.symbol ?? "ETH"
+
 	// Step 1 — token selection
 	if (!selectedPosition) {
 		return (
 			<div className="rounded-4xl border bg-card p-6 flex flex-col gap-4">
 				<h2 className="font-semibold text-foreground">{t("select-token")}</h2>
+
+				{/* Chain tabs */}
+				<div className="flex gap-1.5 overflow-x-auto pb-1">
+					{NETWORKS.map((net) => (
+						<button
+							key={net.id}
+							onClick={() => onChainChange(net.id)}
+							className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+								selectedChainId === net.id
+									? "bg-foreground text-background"
+									: "bg-muted text-muted-foreground hover:bg-accent"
+							}`}
+						>
+							{net.name}
+						</button>
+					))}
+				</div>
+
 				<Input
 					type="text"
 					placeholder="Token name or contract address"
@@ -216,7 +248,7 @@ export function SendForm({
 					onChange={(e) => setSearch(e.target.value)}
 					className="rounded-2xl"
 				/>
-				<TokenSelectList positions={positions} onSelect={setSelectedPosition} search={search} />
+				<TokenSelectList positions={chainPositions} onSelect={setSelectedPosition} search={search} />
 			</div>
 		)
 	}
@@ -312,7 +344,7 @@ export function SendForm({
 					<div className="flex flex-col gap-4 py-2">
 						<Badge variant="outline" className="w-fit gap-1.5 font-mono text-amber-700 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400">
 							<span className="size-1.5 rounded-full bg-amber-500 shrink-0" />
-							Ethereum — MAINNET
+							{network?.name ?? "Unknown"} — {selectedChainId}
 						</Badge>
 
 						<div className="flex flex-col gap-0.5">
@@ -340,7 +372,7 @@ export function SendForm({
 							) : gasError ? (
 								<p className="text-sm text-destructive">{gasError}</p>
 							) : (
-								<p className="font-mono text-sm">~{gasEstimate} ETH</p>
+								<p className="font-mono text-sm">~{gasEstimate} {gasSymbol}</p>
 							)}
 						</div>
 					</div>

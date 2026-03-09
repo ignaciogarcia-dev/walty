@@ -17,12 +17,12 @@ import {
 } from "@/components/ui/dialog"
 import { useTranslation } from "@/hooks/useTranslation"
 
-const EXPLORER_BASE = "https://etherscan.io/tx"
+import { getTxUrl } from "@/lib/explorer/getTxUrl"
 
-function ExplorerLink({ hash }: { hash: string }) {
+function ExplorerLink({ hash, chainId = 1 }: { hash: string; chainId?: number }) {
   return (
     <a
-      href={`${EXPLORER_BASE}/${hash}`}
+      href={getTxUrl(hash, chainId)}
       target="_blank"
       rel="noopener noreferrer"
       className="font-mono text-xs underline underline-offset-2 text-muted-foreground hover:text-foreground break-all"
@@ -223,10 +223,10 @@ export function WalletView({
                     >
                       {tx.status === "confirmed" ? t("confirmed") : tx.status === "failed" ? t("failed") : t("pending")}
                     </Badge>
-                    <span className="font-mono text-sm font-semibold">{tx.amount} ETH</span>
+                    <span className="font-mono text-sm font-semibold">{tx.value} {tx.tokenSymbol}</span>
                   </div>
                   <p className="font-mono text-xs text-muted-foreground break-all">→ {tx.toAddress}</p>
-                  <ExplorerLink hash={tx.txHash} />
+                  <ExplorerLink hash={tx.hash} chainId={tx.chainId} />
                 </div>
               ))}
             </div>

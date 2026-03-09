@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth"
-import { getPrice } from "@/lib/0x"
+import { getPrice } from "@/lib/providers/swap/swapRouter"
 
 export async function GET(req: NextRequest) {
   try {
@@ -16,7 +16,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing params" }, { status: 400 })
     }
 
-    // "ETH" string is handled by toZeroxToken inside getPrice
     const price = await getPrice({ sellToken, buyToken, sellAmount, chainId })
     return NextResponse.json(price)
   } catch (err) {

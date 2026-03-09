@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth"
-import { getSwapQuote } from "@/lib/0x"
+import { getBestQuote } from "@/lib/providers/swap/swapRouter"
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing params" }, { status: 400 })
     }
 
-    const quote = await getSwapQuote({
+    const quote = await getBestQuote({
       sellToken,
       buyToken,
       sellAmount,

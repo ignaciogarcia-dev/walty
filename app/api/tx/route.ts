@@ -8,18 +8,31 @@ import { requireAuth } from "@/lib/auth"
 export async function POST(req: NextRequest) {
   try {
     const { userId } = requireAuth(req)
-    const { fromAddress, toAddress, amount, txHash } = await req.json()
+    const {
+      hash,
+      chainId,
+      chainType,
+      fromAddress,
+      toAddress,
+      tokenAddress,
+      tokenSymbol,
+      value,
+    } = await req.json()
 
-    if (!fromAddress || !toAddress || !amount || !txHash) {
+    if (!hash || !fromAddress || !toAddress || !tokenSymbol || !value) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 })
     }
 
     await db.insert(transactions).values({
       userId,
+      hash,
+      chainId: chainId ?? 1,
+      chainType: chainType ?? "EVM",
       fromAddress,
       toAddress,
-      amount,
-      txHash,
+      tokenAddress: tokenAddress ?? null,
+      tokenSymbol,
+      value,
       status: "pending",
     })
 
@@ -52,20 +65,20 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// PATCH /api/tx — update transaction status by txHash
+// PATCH /api/tx — update transaction status by hash
 export async function PATCH(req: NextRequest) {
   try {
     const { userId } = requireAuth(req)
-    const { txHash, status } = await req.json()
+    const { hash, status } = await req.json()
 
-    if (!txHash || !["confirmed", "failed"].includes(status)) {
+    if (!hash || !["confirmed", "failed"].includes(status)) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
     }
 
     await db
       .update(transactions)
       .set({ status })
-      .where(and(eq(transactions.txHash, txHash), eq(transactions.userId, userId)))
+      .where(and(eq(transactions.hash, hash), eq(transactions.userId, userId)))
 
     return NextResponse.json({ ok: true })
   } catch {

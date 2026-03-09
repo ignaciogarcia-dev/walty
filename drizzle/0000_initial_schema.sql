@@ -25,13 +25,19 @@ CREATE TABLE "contacts" (
 CREATE TABLE "transactions" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" integer NOT NULL,
+	"hash" text NOT NULL,
+	"chain_id" integer NOT NULL DEFAULT 1,
+	"chain_type" text NOT NULL DEFAULT 'EVM',
 	"from_address" text NOT NULL,
 	"to_address" text NOT NULL,
-	"amount" text NOT NULL,
-	"tx_hash" text NOT NULL,
+	"token_address" text,
+	"token_symbol" text NOT NULL,
+	"value" text NOT NULL,
 	"status" "tx_status" DEFAULT 'pending' NOT NULL,
-	"created_at" timestamp DEFAULT now(),
-	CONSTRAINT "transactions_tx_hash_unique" UNIQUE("tx_hash")
+	"gas_used" text,
+	"block_number" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "transactions_hash_unique" UNIQUE("hash")
 );
 --> statement-breakpoint
 CREATE TABLE "user_profiles" (
