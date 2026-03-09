@@ -1,9 +1,9 @@
-const EXPLORER_BASE = "https://etherscan.io/tx"
+import { getTxUrl } from "@/lib/explorer/getTxUrl"
 
-export function ExplorerLink({ hash }: { hash: string }) {
+export function ExplorerLink({ hash, chainId = 1 }: { hash: string; chainId?: number }) {
 	return (
 		<a
-			href={`${EXPLORER_BASE}/${hash}`}
+			href={getTxUrl(hash, chainId)}
 			target="_blank"
 			rel="noopener noreferrer"
 			className="font-mono text-xs underline underline-offset-2 text-muted-foreground hover:text-foreground break-all"

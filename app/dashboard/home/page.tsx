@@ -47,7 +47,7 @@ export default function HomePage() {
 			) : tokensToShow.length > 0 ? (
 				<div className="grid grid-cols-1 gap-4">
 					{tokensToShow.map((position) => (
-						<TokenCard key={position.token.symbol} position={position} />
+						<TokenCard key={`${position.chainId}-${position.token.symbol}`} position={position} />
 					))}
 				</div>
 			) : (
