@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { TOKENS } from "@/lib/tokens"
+import { ALL_TOKENS } from "@/lib/tokens/tokenRegistry"
 
 type CoinGeckoMarket = {
   id: string
@@ -52,13 +52,13 @@ export async function GET() {
     return NextResponse.json(imageCache.data)
   }
 
-  const coingeckoIds = [...new Set(TOKENS.map((token) => token.coingeckoId))]
+  const coingeckoIds = [...new Set(ALL_TOKENS.map((token) => token.coingeckoId))]
 
   try {
     const imagesById = await fetchCoinGeckoImages(coingeckoIds)
     const imagesBySymbol: Record<string, string> = {}
 
-    for (const token of TOKENS) {
+    for (const token of ALL_TOKENS) {
       const imageUrl = imagesById.get(token.coingeckoId)
       if (imageUrl) {
         imagesBySymbol[token.symbol] = imageUrl
