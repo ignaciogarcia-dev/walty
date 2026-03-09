@@ -40,8 +40,16 @@ export default function HomePage() {
 					{t("swap")}</Button>
 				<Button onClick={() => setReceiveOpen(true)} variant="ghost" className={quickActionClassName} size="lg"><ArrowDownRight className="mr-2 h-4 w-4" />
 					{t("receive")}</Button>
-				<Button onClick={() => router.push("/dashboard/buy")} variant="ghost" className={quickActionClassName} size="lg"><CurrencyDollar className="mr-2 h-4 w-4" />
-					{t("buy")}</Button>
+				<Button
+					onClick={() => router.push("/dashboard/buy")}
+					variant="ghost"
+					className={quickActionClassName}
+					size="lg"
+					disabled
+				>
+					<CurrencyDollar className="mr-2 h-4 w-4" />
+					{t("buy")}
+				</Button>
 			</div>
 			{address && <ReceiveModal open={receiveOpen} onOpenChange={setReceiveOpen} address={address} />}
 			{loading ? (
