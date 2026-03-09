@@ -9,7 +9,7 @@
 </div>
 
 ---
-Walty makes managing your crypto assets straightforward. Create a secure wallet, view your portfolio across multiple chains, send tokens, and swap assets. All while maintaining complete control over your private keys. The entire application can be self-hosted on your own infrastructure.
+Walty makes managing your crypto assets straightforward. Create a secure wallet, view your portfolio across multiple EVM chains, send tokens, and swap assets. All while maintaining complete control over your private keys. The entire application can be self-hosted on your own infrastructure.
 
 Built with privacy and security as core principles, Walty ensures your seed phrase never leaves your browser. The mnemonic is encrypted locally and stored only in your browser's localStorage. The server never sees your private keys, and all transaction signing happens client-side.
 
@@ -87,7 +87,10 @@ cd walty
 # Copy the environment variables template
 cp .env.example .env
 
-# Edit .env and set your JWT_SECRET and SERVER_PEPPER
+# Edit .env and set your secrets
+# Required: JWT_SECRET and SERVER_PEPPER
+# Recommended: ALCHEMY_API_KEY
+# Needed for swaps: ZEROX_API_KEY
 # Generate secure random strings (choose one method):
 # - Linux/Mac: openssl rand -base64 32
 # - Online: Use any secure random string generator (64+ characters recommended)
@@ -100,11 +103,7 @@ docker compose up --build
 open http://localhost:3000
 ```
 
-Migrations run automatically on container startup. No manual steps needed. The entrypoint script waits for PostgreSQL to be ready, applies database migrations, then starts the application.
-
-## Tech Stack
-
-Walty is built with Next.js 16, TypeScript, and Tailwind CSS. The wallet functionality uses viem for Ethereum interactions and the Web Crypto API for encryption. The backend uses PostgreSQL with Drizzle ORM, and authentication relies on JWT tokens stored in HttpOnly cookies. Token swaps integrate with the 0x Protocol API.
+Migrations run automatically on container startup. No manual steps needed.
 
 ## Development
 
@@ -116,7 +115,7 @@ Walty implements multiple layers of security. The server never sees your mnemoni
 
 ## Self-Hosting
 
-Walty can be self-hosted using Docker. The stack includes PostgreSQL for storing user accounts, linked addresses, and transaction history. The application runs in a Node.js container with automatic database migrations on startup.
+Walty can be self-hosted using Docker. PostgreSQL runs as part of the stack, and migrations are applied automatically on startup.
 
 Build from source:
 
@@ -124,23 +123,30 @@ Build from source:
 # Copy the environment variables template
 cp .env.example .env
 
-# Edit .env and configure the required variables:
-# - DATABASE_URL: Already configured for Docker Compose
-# - JWT_SECRET: Generate with: openssl rand -base64 32
-# - SERVER_PEPPER: Generate with: openssl rand -base64 32
-# - NEXT_PUBLIC_RPC_URL: Optional, for custom RPC endpoint
-# - ZEROX_API_KEY: Optional, for token swaps
-# - COINGECKO_API_KEY: Optional, for token images
+# Edit .env and configure the values you need
+# - DATABASE_URL is already configured for Docker Compose
+# - JWT_SECRET and SERVER_PEPPER are required
+# - ALCHEMY_API_KEY is recommended
+# - ZEROX_API_KEY is needed for swaps
+# - See .env.example for the full list of optional variables
 
 docker compose up --build
 ```
 
-**Required environment variables:**
+**Required:**
 - `DATABASE_URL`: PostgreSQL connection string (default: `postgresql://wallet:wallet@db:5432/wallet`)
 - `JWT_SECRET`: Secret key for JWT token signing
-- `SERVER_PEPPER`: Cryptographic pepper for wallet challenge generation
+- `SERVER_PEPPER`: Secret used for wallet challenge generation
+
+**Recommended:**
+- `ALCHEMY_API_KEY`: Improves reliability for multichain RPC calls
 
 **Optional environment variables:**
-- `NEXT_PUBLIC_RPC_URL`: Custom RPC URL for Ethereum interactions
-- `ZEROX_API_KEY`: API key for 0x Protocol (token swaps)
-- `COINGECKO_API_KEY`: API key for CoinGecko (token images)
+- `ZEROX_API_KEY`: Enables swaps
+- `ANKR_API_KEY`: Optional RPC fallback
+- `ONEINCH_API_KEY`: Optional swap fallback
+- `COINGECKO_API_KEY`: Improves token price and image rate limits
+- `COINGECKO_API_BASE_URL`: Overrides the default CoinGecko API base URL
+- `COOKIE_SECURE`: Forces the JWT cookie `Secure` flag in local HTTPS setups
+
+For deeper implementation details, see `docs/architecture.md` and `.env.example`.
