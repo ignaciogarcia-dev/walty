@@ -15,8 +15,8 @@ export default function WelcomePage() {
         <p className="text-muted-foreground text-sm mt-1">Your Ethereum wallet</p>
       </div>
 
-      <div className="flex flex-col gap-3 mt-2">
-        <Button className="w-full" onClick={() => router.push("/onboarding/register")}>
+      <div className="mt-2 flex flex-col gap-3">
+        <Button className="w-full rounded-xl" onClick={() => router.push("/onboarding/register")}>
           {t("onboarding-create-new")}
         </Button>
 
@@ -26,7 +26,7 @@ export default function WelcomePage() {
           <Separator className="flex-1" />
         </div>
 
-        <Button variant="outline" className="w-full" onClick={() => router.push("/onboarding/login")}>
+        <Button variant="outline" className="w-full rounded-xl" onClick={() => router.push("/onboarding/login")}>
           {t("onboarding-already-have")}
         </Button>
       </div>
