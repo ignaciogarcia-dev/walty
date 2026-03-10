@@ -18,62 +18,44 @@ The wallet follows a self-custody model: seed material is encrypted locally in t
 
 ## Features
 
-**Wallet Management**
+**Wallet**
 
-- BIP-39 mnemonic generation with 24-word seed phrases
-- Local encryption using AES-GCM with PBKDF2 (210,000 iterations)
-- Auto-lock after 5 minutes of inactivity or immediate lock on tab blur
+- Create and import wallets with 24-word seed phrases
+- Local encryption and automatic wallet lock
 - Export and import encrypted wallet backups
-- Server-verified wallet linking via cryptographic nonce signatures
+- Address book and saved contacts
 
-**Multi-Chain Support**
+**Multichain EVM**
 
-- Native support for Ethereum, Arbitrum, Base, Optimism, and Polygon
-- View token balances across all supported chains
-- Token portfolio with USD value calculations
-- ERC-20 token support with multicall balance queries
+- Support for Ethereum, Arbitrum, Base, Optimism, and Polygon
+- Cross-chain portfolio view with token balances and USD values
+- ERC-20 token support across supported networks
 
 **Transactions**
 
-- Send ETH and tokens with real-time gas estimation
-- Transaction history with on-chain status synchronization
-- Automatic transaction status updates on wallet unlock
-- Etherscan integration for transaction tracking
+- Send native tokens and ERC-20s
+- Real-time gas estimation
+- Transaction history with on-chain status updates
+- Explorer links for tracking transactions
 
-**Token Swaps**
+**Swaps**
 
-- Swap tokens using 0x Protocol aggregation
-- Price quotes with real-time market data
+- Token swaps with live quotes
 - Automatic ERC-20 approval handling
 - Transaction simulation before execution
 
-**Privacy & Security**
+**Privacy & Control**
 
 - Self-host on your own infrastructure
 - No tracking or analytics by default
 - Client-side key handling and signing flow
 
-**User Experience**
+**Extras**
 
 - Multi-language support (English and Spanish)
-- Dark mode with theme persistence
-- Responsive design with mobile support
+- Dark mode
+- Responsive design
 - ENS name resolution for Ethereum addresses
-- Contact management for saved addresses
-
-## Requirements
-
-**Required:**
-- [Docker](https://www.docker.com/get-started) (version 20.10 or later)
-- [Docker Compose](https://docs.docker.com/compose/install/) (version 2.0 or later, usually included with Docker Desktop)
-- Git (to clone the repository)
-
-**Optional:**
-- `openssl` (for generating secure random strings - usually pre-installed on Linux/Mac, or use any online random string generator)
-
-**Not required:**
-- Node.js, pnpm, or any other build tools (everything builds inside Docker containers)
-- PostgreSQL (runs in a Docker container)
 
 ## Quick Start
 
@@ -91,7 +73,7 @@ cp .env.example .env
 docker compose up --build
 
 # Access the app
-open http://localhost:3000
+xdg-open http://localhost:3000
 ```
 
 Database migrations run automatically on container startup.
@@ -148,20 +130,12 @@ The recommended workflow for most contributions is documented in [docs/developme
 
 ## Self-Hosting
 
-Walty can be self-hosted using Docker. PostgreSQL runs as part of the stack, and migrations are applied automatically on startup.
+Walty can be self-hosted with Docker. PostgreSQL runs as part of the stack, and database migrations are applied automatically on startup.
 
-Build from source:
+Basic environment setup:
 
 ```bash
-# Copy the environment variables template
 cp .env.example .env
-
-# Edit .env and configure the values you need
-# - DATABASE_URL is already configured for Docker Compose
-# - JWT_SECRET and SERVER_PEPPER are required
-# - ALCHEMY_API_KEY is recommended
-# - ZEROX_API_KEY is needed for swaps
-# - See .env.example for the full list of optional variables
 
 docker compose up --build
 ```

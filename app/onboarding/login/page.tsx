@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { OnboardingShell } from "../_components/shell"
 import { useTranslation } from "@/hooks/useTranslation"
-import { getStoredWallet } from "@/lib/wallet-store"
+import { determineWalletStatus } from "@/lib/wallet-status"
 
 export default function LoginPage() {
   const { t } = useTranslation()
@@ -32,24 +32,24 @@ export default function LoginPage() {
         return
       }
 
-      // Determine where to route after login based on wallet state
-      const [addressRes, backupRes] = await Promise.all([
-        fetch("/api/addresses"),
-        fetch("/api/wallet/backup"),
-      ])
+      const status = await determineWalletStatus()
 
-      const { addresses } = await addressRes.json()
-      const { backup } = await backupRes.json()
-      const hasLinkedAddresses = Array.isArray(addresses) && addresses.length > 0
-      const hasLocalWallet = !!getStoredWallet()
-
-      if (hasLocalWallet && hasLinkedAddresses) {
+      if (status === "locked") {
         router.push("/dashboard")
-      } else if (backup && hasLinkedAddresses) {
-        router.push("/onboarding/recover")
-      } else {
-        router.push("/onboarding/create-wallet")
+        return
       }
+
+      if (status === "recoverable") {
+        router.push("/onboarding/recover")
+        return
+      }
+
+      if (status === "invalid-local") {
+        router.push("/onboarding/recover?reason=invalid-local")
+        return
+      }
+
+      router.push("/onboarding/create-wallet")
     } finally {
       setLoading(false)
     }
