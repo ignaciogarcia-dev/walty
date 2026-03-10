@@ -1,0 +1,74 @@
+name: Contribution proposal
+description: Propose a scoped implementation, refactor, docs, or maintenance task.
+title: "[Proposal]: "
+labels: ["proposal", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for non-trivial work that is not a pure bug report or feature request.
+        Example: refactors, infra changes, test strategy updates, or documentation initiatives.
+
+  - type: dropdown
+    id: work_type
+    attributes:
+      label: Work Type
+      options:
+        - Refactor
+        - Documentation
+        - Testing
+        - Tooling/CI
+        - Performance
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and Goal
+      description: Why is this needed now?
+    validations:
+      required: true
+
+  - type: textarea
+    id: plan
+    attributes:
+      label: Proposed Plan
+      description: High-level implementation plan.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and Mitigations
+      description: What can break and how will you mitigate it?
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation Plan
+      description: How will you prove this works and does not regress behavior?
+      placeholder: |
+        - lint/build checks
+        - manual flows
+        - tests
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched for related issues/PRs first.
+          required: true
+        - label: I will open a focused PR linked to this issue.
+          required: true
