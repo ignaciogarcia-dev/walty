@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Contribution Guide
+    url: https://github.com/ignaciogarcia-dev/walty/blob/main/CONTRIBUTING.md
+    about: Read the issue-first workflow before opening a new issue.
+  - name: Documentation
+    url: https://github.com/ignaciogarcia-dev/walty/tree/main/docs
+    about: Check docs for setup, architecture, and roadmap context.
