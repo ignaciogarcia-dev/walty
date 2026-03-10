@@ -1,0 +1,74 @@
+name: Bug report
+description: Report a reproducible problem in Walty.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this issue.
+        Please provide enough detail to reproduce the bug.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One-line description of the bug.
+      placeholder: "Sending USDC on Base fails with a generic error"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Exact steps to reproduce the issue.
+      placeholder: |
+        1. Go to dashboard/swap
+        2. Select chain Base
+        3. Enter amount...
+        4. Click confirm...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What happened instead?
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser/OS/network and app setup details.
+      placeholder: "Chrome 123, Ubuntu 24.04, docker compose local stack"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or Error Output
+      description: Paste relevant logs, stack traces, or API responses.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues for duplicates.
+          required: true
+        - label: I can still reproduce this on the latest main branch.
+          required: true
