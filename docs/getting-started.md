@@ -33,14 +33,11 @@ Required:
 - `DATABASE_URL`
 - `JWT_SECRET`
 - `SERVER_PEPPER`
-
-Recommended:
-
 - `ALCHEMY_API_KEY`
+- `ZEROX_API_KEY`
 
 Optional:
 
-- `ZEROX_API_KEY`
 - `ANKR_API_KEY`
 - `ONEINCH_API_KEY`
 - `COINGECKO_API_KEY`
