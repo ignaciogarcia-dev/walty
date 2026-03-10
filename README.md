@@ -5,15 +5,16 @@
 
   <h1>Walty</h1>
 
-  <p>Walty is a free and open-source multichain EVM wallet focused on simplicity, privacy, and self-custody.</p>
+  <p>Walty is a free and open-source self-custodial wallet for EVM networks.</p>
 
-  <p><a href="#quick-start">Get Started</a> · <a href="#self-hosting">Self-Hosting</a> · <a href="docs/architecture.md">Learn More</a></p>
+  <p><a href="#quick-start">Get Started</a> · <a href="#documentation">Documentation</a> · <a href="#contributing">Contributing</a></p>
 </div>
 
 ---
-Walty makes managing your crypto assets straightforward. Create a secure wallet, view your portfolio across multiple EVM chains, send tokens, and swap assets. All while maintaining complete control over your private keys.
 
-Built with privacy as a core principle, Walty keeps your seed phrase in the browser, encrypts it locally, and signs transactions client-side. The entire application can also be self-hosted on your own infrastructure.
+Walty helps you manage crypto assets across Ethereum-compatible networks from a single interface. You can create or recover a wallet, track balances and portfolio value, send native/ERC-20 tokens, and execute swaps with quote aggregation.
+
+The wallet follows a self-custody model: seed material is encrypted locally in the browser and transaction signing happens client-side.
 
 ## Features
 
@@ -47,7 +48,7 @@ Built with privacy as a core principle, Walty keeps your seed phrase in the brow
 
 - Self-host on your own infrastructure
 - No tracking or analytics by default
-- Server never sees your mnemonic or private keys
+- Client-side key handling and signing flow
 
 **Extras**
 
@@ -58,7 +59,7 @@ Built with privacy as a core principle, Walty keeps your seed phrase in the brow
 
 ## Quick Start
 
-The quickest way to run Walty locally:
+Recommended local setup (full stack with Docker):
 
 ```bash
 # Clone the repository
@@ -68,23 +69,64 @@ cd walty
 # Copy the environment variables template
 cp .env.example .env
 
-# Edit .env
-# Required: JWT_SECRET and SERVER_PEPPER
-# Recommended: ALCHEMY_API_KEY
-# Optional: ZEROX_API_KEY for swaps
-
-# Build and start all services
+# Build and start all services (app + postgres)
 docker compose up --build
 
 # Access the app
 xdg-open http://localhost:3000
 ```
 
-Migrations run automatically on container startup. For the full environment variable list, see `.env.example`.
+Database migrations run automatically on container startup.
+
+For detailed setup and troubleshooting, see [docs/getting-started.md](docs/getting-started.md).
+
+## Environment Variables
+
+Environment configuration is documented in `.env.example`. Most setups only need:
+
+**Required**
+
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `SERVER_PEPPER`
+
+**Recommended**
+
+- `ALCHEMY_API_KEY`
+
+**Optional**
+
+- `ZEROX_API_KEY`
+- `ANKR_API_KEY`
+- `ONEINCH_API_KEY`
+- `COINGECKO_API_KEY`
+- `COINGECKO_API_BASE_URL`
+- `COOKIE_SECURE`
+
+## Documentation
+
+| File | Purpose |
+| --- | --- |
+| [docs/README.md](docs/README.md) | Documentation index |
+| [docs/getting-started.md](docs/getting-started.md) | Setup and local run guide |
+| [docs/development.md](docs/development.md) | Development workflow and scripts |
+| [docs/architecture.md](docs/architecture.md) | Codebase architecture and data flow |
+| [docs/roadmap.md](docs/roadmap.md) | Priorities and contribution directions |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Rules for opening issues and PRs |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community behavior expectations |
 
 ## Development
 
-This project runs through Docker Compose. Because of the app's CSP setup, use `docker compose up --build` instead of `next dev` while developing.
+Common commands:
+
+```bash
+pnpm lint
+pnpm build
+pnpm db:migrate
+pnpm db:studio
+```
+
+The recommended workflow for most contributions is documented in [docs/development.md](docs/development.md).
 
 ## Self-Hosting
 
@@ -98,18 +140,34 @@ cp .env.example .env
 docker compose up --build
 ```
 
-**Required:**
-- `DATABASE_URL`: PostgreSQL connection string (default: `postgresql://wallet:wallet@db:5432/wallet`)
-- `JWT_SECRET`: Secret key for JWT token signing
-- `SERVER_PEPPER`: Secret used for wallet challenge generation
+See [.env.example](.env.example) for all available variables.
 
-**Recommended:**
-- `ALCHEMY_API_KEY`: Improves reliability for multichain RPC calls
+## Contributing
 
-**Optional:**
-- `ZEROX_API_KEY`: Enables swaps
-- `ANKR_API_KEY`: Optional RPC fallback
-- `ONEINCH_API_KEY`: Optional swap fallback
-- `COINGECKO_API_KEY`: Improves token price and image rate limits
-- `COINGECKO_API_BASE_URL`: Overrides the default CoinGecko API base URL
-- `COOKIE_SECURE`: Forces the JWT cookie `Secure` flag in local HTTPS setups
+Walty uses an issue-first contribution model to keep work predictable and reviewable.
+
+Core rules:
+
+- Non-trivial changes start with a GitHub issue before code is written.
+- One issue should map to one pull request whenever possible.
+- Pull requests must include linked issue, scope, and validation notes.
+- Small docs/typo fixes can go directly to PR.
+
+Start here:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [.github/ISSUE_TEMPLATE](.github/ISSUE_TEMPLATE)
+- [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md)
+- [docs/roadmap.md](docs/roadmap.md)
+
+## Community Workflow (Issue-First)
+
+1. Open or pick an issue (`bug`, `feature`, `proposal`, `good first issue`).
+2. Wait for scope confirmation on larger features/refactors.
+3. Comment that you are taking the issue.
+4. Open a PR linked to that issue (`Closes #123`).
+5. Iterate with review until merge.
+
+## License
+
+[MIT](LICENSE)
