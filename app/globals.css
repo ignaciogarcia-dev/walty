@@ -39,9 +39,9 @@
   --quick-action-hover: #f4f4f5;
   --quick-action-hover-border: #a1a1aa;
   --quick-action-foreground: var(--foreground);
-  --wallet-balance-gradient-start: #0f47d4;
-  --wallet-balance-gradient-middle: #1a6bff;
-  --wallet-balance-gradient-end: #4da8ff;
+  --wallet-balance-gradient-start: #052e1b;
+  --wallet-balance-gradient-middle: #22c55e;
+  --wallet-balance-gradient-end: #6ee7b7;
   --wallet-balance-border: rgb(255 255 255 / 0.1);
   --wallet-balance-label: rgb(255 255 255 / 0.8);
   --wallet-balance-meta: rgb(255 255 255 / 0.5);
@@ -87,9 +87,9 @@
   --quick-action-hover: #27272a;
   --quick-action-hover-border: #3f3f46;
   --quick-action-foreground: #f3f4f6;
-  --wallet-balance-gradient-start: #0f47d4;
-  --wallet-balance-gradient-middle: #1a6bff;
-  --wallet-balance-gradient-end: #4da8ff;
+  --wallet-balance-gradient-start: #052e1b;
+  --wallet-balance-gradient-middle: #22c55e;
+  --wallet-balance-gradient-end: #6ee7b7;
   --wallet-balance-border: rgb(255 255 255 / 0.1);
   --wallet-balance-label: rgb(255 255 255 / 0.8);
   --wallet-balance-meta: rgb(255 255 255 / 0.5);
