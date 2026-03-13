@@ -39,7 +39,7 @@ export default function UsernamePage() {
 
   const handleSubmit = async () => {
     const clean = username.trim().toLowerCase()
-    if (!clean) { router.push("/onboarding/complete"); return }
+    if (!clean) { router.push("/onboarding/account-type"); return }
     if (checkState !== "available") return
 
     setLoading(true)
@@ -55,7 +55,7 @@ export default function UsernamePage() {
         setError(data.error ?? t("unexpected-error"))
         return
       }
-      router.push("/onboarding/complete")
+      router.push("/onboarding/account-type")
     } finally {
       setLoading(false)
     }
@@ -104,7 +104,7 @@ export default function UsernamePage() {
         >
           {loading ? <><Spinner className="mr-2" />{t("checking")}</> : t("onboarding-continue")}
         </Button>
-        <Button variant="ghost" className="w-full rounded-xl" onClick={() => router.push("/onboarding/complete")}>
+        <Button variant="ghost" className="w-full rounded-xl" onClick={() => router.push("/onboarding/account-type")}>
           {t("onboarding-skip")}
         </Button>
       </div>
