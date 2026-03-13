@@ -1,5 +1,23 @@
 export type PaymentRequestStatus = "pending" | "confirming" | "paid" | "expired"
 
+export type SplitPaymentContributionStatus = "pending" | "confirming" | "confirmed"
+
+export type SplitPaymentContribution = {
+  id: number
+  paymentRequestId: string
+  txHash: string
+  payerAddress: string
+  amountToken: string
+  amountUsd: string
+  tokenSymbol: string
+  confirmations: number
+  status: SplitPaymentContributionStatus
+  blockNumber: string | null
+  detectedAt: string | null
+  confirmedAt: string | null
+  createdAt: string
+}
+
 export type PaymentRequestView = {
   id: string
   status: PaymentRequestStatus
@@ -11,6 +29,10 @@ export type PaymentRequestView = {
   confirmations: number
   requiredConfirmations: number
   txHash: string | null
+  isSplitPayment?: boolean
+  totalPaidUsd?: string
+  remainingAmountUsd?: string
+  contributions?: SplitPaymentContribution[]
 }
 
 export function getPaymentRequestStatus(
