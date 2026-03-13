@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, pgEnum, integer, unique, uuid } from "drizzle-orm/pg-core"
+import { pgTable, serial, text, timestamp, pgEnum, integer, unique, uuid, boolean } from "drizzle-orm/pg-core"
 
 export const txStatusEnum = pgEnum("tx_status", ["pending", "confirmed", "failed"])
 
@@ -92,4 +92,23 @@ export const paymentRequests = pgTable("payment_requests", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
+  isSplitPayment: boolean("is_split_payment").notNull().default(false),
+  totalPaidToken: text("total_paid_token").default("0"),
+  totalPaidUsd: text("total_paid_usd").default("0"),
+})
+
+export const splitPaymentContributions = pgTable("split_payment_contributions", {
+  id: serial("id").primaryKey(),
+  paymentRequestId: uuid("payment_request_id").notNull().references(() => paymentRequests.id, { onDelete: "cascade" }),
+  txHash: text("tx_hash").notNull().unique(),
+  payerAddress: text("payer_address").notNull(),
+  amountToken: text("amount_token").notNull(),
+  amountUsd: text("amount_usd").notNull(),
+  tokenSymbol: text("token_symbol").notNull(),
+  confirmations: integer("confirmations").notNull().default(0),
+  status: text("status").notNull().default("pending"),
+  blockNumber: text("block_number"),
+  detectedAt: timestamp("detected_at"),
+  confirmedAt: timestamp("confirmed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 })
