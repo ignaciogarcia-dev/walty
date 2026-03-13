@@ -444,15 +444,15 @@ export function CollectModal({
                                   contribution.status === "confirmed"
                                     ? "text-green-600"
                                     : contribution.status === "confirming"
-                                    ? "text-amber-600"
-                                    : "text-muted-foreground"
+                                      ? "text-amber-600"
+                                      : "text-muted-foreground"
                                 )}
                               >
                                 {contribution.status === "confirmed"
                                   ? "Confirmado"
                                   : contribution.status === "confirming"
-                                  ? "Confirmando"
-                                  : "Pendiente"}
+                                    ? "Confirmando"
+                                    : "Pendiente"}
                               </span>
                               {contribution.txHash && (
                                 <a
@@ -479,8 +479,8 @@ export function CollectModal({
                   {requestStatus === "confirming"
                     ? `${request.confirmations}/${request.requiredConfirmations} confirmaciones`
                     : requestStatus === "expired"
-                    ? "Expirado"
-                    : `Expira en ${countdown.label}`}
+                      ? "Expirado"
+                      : `Expira en ${countdown.label}`}
                 </span>
               </div>
 
