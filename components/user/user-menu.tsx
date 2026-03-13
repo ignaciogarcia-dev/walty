@@ -1,6 +1,5 @@
 "use client"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Gear, SignOut, UserCircle } from "@phosphor-icons/react"
 import {
   DropdownMenu,
@@ -18,7 +17,6 @@ import { cn } from "@/utils/style"
 export function UserMenu() {
   const { user, loading } = useUser()
   const { t } = useTranslation()
-  const router = useRouter()
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   const username = user?.username ? `@${user.username}` : "@user"
@@ -27,12 +25,11 @@ export function UserMenu() {
   async function handleLogout() {
     try {
       await fetch("/api/auth/logout", { method: "POST" })
-      router.push("/login")
     } catch (error) {
       console.error("Logout error:", error)
-      // Even if the request fails, redirect to login
-      router.push("/login")
     }
+
+    window.location.assign("/onboarding/login")
   }
 
   if (loading) {
