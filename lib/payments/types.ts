@@ -1,4 +1,4 @@
-export type PaymentRequestStatus = "pending" | "confirming" | "paid" | "expired"
+export type PaymentRequestStatus = "pending" | "confirming" | "paid" | "expired" | "cancelled"
 
 export type SplitPaymentContributionStatus = "pending" | "confirming" | "confirmed"
 
@@ -53,6 +53,22 @@ export function isPaymentRequestActive(
   return status === "pending" || status === "confirming"
 }
 
+export function getPaymentRequestStatusLabel(status: PaymentRequestStatus): string {
+  switch (status) {
+    case "confirming":
+      return "Pago detectado, confirmando"
+    case "paid":
+      return "Pagado"
+    case "expired":
+      return "Expirado"
+    case "cancelled":
+      return "Cancelado"
+    case "pending":
+    default:
+      return "Pendiente"
+  }
+}
+
 export function getPaymentRequestCountdown(
   expiresAt: string,
   now: number = Date.now()
@@ -65,20 +81,6 @@ export function getPaymentRequestCountdown(
     expired: seconds === 0,
     label: `${minutesLabel}:${secondsLabel}`,
     seconds,
-  }
-}
-
-export function getPaymentRequestStatusLabel(status: PaymentRequestStatus): string {
-  switch (status) {
-    case "confirming":
-      return "Pago detectado, confirmando"
-    case "paid":
-      return "Pagado"
-    case "expired":
-      return "Expirado"
-    case "pending":
-    default:
-      return "Pendiente"
   }
 }
 
