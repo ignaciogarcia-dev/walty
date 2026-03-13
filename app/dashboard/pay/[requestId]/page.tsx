@@ -10,8 +10,9 @@ import {
 } from "@/lib/payments/types"
 import { getTokensByChain } from "@/lib/tokens/tokenRegistry"
 import { getTxUrl } from "@/lib/explorer/getTxUrl"
-import { CheckCircle, ArrowLeft } from "@phosphor-icons/react"
+import { CheckCircle, ArrowLeft, Users } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 
 function truncateAddress(addr: string) {
@@ -31,6 +32,7 @@ export default function DashboardPayPage() {
   const [loading, setLoading] = useState(true)
   const [submitted, setSubmitted] = useState(false)
   const [now, setNow] = useState(0)
+  const [customAmount, setCustomAmount] = useState("")
 
   useEffect(() => {
     let cancelled = false
@@ -92,7 +94,13 @@ export default function DashboardPayPage() {
     const token = tokens.find((t) => t.symbol === request.tokenSymbol)
     if (!token) return
     setSubmitted(true)
-    await sendToken(token, request.merchantWalletAddress, request.amountUsd, PAYMENT_CHAIN_ID)
+    
+    // For split payments, use custom amount or remaining amount
+    const amountToPay = request.isSplitPayment
+      ? (customAmount && parseFloat(customAmount) > 0 ? customAmount : request.remainingAmountUsd ?? request.amountUsd)
+      : request.amountUsd
+    
+    await sendToken(token, request.merchantWalletAddress, amountToPay, PAYMENT_CHAIN_ID)
   }
 
   const status = request ? getPaymentRequestStatus(request, now ?? 0) : "pending"
@@ -155,8 +163,33 @@ export default function DashboardPayPage() {
       </div>
 
       <div className="rounded-2xl border bg-card p-5 flex flex-col gap-4">
+        {request.isSplitPayment && (
+          <div className="rounded-xl border bg-primary/5 p-4 flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Users size={18} className="text-primary" />
+              <span className="text-sm font-medium text-primary">Pago dividido</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Este es un pago dividido. Puedes pagar cualquier monto hasta completar el total.
+            </p>
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total:</span>
+                <span className="font-medium">{request.amountUsd} {request.tokenSymbol}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Pagado:</span>
+                <span className="font-medium text-green-600">{request.totalPaidUsd ?? "0.00"} {request.tokenSymbol}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Restante:</span>
+                <span className="font-medium text-amber-600">{request.remainingAmountUsd ?? request.amountUsd} {request.tokenSymbol}</span>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="text-center">
-          <p className="text-3xl font-bold">${request.amountUsd}</p>
+          <p className="text-3xl font-bold">${request.isSplitPayment ? (request.remainingAmountUsd ?? request.amountUsd) : request.amountUsd}</p>
           <p className="text-muted-foreground mt-1">{request.tokenSymbol} · Polygon</p>
         </div>
 
@@ -200,6 +233,29 @@ export default function DashboardPayPage() {
           <p className="text-xs text-destructive text-center">{txError}</p>
         )}
 
+        {request.isSplitPayment && status === "pending" && (!submitted || txStatus === "error") && (
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-muted-foreground">Monto a pagar (opcional)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                <Input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder={request.remainingAmountUsd ?? request.amountUsd}
+                  className="rounded-xl pl-7"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Deja vacío para pagar el monto restante completo ({request.remainingAmountUsd ?? request.amountUsd} {request.tokenSymbol})
+              </p>
+            </div>
+          </div>
+        )}
+
         {status === "pending" && (!submitted || txStatus === "error") && (
           <Button
             className="w-full rounded-xl"
@@ -213,7 +269,7 @@ export default function DashboardPayPage() {
                 Enviando...
               </>
             ) : (
-              `Pagar ${request.amountUsd} ${request.tokenSymbol}`
+              `Pagar ${request.isSplitPayment ? (customAmount && parseFloat(customAmount) > 0 ? customAmount : request.remainingAmountUsd ?? request.amountUsd) : request.amountUsd} ${request.tokenSymbol}`
             )}
           </Button>
         )}
