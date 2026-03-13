@@ -1,5 +1,5 @@
 "use client"
-import { AddressBook, ArrowsLeftRight, ClockCounterClockwise, House, PaperPlaneTilt, SidebarSimpleIcon } from "@phosphor-icons/react"
+import { AddressBook, ClockCounterClockwise, House, MoneyIcon, PaperPlaneTilt, SidebarSimpleIcon } from "@phosphor-icons/react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -13,10 +13,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarSeparator,
   useSidebarState,
 } from "@/components/ui/sidebar"
 import { useTranslation } from "@/hooks/useTranslation"
+import { useUser } from "@/hooks/useUser"
 import { UserMenu } from "@/components/user/user-menu"
 import { cn } from "@/utils/style"
 
@@ -29,8 +29,10 @@ type SidebarItem = {
 export function DashboardSidebar() {
   const pathname = usePathname()
   const { t } = useTranslation()
+  const { user } = useUser()
   const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebarState()
   const isCollapsed = state === "collapsed"
+  const showPayTab = user?.userType === "person"
 
   function handleMobileNavigation() {
     if (isMobile) {
@@ -44,15 +46,17 @@ export function DashboardSidebar() {
       label: t("home"),
       href: "/dashboard/home",
     },
+    ...(showPayTab
+      ? [{
+          icon: <MoneyIcon size={18} weight="regular" />,
+          label: t("pay"),
+          href: "/dashboard/pay",
+        }]
+      : []),
     {
       icon: <PaperPlaneTilt size={18} weight="regular" />,
-      label: t("send"),
+      label: t("transfer"),
       href: "/dashboard/send",
-    },
-    {
-      icon: <ArrowsLeftRight size={18} weight="regular" />,
-      label: t("swap"),
-      href: "/dashboard/swap",
     },
     {
       icon: <ClockCounterClockwise size={18} weight="regular" />,
@@ -115,7 +119,13 @@ export function DashboardSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {appSidebarItems.map((item) => {
-                  const isActive = pathname === item.href
+                  const isHome = item.href === "/dashboard/home"
+                  const isPay = item.href === "/dashboard/pay"
+                  const isActive = isHome
+                    ? pathname === "/dashboard/home" || pathname === "/dashboard/business/home"
+                    : isPay
+                    ? pathname === "/dashboard/pay" || pathname.startsWith("/dashboard/pay/")
+                    : pathname === item.href
                   return (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
