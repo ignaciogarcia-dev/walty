@@ -4,12 +4,11 @@ import { useWalletContext } from "@/components/wallet/context"
 import { ActivePaymentRequestCard } from "@/components/dashboard/ActivePaymentRequestCard"
 import { BalanceCard } from "@/components/wallet/BalanceCard"
 import { TokenCard } from "@/components/wallet/TokenCard"
-import { ReceiveModal } from "@/components/wallet/ReceiveModal"
 import { usePortfolio } from "@/hooks/usePortfolio"
 import { PAYMENT_HOME_POLL_INTERVAL_MS } from "@/lib/payments/config"
 import type { PaymentRequestView } from "@/lib/payments/types"
 import { isPaymentRequestActive } from "@/lib/payments/types"
-import { ArrowDownRight, PaperPlaneTilt, QrCode } from "@phosphor-icons/react"
+import { PaperPlaneTilt, QrCode } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { CollectModal } from "@/components/pos/CollectModal"
@@ -18,7 +17,6 @@ export function BusinessHome() {
 	const { address, balance } = useWalletContext()
 	const { positions, loading } = usePortfolio(address)
 	const router = useRouter()
-	const [receiveOpen, setReceiveOpen] = useState(false)
 	const [collectOpen, setCollectOpen] = useState(false)
 	const [activeRequest, setActiveRequest] = useState<PaymentRequestView | null>(null)
 
@@ -88,17 +86,12 @@ export function BusinessHome() {
 					<QrCode className="mr-2 h-4 w-4" />
 					Cobrar
 				</Button>
-				<Button onClick={() => setReceiveOpen(true)} variant="ghost" className={quickActionClassName} size="lg">
-					<ArrowDownRight className="mr-2 h-4 w-4" />
-					Recibir
-				</Button>
 				<Button onClick={() => router.push("/dashboard/send")} variant="ghost" className={quickActionClassName} size="lg">
 					<PaperPlaneTilt className="mr-2 h-4 w-4" />
 					Transferir
 				</Button>
 			</div>
 
-			{address && <ReceiveModal open={receiveOpen} onOpenChange={setReceiveOpen} address={address} />}
 			<CollectModal
 				open={collectOpen}
 				onOpenChange={setCollectOpen}
@@ -111,6 +104,7 @@ export function BusinessHome() {
 				<ActivePaymentRequestCard
 					request={activeRequest}
 					onOpenQr={() => setCollectOpen(true)}
+					onCancel={() => setActiveRequest(null)}
 				/>
 			)}
 
