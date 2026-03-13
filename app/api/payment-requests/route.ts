@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     const auth = requireAuth(req)
     await requireBusinessUser(auth.userId)
 
-    const { amountUsd, token, merchantWalletAddress } = await req.json()
+    const { amountUsd, token, merchantWalletAddress, isSplitPayment } = await req.json()
 
     if (!isPaymentTokenSymbol(token)) {
       return NextResponse.json({ error: "token must be USDC or USDT" }, { status: 400 })
@@ -95,24 +95,34 @@ export async function POST(req: NextRequest) {
     const expiresAt = new Date(Date.now() + PAYMENT_EXPIRY_MINUTES * 60 * 1000)
     const now = new Date()
 
+    const insertValues: typeof paymentRequests.$inferInsert = {
+      merchantId: auth.userId,
+      chainId: PAYMENT_CHAIN_ID,
+      amountUsd,
+      amountToken,
+      tokenSymbol: token,
+      tokenAddress: tokenDef.address,
+      tokenDecimals: tokenDef.decimals,
+      merchantWalletAddress,
+      startBlock,
+      lastScannedBlock: startBlock,
+      requiredConfirmations: PAYMENT_REQUIRED_CONFIRMATIONS,
+      confirmations: 0,
+      updatedAt: now,
+      expiresAt,
+      isSplitPayment: Boolean(isSplitPayment),
+    }
+
+    // Only include totalPaidToken and totalPaidUsd for split payments
+    // For non-split payments, let the database defaults handle it
+    if (Boolean(isSplitPayment)) {
+      insertValues.totalPaidToken = "0"
+      insertValues.totalPaidUsd = "0"
+    }
+
     const [request] = await db
       .insert(paymentRequests)
-      .values({
-        merchantId: auth.userId,
-        chainId: PAYMENT_CHAIN_ID,
-        amountUsd,
-        amountToken,
-        tokenSymbol: token,
-        tokenAddress: tokenDef.address,
-        tokenDecimals: tokenDef.decimals,
-        merchantWalletAddress,
-        startBlock,
-        lastScannedBlock: startBlock,
-        requiredConfirmations: PAYMENT_REQUIRED_CONFIRMATIONS,
-        confirmations: 0,
-        updatedAt: now,
-        expiresAt,
-      })
+      .values(insertValues)
       .returning()
 
     return NextResponse.json(toPaymentRequestView(request))
