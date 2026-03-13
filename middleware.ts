@@ -8,12 +8,19 @@ export function middleware(request: NextRequest) {
   if (pathname === "/") {
     return NextResponse.redirect(new URL(hasToken ? "/dashboard" : "/onboarding", request.url))
   }
-  // Legacy /login — redirect to onboarding
+  // Legacy /login URL — keep compatibility without a dedicated page.
   if (pathname === "/login") {
-    return NextResponse.redirect(new URL(hasToken ? "/dashboard" : "/onboarding", request.url))
+    return NextResponse.redirect(new URL(hasToken ? "/dashboard" : "/onboarding/login", request.url))
   }
   if (pathname.startsWith("/dashboard") && !hasToken) {
     return NextResponse.redirect(new URL("/onboarding", request.url))
+  }
+  // /pay/* is public — the page itself handles auth redirect with ?next=
+  if (pathname.startsWith("/pay/")) {
+    const nonce = Buffer.from(crypto.randomUUID()).toString("base64")
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set("x-nonce", nonce)
+    return NextResponse.next({ request: { headers: requestHeaders } })
   }
 
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64")
