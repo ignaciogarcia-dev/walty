@@ -7,6 +7,7 @@ import { toPaymentRequestView } from "@/lib/payments/paymentRequests"
 import { db } from "@/server/db"
 import { users, addresses, paymentRequests } from "@/server/db/schema"
 import { getPublicClient } from "@/lib/rpc/getPublicClient"
+import { isPaymentRequestActive } from "@/lib/payments/types"
 
 async function requireBusinessUser(userId: number) {
   const user = await db.query.users.findFirst({
@@ -46,6 +47,49 @@ export async function GET(req: NextRequest) {
     }
     if (message === "FORBIDDEN") {
       return NextResponse.json({ error: "only business accounts can read payment requests" }, { status: 403 })
+    }
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const auth = requireAuth(req)
+    await requireBusinessUser(auth.userId)
+
+    const { id } = await req.json()
+    if (!id || typeof id !== "string") {
+      return NextResponse.json({ error: "invalid id" }, { status: 400 })
+    }
+
+    const [request] = await db
+      .select()
+      .from(paymentRequests)
+      .where(and(eq(paymentRequests.id, id), eq(paymentRequests.merchantId, auth.userId)))
+      .limit(1)
+
+    if (!request) {
+      return NextResponse.json({ error: "not found" }, { status: 404 })
+    }
+
+    if (!isPaymentRequestActive(toPaymentRequestView(request))) {
+      return NextResponse.json({ error: "only active requests can be cancelled" }, { status: 400 })
+    }
+
+    const [updated] = await db
+      .update(paymentRequests)
+      .set({ status: "cancelled", updatedAt: new Date() })
+      .where(eq(paymentRequests.id, id))
+      .returning()
+
+    return NextResponse.json(toPaymentRequestView(updated))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unexpected error"
+    if (message === "Unauthorized") {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+    }
+    if (message === "FORBIDDEN") {
+      return NextResponse.json({ error: "only business accounts can cancel payment requests" }, { status: 403 })
     }
     return NextResponse.json({ error: message }, { status: 500 })
   }
