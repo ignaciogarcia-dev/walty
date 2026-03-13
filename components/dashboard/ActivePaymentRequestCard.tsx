@@ -7,6 +7,7 @@ import {
   LinkSimple,
   QrCode,
   ShareNetwork,
+  X,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { getAbsolutePaymentUrl } from "@/lib/payments/paymentLinks"
@@ -23,10 +24,12 @@ import { cn } from "@/utils/style"
 type ActivePaymentRequestCardProps = {
   request: PaymentRequestView
   onOpenQr: () => void
+  onCancel: () => void
 }
 
-export function ActivePaymentRequestCard({ request, onOpenQr }: ActivePaymentRequestCardProps) {
+export function ActivePaymentRequestCard({ request, onOpenQr, onCancel }: ActivePaymentRequestCardProps) {
   const [copied, setCopied] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const [now, setNow] = useState(0)
 
   useEffect(() => {
@@ -50,6 +53,21 @@ export function ActivePaymentRequestCard({ request, onOpenQr }: ActivePaymentReq
     await copyToClipboard(paymentUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 1_500)
+  }
+
+  async function handleCancel() {
+    if (cancelling) return
+    setCancelling(true)
+    try {
+      await fetch("/api/payment-requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: request.id }),
+      })
+      onCancel()
+    } finally {
+      setCancelling(false)
+    }
   }
 
   async function handleShare() {
@@ -118,6 +136,15 @@ export function ActivePaymentRequestCard({ request, onOpenQr }: ActivePaymentReq
             Compartir
           </Button>
         )}
+        <Button
+          variant="outline"
+          className="rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={handleCancel}
+          disabled={cancelling || status === "confirming"}
+        >
+          <X className="mr-2 h-4 w-4" />
+          {cancelling ? "Cancelando..." : "Cancelar cobro"}
+        </Button>
       </div>
     </div>
   )
