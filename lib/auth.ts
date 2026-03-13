@@ -4,6 +4,7 @@ import { NextRequest } from "next/server"
 export interface AuthPayload {
   userId: number
   email: string
+  userType: "person" | "business"
 }
 
 export function requireAuth(req: NextRequest): AuthPayload {
