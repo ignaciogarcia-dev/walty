@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, pgEnum, integer, unique } from "drizzle-orm/pg-core"
+import { pgTable, serial, text, timestamp, pgEnum, integer, unique, uuid } from "drizzle-orm/pg-core"
 
 export const txStatusEnum = pgEnum("tx_status", ["pending", "confirmed", "failed"])
 
@@ -6,6 +6,7 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  userType: text("user_type").notNull().default("person"),
   createdAt: timestamp("created_at").defaultNow(),
 })
 
@@ -66,4 +67,29 @@ export const walletBackups = pgTable("wallet_backups", {
   version: integer("version").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+})
+
+export const paymentRequests = pgTable("payment_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: integer("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  chainId: integer("chain_id").notNull().default(137),
+  amountUsd: text("amount_usd").notNull(),
+  amountToken: text("amount_token").notNull(),
+  tokenSymbol: text("token").notNull(),
+  tokenAddress: text("token_address").notNull(),
+  tokenDecimals: integer("token_decimals").notNull(),
+  merchantWalletAddress: text("wallet_address").notNull(),
+  status: text("status").notNull().default("pending"),
+  txHash: text("tx_hash").unique(),
+  txBlockNumber: text("tx_block_number"),
+  payerAddress: text("payer_address"),
+  startBlock: text("start_block").notNull(),
+  lastScannedBlock: text("last_scanned_block").notNull(),
+  confirmations: integer("confirmations").notNull().default(0),
+  requiredConfirmations: integer("required_confirmations").notNull().default(2),
+  detectedAt: timestamp("detected_at"),
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
 })
