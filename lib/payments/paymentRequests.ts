@@ -50,6 +50,12 @@ export function normalizePaymentRequest(record: PaymentRequestRecord): Normalize
 export function toPaymentRequestView(record: PaymentRequestRecord): PaymentRequestView {
   const normalized = normalizePaymentRequest(record)
 
+  const isSplitPayment = normalized.isSplitPayment ?? false
+  const totalPaidUsd = normalized.totalPaidUsd ?? "0"
+  const amountUsdNum = parseFloat(normalized.amountUsd)
+  const totalPaidUsdNum = parseFloat(totalPaidUsd)
+  const remainingAmountUsd = Math.max(0, amountUsdNum - totalPaidUsdNum).toFixed(2)
+
   return {
     id: normalized.id,
     status: normalized.status,
@@ -61,5 +67,8 @@ export function toPaymentRequestView(record: PaymentRequestRecord): PaymentReque
     confirmations: normalized.confirmations,
     requiredConfirmations: normalized.requiredConfirmations,
     txHash: normalized.txHash,
+    isSplitPayment,
+    totalPaidUsd,
+    remainingAmountUsd,
   }
 }
