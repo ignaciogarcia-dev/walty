@@ -16,8 +16,8 @@ client.connect()
 done
 
 echo "Running DB migrations..."
-if pnpm drizzle-kit migrate; then
-  echo "✓ Migration applied: 0000_initial_schema.sql"
+if pnpm drizzle-kit push; then
+  echo "✓ Database schema synchronized"
   echo "Database ready"
 else
   echo "✗ Migration failed"
