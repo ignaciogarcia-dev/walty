@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
 
   const user = await db.query.users.findFirst({
     where: eq(users.email, email),
+    columns: { id: true, passwordHash: true, userType: true },
   })
 
   if (!user) {
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   const token = jwt.sign(
-    { userId: user.id },
+    { userId: user.id, userType: user.userType ?? "person" },
     process.env.JWT_SECRET!,
     { expiresIn: "7d" }
   )
