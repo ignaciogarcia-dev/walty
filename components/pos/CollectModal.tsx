@@ -11,6 +11,7 @@ import {
   CopySimple,
   LinkSimple,
   ShareNetwork,
+  Users,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import {
@@ -68,6 +69,7 @@ export function CollectModal({
   const [step, setStep] = useState<Step>("amount")
   const [amount, setAmount] = useState("")
   const [token, setToken] = useState<Token>("USDC")
+  const [isSplitPayment, setIsSplitPayment] = useState(false)
   const [request, setRequest] = useState<PaymentRequestView | null>(null)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -144,6 +146,7 @@ export function CollectModal({
     setStep("amount")
     setAmount("")
     setToken("USDC")
+    setIsSplitPayment(false)
     setRequest(null)
     setError(null)
     setCreating(false)
@@ -175,6 +178,7 @@ export function CollectModal({
           amountUsd: amount,
           token,
           merchantWalletAddress,
+          isSplitPayment,
         }),
       })
 
@@ -255,6 +259,28 @@ export function CollectModal({
                 </div>
                 <p className="text-xs text-muted-foreground">Moneda: USD</p>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsSplitPayment(!isSplitPayment)}
+                className={cn(
+                  "flex items-center gap-2 rounded-xl border p-3 text-left transition-colors",
+                  isSplitPayment
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
+                )}
+              >
+                {isSplitPayment ? (
+                  <CheckCircle size={20} weight="fill" className="shrink-0 text-primary" />
+                ) : (
+                  <Circle size={20} className="shrink-0 text-muted-foreground" />
+                )}
+                <div className="flex items-center gap-2">
+                  <Users size={18} className={isSplitPayment ? "text-primary" : "text-muted-foreground"} />
+                  <span className={cn("text-sm font-medium", isSplitPayment ? "text-primary" : "text-foreground")}>
+                    Pago dividido
+                  </span>
+                </div>
+              </button>
               <Button
                 className="w-full rounded-xl"
                 onClick={() => setStep("token")}
@@ -374,6 +400,79 @@ export function CollectModal({
                 </div>
               </div>
 
+              {request.isSplitPayment && (
+                <div className="w-full rounded-2xl border bg-secondary/20 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Users size={16} className="text-primary" />
+                    <span className="text-sm font-medium">Pago dividido</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Total a pagar:</span>
+                      <span className="font-medium">{request.amountUsd} {request.tokenSymbol}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Total pagado:</span>
+                      <span className="font-medium text-green-600">{request.totalPaidUsd ?? "0.00"} {request.tokenSymbol}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Restante:</span>
+                      <span className="font-medium text-amber-600">{request.remainingAmountUsd ?? request.amountUsd} {request.tokenSymbol}</span>
+                    </div>
+                  </div>
+                  {request.contributions && request.contributions.length > 0 && (
+                    <div className="mt-4 border-t pt-3">
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">Contribuciones:</p>
+                      <div className="space-y-2">
+                        {request.contributions.map((contribution) => (
+                          <div
+                            key={contribution.id}
+                            className="flex items-center justify-between rounded-lg border bg-background p-2 text-xs"
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-mono text-muted-foreground">
+                                {truncateAddress(contribution.payerAddress)}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {contribution.amountUsd} {contribution.tokenSymbol}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span
+                                className={cn(
+                                  "text-xs",
+                                  contribution.status === "confirmed"
+                                    ? "text-green-600"
+                                    : contribution.status === "confirming"
+                                    ? "text-amber-600"
+                                    : "text-muted-foreground"
+                                )}
+                              >
+                                {contribution.status === "confirmed"
+                                  ? "Confirmado"
+                                  : contribution.status === "confirming"
+                                  ? "Confirmando"
+                                  : "Pendiente"}
+                              </span>
+                              {contribution.txHash && (
+                                <a
+                                  href={getTxUrl(contribution.txHash, PAYMENT_CHAIN_ID)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-muted-foreground underline hover:text-foreground"
+                                >
+                                  {truncateHash(contribution.txHash)}
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex w-full justify-between text-sm text-muted-foreground">
                 <span>Red: Polygon</span>
                 <span className={cn("font-mono", requestStatus === "expired" ? "text-destructive" : "")}>
@@ -426,7 +525,39 @@ export function CollectModal({
               <p className="text-2xl font-semibold">
                 {request.amountUsd} {request.tokenSymbol}
               </p>
-              {request.txHash && (
+              {request.isSplitPayment && request.contributions && request.contributions.length > 0 && (
+                <div className="w-full rounded-xl border bg-secondary/20 p-4">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">Contribuciones recibidas:</p>
+                  <div className="space-y-2">
+                    {request.contributions.map((contribution) => (
+                      <div
+                        key={contribution.id}
+                        className="flex items-center justify-between rounded-lg border bg-background p-2 text-xs"
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-mono text-muted-foreground">
+                            {truncateAddress(contribution.payerAddress)}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {contribution.amountUsd} {contribution.tokenSymbol}
+                          </span>
+                        </div>
+                        {contribution.txHash && (
+                          <a
+                            href={getTxUrl(contribution.txHash, PAYMENT_CHAIN_ID)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-muted-foreground underline hover:text-foreground"
+                          >
+                            {truncateHash(contribution.txHash)}
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {!request.isSplitPayment && request.txHash && (
                 <a
                   href={getTxUrl(request.txHash, PAYMENT_CHAIN_ID)}
                   target="_blank"
