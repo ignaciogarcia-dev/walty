@@ -5,6 +5,7 @@ export interface UserData {
   userId: number
   email: string
   username: string | null
+  userType: "person" | "business"
 }
 
 export function useUser() {
@@ -37,6 +38,7 @@ export function useUser() {
           userId: userData.userId,
           email: userData.email,
           username,
+          userType: userData.userType ?? "person",
         })
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error")
