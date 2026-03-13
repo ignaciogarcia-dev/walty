@@ -100,6 +100,10 @@ export function SendForm({
 	onResetTx,
 	selectedChainId,
 	onChainChange,
+	mode = "transfer",
+	showChainSelector = true,
+	showTokenSearch = true,
+	networkSubtitle,
 }: {
 	positions: TokenPosition[]
 	onEstimateGas: (token: Token, to: string, amount: string, chainId: number) => Promise<string>
@@ -110,6 +114,10 @@ export function SendForm({
 	onResetTx: () => void
 	selectedChainId: number
 	onChainChange: (chainId: number) => void
+	mode?: "transfer" | "pay"
+	showChainSelector?: boolean
+	showTokenSearch?: boolean
+	networkSubtitle?: string
 }) {
 	const { t } = useTranslation()
 	const [selectedPosition, setSelectedPosition] = useState<TokenPosition | null>(null)
@@ -217,38 +225,53 @@ export function SendForm({
 	const canSubmit = !isBusy && !!effectiveTo && !!amount && !usernameResolving && !usernameError
 
 	const gasSymbol = network?.nativeCurrency.symbol ?? "ETH"
+	const actionLabel = mode === "pay" ? t("pay") : t("transfer")
+	const pendingLabel = mode === "pay" ? t("paying") : t("transferring")
+	const confirmLabel = mode === "pay" ? t("confirm-pay") : t("transfer")
 
 	// Step 1 — token selection
 	if (!selectedPosition) {
 		return (
 			<div className="rounded-4xl border bg-card p-6 flex flex-col gap-4">
-				<h2 className="font-semibold text-foreground">{t("select-token")}</h2>
-
-				{/* Chain tabs */}
-				<div className="flex gap-1.5 overflow-x-auto pb-1">
-					{NETWORKS.map((net) => (
-						<button
-							key={net.id}
-							onClick={() => onChainChange(net.id)}
-							className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-								selectedChainId === net.id
-									? "bg-foreground text-background"
-									: "bg-muted text-muted-foreground hover:bg-accent"
-							}`}
-						>
-							{net.name}
-						</button>
-					))}
+				<div className="flex flex-col gap-1">
+					<h2 className="font-semibold text-foreground">{actionLabel}</h2>
+					{networkSubtitle && (
+						<p className="text-sm text-muted-foreground">{networkSubtitle}</p>
+					)}
 				</div>
 
-				<Input
-					type="text"
-					placeholder="Token name or contract address"
-					value={search}
-					onChange={(e) => setSearch(e.target.value)}
-					className="rounded-2xl"
+				{showChainSelector && (
+					<div className="flex gap-1.5 overflow-x-auto pb-1">
+						{NETWORKS.map((net) => (
+							<button
+								key={net.id}
+								onClick={() => onChainChange(net.id)}
+								className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+									selectedChainId === net.id
+										? "bg-foreground text-background"
+										: "bg-muted text-muted-foreground hover:bg-accent"
+								}`}
+							>
+								{net.name}
+							</button>
+						))}
+					</div>
+				)}
+
+				{showTokenSearch && (
+					<Input
+						type="text"
+						placeholder="Token name or contract address"
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+						className="rounded-2xl"
+					/>
+				)}
+				<TokenSelectList
+					positions={chainPositions}
+					onSelect={setSelectedPosition}
+					search={showTokenSearch ? search : ""}
 				/>
-				<TokenSelectList positions={chainPositions} onSelect={setSelectedPosition} search={search} />
 			</div>
 		)
 	}
@@ -268,9 +291,14 @@ export function SendForm({
 						<ArrowLeft className="size-4" />
 					</button>
 					<TokenAvatar symbol={token.symbol} imageUrl={imageUrl} />
-					<h2 className="font-semibold text-foreground">
-						{t("send")} {token.symbol}
-					</h2>
+					<div className="flex flex-col">
+						<h2 className="font-semibold text-foreground">
+							{actionLabel} {token.symbol}
+						</h2>
+						{networkSubtitle && (
+							<p className="text-xs text-muted-foreground">{networkSubtitle}</p>
+						)}
+					</div>
 					<Badge variant="outline" className="ml-auto font-mono text-xs">
 						{parseFloat(balance).toFixed(4)} {token.symbol}
 					</Badge>
@@ -320,10 +348,10 @@ export function SendForm({
 					{isBusy ? (
 						<>
 							<Spinner />
-							{t("sending")}
+							{pendingLabel}
 						</>
 					) : (
-						`${t("send")} ${token.symbol}`
+						`${actionLabel} ${token.symbol}`
 					)}
 				</Button>
 
@@ -338,7 +366,7 @@ export function SendForm({
 			<Dialog open={showModal} onOpenChange={setShowModal}>
 				<DialogContent className="rounded-3xl sm:max-w-sm">
 					<DialogHeader>
-						<DialogTitle>{t("confirm-transaction")}</DialogTitle>
+						<DialogTitle>{mode === "pay" ? t("confirm-pay") : t("confirm-transaction")}</DialogTitle>
 					</DialogHeader>
 
 					<div className="flex flex-col gap-4 py-2">
@@ -386,7 +414,7 @@ export function SendForm({
 							disabled={gasEstimate === null && !gasError}
 							className="flex-1 rounded-2xl"
 						>
-							{t("confirm-send")}
+							{confirmLabel}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
