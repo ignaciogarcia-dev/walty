@@ -34,6 +34,16 @@ This roadmap tracks current priorities and guides contribution focus.
 - Add more `good first issue` tasks.
 - Keep issue templates and PR checks strict and lightweight.
 
+### 5) POS / Payments
+
+The base invoice/payment-request system is in place (business accounts, QR-code collection, blockchain verification on Polygon). Areas to extend:
+
+- Multi-chain support: allow merchants to accept payments on chains beyond Polygon.
+- Settlement notifications: push or in-app alert when a payment is confirmed.
+- Fiat amount locking: lock the USDC/USDT amount at request time using live price feeds.
+- Payment history: dedicated activity view for received payment requests.
+- Cancellation and refund flows.
+
 ## Contribution Signals
 
 These labels indicate where help is needed:
