@@ -1,34 +1,25 @@
 import { NextRequest, NextResponse } from "next/server"
-import { and, desc, eq, inArray, or } from "drizzle-orm"
+import { and, desc, inArray, eq } from "drizzle-orm"
 import { requireAuth } from "@/lib/auth"
-import { toPaymentRequestView } from "@/lib/payments/paymentRequests"
 import { db } from "@/server/db"
-import { users, paymentRequests } from "@/server/db/schema"
+import { paymentRequests } from "@/server/db/schema"
+import { getBusinessContext } from "@/lib/business/getBusinessContext"
 import type { PaymentRequestHistoryItem } from "@/lib/activity/types"
-
-async function requireBusinessUser(userId: number) {
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, userId),
-    columns: { userType: true },
-  })
-
-  if (user?.userType !== "business") {
-    throw new Error("FORBIDDEN")
-  }
-}
 
 export async function GET(req: NextRequest) {
   try {
     const auth = requireAuth(req)
-    await requireBusinessUser(auth.userId)
+    const ctx = await getBusinessContext(auth.userId)
+    if (!ctx) {
+      return NextResponse.json({ error: "only business accounts can read payment requests" }, { status: 403 })
+    }
 
     const { searchParams } = new URL(req.url)
     const statusParam = searchParams.get("status") || "all"
     const limit = Math.min(Number(searchParams.get("limit") ?? 50), 100)
     const offset = Number(searchParams.get("offset") ?? 0)
 
-    // Build status filter
-    let statusFilter: string[] | undefined
+    let statusFilter: string[]
     if (statusParam === "paid") {
       statusFilter = ["paid"]
     } else if (statusParam === "expired") {
@@ -38,7 +29,6 @@ export async function GET(req: NextRequest) {
     } else if (statusParam === "confirming") {
       statusFilter = ["confirming"]
     } else {
-      // "all" - include all statuses
       statusFilter = ["paid", "expired", "pending", "confirming"]
     }
 
@@ -47,7 +37,7 @@ export async function GET(req: NextRequest) {
       .from(paymentRequests)
       .where(
         and(
-          eq(paymentRequests.merchantId, auth.userId),
+          eq(paymentRequests.merchantId, ctx.businessId),
           inArray(paymentRequests.status, statusFilter)
         )
       )
@@ -71,9 +61,6 @@ export async function GET(req: NextRequest) {
     const message = error instanceof Error ? error.message : "unexpected error"
     if (message === "Unauthorized") {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 })
-    }
-    if (message === "FORBIDDEN") {
-      return NextResponse.json({ error: "only business accounts can read payment requests" }, { status: 403 })
     }
     return NextResponse.json({ error: message }, { status: 500 })
   }
