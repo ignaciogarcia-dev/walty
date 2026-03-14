@@ -195,4 +195,7 @@ export const es = {
 	"checking": "Verificando…",
 	"go-to-login": "¿Ya tienes cuenta? Inicia sesión",
 	"go-to-register": "¿No tienes cuenta? Crea una",
+	"team": "Equipo",
+	"operating-as": "Operando como",
+	"at-business": "en",
 } as const
