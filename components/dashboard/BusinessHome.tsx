@@ -5,6 +5,7 @@ import { ActivePaymentRequestCard } from "@/components/dashboard/ActivePaymentRe
 import { BalanceCard } from "@/components/wallet/BalanceCard"
 import { TokenCard } from "@/components/wallet/TokenCard"
 import { usePortfolio } from "@/hooks/usePortfolio"
+import { useBusinessContext } from "@/hooks/useBusinessContext"
 import { PAYMENT_HOME_POLL_INTERVAL_MS } from "@/lib/payments/config"
 import type { PaymentRequestView } from "@/lib/payments/types"
 import { isPaymentRequestActive } from "@/lib/payments/types"
@@ -12,6 +13,8 @@ import { PaperPlaneTilt, QrCode } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { CollectModal } from "@/components/pos/CollectModal"
+import { BusinessContextBanner } from "@/components/business/BusinessContextBanner"
+import { RefundRequestsPanel } from "@/components/business/RefundRequestsPanel"
 
 export function BusinessHome() {
 	const { address, balance } = useWalletContext()
@@ -19,6 +22,16 @@ export function BusinessHome() {
 	const router = useRouter()
 	const [collectOpen, setCollectOpen] = useState(false)
 	const [activeRequest, setActiveRequest] = useState<PaymentRequestView | null>(null)
+
+	const businessCtx = useBusinessContext()
+	const isOwner = businessCtx.isOwner ?? true
+	const role = businessCtx.role ?? "owner"
+	const businessName = businessCtx.businessName ?? ""
+	// For operators: use the business wallet address; for owner: use their own address
+	const merchantWalletAddress = businessCtx.merchantWalletAddress ?? address
+
+	const canCollect = !businessCtx.loading
+	const canTransfer = isOwner
 
 	const quickActionClassName =
 		"flex-1 rounded-2xl border border-quick-action-border bg-quick-action-surface text-quick-action-foreground backdrop-blur-md transition-all hover:border-quick-action-hover-border hover:bg-quick-action-hover"
@@ -65,7 +78,6 @@ export function BusinessHome() {
 			setActiveRequest(request)
 			return
 		}
-
 		setActiveRequest(null)
 	}
 
@@ -79,23 +91,35 @@ export function BusinessHome() {
 
 	return (
 		<div className="mx-auto max-w-2xl px-4 py-10 flex flex-col gap-6">
-			<BalanceCard address={address} balance={balance} />
+			{!isOwner && role && businessName && (
+				<BusinessContextBanner role={role} businessName={businessName} />
+			)}
+
+			<BalanceCard address={merchantWalletAddress ?? address} balance={balance} />
 
 			<div className="flex gap-3">
-				<Button onClick={() => setCollectOpen(true)} variant="ghost" className={quickActionClassName} size="lg">
+				<Button
+					onClick={() => setCollectOpen(true)}
+					variant="ghost"
+					className={quickActionClassName}
+					size="lg"
+					disabled={!canCollect || !merchantWalletAddress}
+				>
 					<QrCode className="mr-2 h-4 w-4" />
 					Cobrar
 				</Button>
-				<Button onClick={() => router.push("/dashboard/send")} variant="ghost" className={quickActionClassName} size="lg">
-					<PaperPlaneTilt className="mr-2 h-4 w-4" />
-					Transferir
-				</Button>
+				{canTransfer && (
+					<Button onClick={() => router.push("/dashboard/send")} variant="ghost" className={quickActionClassName} size="lg">
+						<PaperPlaneTilt className="mr-2 h-4 w-4" />
+						Transferir
+					</Button>
+				)}
 			</div>
 
 			<CollectModal
 				open={collectOpen}
 				onOpenChange={setCollectOpen}
-				merchantWalletAddress={address}
+				merchantWalletAddress={merchantWalletAddress ?? ""}
 				activeRequest={activeRequest}
 				onRequestChange={handleRequestChange}
 			/>
@@ -107,6 +131,8 @@ export function BusinessHome() {
 					onCancel={() => setActiveRequest(null)}
 				/>
 			)}
+
+			{isOwner && <RefundRequestsPanel />}
 
 			{loading ? (
 				<div className="text-sm text-muted-foreground text-center py-4">
