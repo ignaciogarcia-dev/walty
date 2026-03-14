@@ -1,5 +1,5 @@
 "use client"
-import { AddressBook, ClockCounterClockwise, House, MoneyIcon, PaperPlaneTilt, SidebarSimpleIcon } from "@phosphor-icons/react"
+import { AddressBook, ClockCounterClockwise, House, MoneyIcon, PaperPlaneTilt, SidebarSimpleIcon, Users } from "@phosphor-icons/react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -33,6 +33,7 @@ export function DashboardSidebar() {
   const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebarState()
   const isCollapsed = state === "collapsed"
   const showPayTab = user?.userType === "person"
+  const showTeamTab = user?.userType === "business"
 
   function handleMobileNavigation() {
     if (isMobile) {
@@ -68,6 +69,13 @@ export function DashboardSidebar() {
       label: t("contacts"),
       href: "/dashboard/contacts",
     },
+    ...(showTeamTab
+      ? [{
+          icon: <Users size={18} weight="regular" />,
+          label: t("team"),
+          href: "/dashboard/business/team",
+        }]
+      : []),
   ]
 
   return (
@@ -121,10 +129,13 @@ export function DashboardSidebar() {
                 {appSidebarItems.map((item) => {
                   const isHome = item.href === "/dashboard/home"
                   const isPay = item.href === "/dashboard/pay"
+                  const isTeam = item.href === "/dashboard/business/team"
                   const isActive = isHome
                     ? pathname === "/dashboard/home" || pathname === "/dashboard/business/home"
                     : isPay
                     ? pathname === "/dashboard/pay" || pathname.startsWith("/dashboard/pay/")
+                    : isTeam
+                    ? pathname === "/dashboard/business/team"
                     : pathname === item.href
                   return (
                     <SidebarMenuItem key={item.href}>
