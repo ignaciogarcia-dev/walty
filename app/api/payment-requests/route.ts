@@ -5,32 +5,30 @@ import { requireAuth } from "@/lib/auth"
 import { PAYMENT_CHAIN_ID, PAYMENT_EXPIRY_MINUTES, PAYMENT_REQUIRED_CONFIRMATIONS, getPaymentTokenDefinition, isPaymentTokenSymbol } from "@/lib/payments/config"
 import { toPaymentRequestView } from "@/lib/payments/paymentRequests"
 import { db } from "@/server/db"
-import { users, addresses, paymentRequests } from "@/server/db/schema"
+import { addresses, paymentRequests } from "@/server/db/schema"
 import { getPublicClient } from "@/lib/rpc/getPublicClient"
 import { isPaymentRequestActive } from "@/lib/payments/types"
+import { getBusinessContext } from "@/lib/business/getBusinessContext"
+import { writeAuditLog, AUDIT_ACTIONS } from "@/lib/business/auditLog"
 
-async function requireBusinessUser(userId: number) {
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, userId),
-    columns: { userType: true },
-  })
-
-  if (user?.userType !== "business") {
-    throw new Error("FORBIDDEN")
-  }
+function getIp(req: NextRequest) {
+  return req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown"
 }
 
 export async function GET(req: NextRequest) {
   try {
     const auth = requireAuth(req)
-    await requireBusinessUser(auth.userId)
+    const ctx = await getBusinessContext(auth.userId)
+    if (!ctx) {
+      return NextResponse.json({ error: "only business accounts can read payment requests" }, { status: 403 })
+    }
 
     const [request] = await db
       .select()
       .from(paymentRequests)
       .where(
         and(
-          eq(paymentRequests.merchantId, auth.userId),
+          eq(paymentRequests.merchantId, ctx.businessId),
           inArray(paymentRequests.status, ["pending", "confirming"])
         )
       )
@@ -45,9 +43,6 @@ export async function GET(req: NextRequest) {
     if (message === "Unauthorized") {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 })
     }
-    if (message === "FORBIDDEN") {
-      return NextResponse.json({ error: "only business accounts can read payment requests" }, { status: 403 })
-    }
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
@@ -55,7 +50,10 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const auth = requireAuth(req)
-    await requireBusinessUser(auth.userId)
+    const ctx = await getBusinessContext(auth.userId)
+    if (!ctx) {
+      return NextResponse.json({ error: "only business accounts can cancel payment requests" }, { status: 403 })
+    }
 
     const { id } = await req.json()
     if (!id || typeof id !== "string") {
@@ -65,7 +63,7 @@ export async function PATCH(req: NextRequest) {
     const [request] = await db
       .select()
       .from(paymentRequests)
-      .where(and(eq(paymentRequests.id, id), eq(paymentRequests.merchantId, auth.userId)))
+      .where(and(eq(paymentRequests.id, id), eq(paymentRequests.merchantId, ctx.businessId)))
       .limit(1)
 
     if (!request) {
@@ -82,14 +80,13 @@ export async function PATCH(req: NextRequest) {
       .where(eq(paymentRequests.id, id))
       .returning()
 
+    writeAuditLog(ctx.businessId, auth.userId, AUDIT_ACTIONS.PAYMENT_REQUEST_CANCELLED, { requestId: id }, getIp(req))
+
     return NextResponse.json(toPaymentRequestView(updated))
   } catch (error) {
     const message = error instanceof Error ? error.message : "unexpected error"
     if (message === "Unauthorized") {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 })
-    }
-    if (message === "FORBIDDEN") {
-      return NextResponse.json({ error: "only business accounts can cancel payment requests" }, { status: 403 })
     }
     return NextResponse.json({ error: message }, { status: 500 })
   }
@@ -98,7 +95,10 @@ export async function PATCH(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const auth = requireAuth(req)
-    await requireBusinessUser(auth.userId)
+    const ctx = await getBusinessContext(auth.userId)
+    if (!ctx) {
+      return NextResponse.json({ error: "only business accounts can create payment requests" }, { status: 403 })
+    }
 
     const { amountUsd, token, merchantWalletAddress, isSplitPayment } = await req.json()
 
@@ -115,9 +115,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "invalid merchant wallet address" }, { status: 400 })
     }
 
+    // Validate address is linked to the BUSINESS account (not the operator's account)
     const linkedAddress = await db.query.addresses.findFirst({
       where: and(
-        eq(addresses.userId, auth.userId),
+        eq(addresses.userId, ctx.businessId),
         eq(addresses.address, merchantWalletAddress)
       ),
     })
@@ -140,7 +141,8 @@ export async function POST(req: NextRequest) {
     const now = new Date()
 
     const insertValues: typeof paymentRequests.$inferInsert = {
-      merchantId: auth.userId,
+      merchantId: ctx.businessId,
+      operatorId: ctx.isOwner ? null : auth.userId,
       chainId: PAYMENT_CHAIN_ID,
       amountUsd,
       amountToken,
@@ -157,8 +159,6 @@ export async function POST(req: NextRequest) {
       isSplitPayment: Boolean(isSplitPayment),
     }
 
-    // Only include totalPaidToken and totalPaidUsd for split payments
-    // For non-split payments, let the database defaults handle it
     if (Boolean(isSplitPayment)) {
       insertValues.totalPaidToken = "0"
       insertValues.totalPaidUsd = "0"
@@ -169,14 +169,19 @@ export async function POST(req: NextRequest) {
       .values(insertValues)
       .returning()
 
+    writeAuditLog(
+      ctx.businessId,
+      auth.userId,
+      AUDIT_ACTIONS.PAYMENT_REQUEST_CREATED,
+      { requestId: request.id, amountUsd, token, operatorId: ctx.isOwner ? null : auth.userId },
+      getIp(req)
+    )
+
     return NextResponse.json(toPaymentRequestView(request))
   } catch (e) {
     const msg = e instanceof Error ? e.message : "unexpected error"
     if (msg === "Unauthorized") {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 })
-    }
-    if (msg === "FORBIDDEN") {
-      return NextResponse.json({ error: "only business accounts can create payment requests" }, { status: 403 })
     }
     return NextResponse.json({ error: msg }, { status: 500 })
   }
