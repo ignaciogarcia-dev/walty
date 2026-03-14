@@ -195,4 +195,7 @@ export const en = {
 	"checking": "Checking…",
 	"go-to-login": "Already have an account? Sign in",
 	"go-to-register": "Don't have an account? Create one",
+	"team": "Team",
+	"operating-as": "Operating as",
+	"at-business": "at",
 } as const
