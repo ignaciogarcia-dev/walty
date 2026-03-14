@@ -15,8 +15,8 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith("/dashboard") && !hasToken) {
     return NextResponse.redirect(new URL("/onboarding", request.url))
   }
-  // /pay/* is public — the page itself handles auth redirect with ?next=
-  if (pathname.startsWith("/pay/")) {
+  // /pay/* and /join/* are public — the page itself handles auth redirect with ?next=
+  if (pathname.startsWith("/pay/") || pathname.startsWith("/join/")) {
     const nonce = Buffer.from(crypto.randomUUID()).toString("base64")
     const requestHeaders = new Headers(request.headers)
     requestHeaders.set("x-nonce", nonce)
