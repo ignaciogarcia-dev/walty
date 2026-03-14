@@ -26,7 +26,7 @@ function truncateHash(hash: string) {
 export default function DashboardPayPage() {
   const { requestId } = useParams<{ requestId: string }>()
   const router = useRouter()
-  const { sendToken, txStatus, txHash, txError, resetTx } = useWalletContext()
+  const { address, sendToken, txStatus, txHash, txError, resetTx } = useWalletContext()
 
   const [request, setRequest] = useState<PaymentRequestView | null>(null)
   const [loading, setLoading] = useState(true)
@@ -112,6 +112,18 @@ export default function DashboardPayPage() {
     return (
       <div className="mx-auto max-w-2xl px-4 py-10 flex items-center justify-center">
         <Spinner className="size-6" />
+      </div>
+    )
+  }
+
+  if (request && address?.toLowerCase() === request.merchantWalletAddress.toLowerCase()) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-10 flex flex-col gap-4 items-center text-center">
+        <p className="text-lg font-semibold">No puedes pagar tu propio cobro</p>
+        <p className="text-sm text-muted-foreground">Este cobro fue generado desde tu cuenta.</p>
+        <Button variant="outline" onClick={() => router.push("/dashboard/home")}>
+          Volver al inicio
+        </Button>
       </div>
     )
   }
