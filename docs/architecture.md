@@ -18,6 +18,7 @@ This document explains how Walty is organized and how data moves through the app
 | `app/` | Pages and API routes |
 | `components/` | Reusable UI and wallet components |
 | `components/pos/` | Point-of-sale UI (merchant collection modal) |
+| `components/business/` | Business operator UI (team panel, invite modal, refund requests, context banner) |
 | `components/settings/` | Settings dialog (theme + locale selectors) |
 | `components/theme/` | Theme provider and switcher UI |
 | `components/locale/` | Locale (i18n) provider and switcher UI |
@@ -103,6 +104,44 @@ Relevant modules:
 - `app/api/payment-requests/route.ts` — create payment request (business, auth)
 - `app/api/payment-requests/[id]/route.ts` — poll status + blockchain verification (public)
 
+### 6) Business Operators / Team System
+
+Business accounts can invite operators (manager / cashier / waiter) to generate payment requests on their behalf without exposing the owner's seed phrase.
+
+**Invitation flow:**
+1. Owner opens **Team** panel (`/dashboard/business/team`) and clicks **Invite operator**.
+2. Owner selects a role and the system generates a single-use invitation link (`/join/{token}`, 7-day expiry).
+3. Owner shares the link manually. The invitee opens it and sees business name, role, and permissions.
+4. If not logged in, the invitee is redirected to `/onboarding?next=/join/{token}`.
+5. After authenticating, the invitee clicks **Accept** → `POST /api/join/{token}` → their account is linked to the business with the selected role.
+6. They are redirected to `/dashboard/business/home` and see a context banner: "Operando como Cajero en: Restaurant X".
+
+**Operator payment creation:**
+- Operators access `/dashboard/business/home` (the layout guard now accepts active members, not just `userType === "business"`).
+- They can open CollectModal and create payment requests. The API (`POST /api/payment-requests`) resolves business context via `getBusinessContext()` and creates the request with `merchantId = business.userId` and `operatorId = operator.userId`.
+- Funds always go to the business owner's wallet. Operators never control it.
+
+**Refund request flow (non-custodial):**
+1. Manager opens a paid payment and requests a refund (`POST /api/business/refund-requests`) with destination address and reason.
+2. Owner sees pending refund requests in `RefundRequestsPanel` on their dashboard.
+3. Owner reviews and approves → `PATCH /api/business/refund-requests/{id} { action: "approve" }`.
+4. Owner clicks Execute → `sendToken()` fires in their browser (using their own seed). On confirmation, `PATCH { action: "mark_executed", txHash }` records the hash.
+5. Backend never holds private keys.
+
+**Audit log:** Every key action (member invited/accepted/role changed, payment created, refund approved/executed) writes a row to `business_audit_logs`.
+
+Relevant modules:
+- `lib/business/getBusinessContext.ts` — resolves owner or operator context from userId
+- `lib/business/auditLog.ts` — fire-and-forget audit log writer
+- `app/api/business/*` — context, members, invite, refund-requests routes
+- `app/api/join/[token]/route.ts` — public GET + auth-required POST for invite acceptance
+- `components/business/TeamPanel.tsx` — team management UI
+- `components/business/InviteModal.tsx` — role selector + invite link generator
+- `components/business/RefundRequestsPanel.tsx` — owner approves/executes refunds
+- `components/business/BusinessContextBanner.tsx` — operator context indicator
+- `app/join/[token]/page.tsx` — public invite acceptance page
+- `app/dashboard/business/team/page.tsx` — team management page (owner only)
+
 ## Database Model (High Level)
 
 Core tables include:
@@ -114,7 +153,10 @@ Core tables include:
 - `user_profiles`
 - `wallet_nonces`
 - `wallet_backups`
-- `payment_requests` — merchant invoices: `id` (UUID), `merchantId` (FK → users), `amountUsd`, `amountToken`, `token` (USDC/USDT), `walletAddress`, `status` (pending/paid/expired/cancelled), `txHash` (nullable), `startBlock` (Polygon block at creation), `expiresAt`, `createdAt`
+- `payment_requests` — merchant invoices: `id` (UUID), `merchantId` (FK → users), `operatorId` (nullable FK → users), `amountUsd`, `amountToken`, `token` (USDC/USDT), `walletAddress`, `status` (pending/paid/expired/cancelled), `txHash` (nullable), `startBlock` (Polygon block at creation), `expiresAt`, `createdAt`
+- `business_members` — operator memberships: `id`, `businessId` (FK → users), `userId` (nullable FK → users, null until accepted), `role` (manager/cashier/waiter), `status` (invited/active/suspended/revoked), `inviteToken` (UUID, unique), `inviteEmail` (optional label), `invitedBy` (FK → users), `expiresAt`, `lastActivityAt`
+- `refund_requests` — `id` (UUID), `paymentRequestId`, `requestedBy`, `businessId`, `amountToken`, `amountUsd`, `destinationAddress`, `reason`, `status` (pending/approved/rejected/executed), `txHash` (nullable)
+- `business_audit_logs` — `id`, `businessId`, `operatorId`, `action`, `metadata` (JSON string), `ipAddress`, `createdAt`
 
 Schema source: `server/db/schema.ts`
 
@@ -123,6 +165,7 @@ Schema source: `server/db/schema.ts`
 - `/dashboard/*` — requires authentication; unauthenticated requests are redirected to `/onboarding`.
   - Key pages: `/dashboard/home`, `/dashboard/send`, `/dashboard/swap`, `/dashboard/activity`, `/dashboard/contacts`, `/dashboard/pay/[requestId]`
 - `/pay/*` — public routes; CSP headers are applied but no auth redirect occurs. Used as QR code landing pages.
+- `/join/*` — public routes; same treatment as `/pay/*`. Invitation acceptance landing pages.
 - `/onboarding/*` — unauthenticated entry point. Full step order:
   `welcome` → `login` / `register` → `create-wallet` → `recovery-phrase` → `confirm-recovery` → `create-pin` → `username` → `account-type` → `complete`
 
