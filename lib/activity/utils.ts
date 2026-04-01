@@ -1,0 +1,94 @@
+import type { TransactionActivityItem } from "./types"
+
+/** USD formatting matching CashierMovementsFeed: no cents when the amount is a whole number. */
+export function formatActivityUsd(amount: string | number): string {
+  const num = typeof amount === "string" ? parseFloat(amount) : amount
+  if (!Number.isFinite(num)) {
+    return new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(0)
+  }
+  const cents = Math.round(num * 100)
+  const isWholeDollars = cents % 100 === 0
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: isWholeDollars ? 0 : 2,
+    maximumFractionDigits: isWholeDollars ? 0 : 2,
+  }).format(num)
+}
+
+export function truncateMiddle(s: string, start = 6, end = 4): string {
+  if (s.length <= start + end + 1) return s
+  return `${s.slice(0, start)}…${s.slice(-end)}`
+}
+
+export function groupActivityByDate<T extends { sortAt: number }>(
+  items: T[],
+  locale: string | undefined,
+): { label: string; items: T[] }[] {
+  const groups: Map<string, T[]> = new Map()
+  const dateFmt: Intl.DateTimeFormatOptions = { day: "numeric", month: "long" }
+
+  for (const item of items) {
+    const key = new Date(item.sortAt).toLocaleDateString(locale, dateFmt)
+    const list = groups.get(key)
+    if (list) list.push(item)
+    else groups.set(key, [item])
+  }
+
+  return Array.from(groups, ([label, groupItems]) => ({ label, items: groupItems }))
+}
+
+export function formatCurrency(amount: string | number): string {
+  const num = typeof amount === "string" ? parseFloat(amount) : amount
+  if (isNaN(num)) return "$0.00"
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num)
+}
+
+export function calculateChangePercent(current: number, previous: number): number {
+  if (previous === 0) return current > 0 ? 100 : 0
+  return ((current - previous) / previous) * 100
+}
+
+export function formatChangePercent(percent: number): string {
+  const sign = percent >= 0 ? "+" : ""
+  return `${sign}${percent.toFixed(1)}%`
+}
+
+export function getMonthRange(monthOffset: number = 0): { start: Date; end: Date } {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() - monthOffset
+  
+  const start = new Date(year, month, 1)
+  const end = new Date(year, month + 1, 0, 23, 59, 59, 999)
+  
+  return { start, end }
+}
+
+export function isTransactionPayment(tx: TransactionActivityItem, userAddress: string): boolean {
+  // A payment is when the user sends money (fromAddress = userAddress)
+  // and the transaction is confirmed
+  return tx.fromAddress.toLowerCase() === userAddress.toLowerCase() && tx.status === "confirmed"
+}
+
+export function isTransactionSend(tx: TransactionActivityItem, userAddress: string): boolean {
+  // A send is any transaction where fromAddress = userAddress
+  return tx.fromAddress.toLowerCase() === userAddress.toLowerCase()
+}
+
+export function sumAmounts(amounts: string[]): string {
+  return amounts.reduce((sum, amount) => {
+    const num = parseFloat(amount)
+    return (parseFloat(sum) + (isNaN(num) ? 0 : num)).toString()
+  }, "0")
+}

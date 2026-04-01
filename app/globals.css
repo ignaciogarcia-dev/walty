@@ -1,0 +1,175 @@
+@import "tailwindcss";
+
+/* Light mode semantic tokens */
+:root {
+  --background: #fafafa;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+  --primary: #18181b;
+  --primary-foreground: #fafafa;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #18181b;
+  --sidebar: #f4f4f4;
+  --dashboard-shell: #ffffff;
+  --sidebar-foreground: #09090b;
+  --sidebar-primary: #18181b;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #18181b;
+  --sidebar-highlight: #e9e8e8;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #18181b;
+  --dialog-surface: #ffffff;
+  --dialog-overlay: rgb(0 0 0 / 0.5);
+  --sheet-overlay: rgb(0 0 0 / 0.1);
+  --quick-action-surface: #fafafa;
+  --quick-action-border: #d4d4d8;
+  --quick-action-hover: #f4f4f5;
+  --quick-action-hover-border: #a1a1aa;
+  --quick-action-foreground: var(--foreground);
+  --wallet-balance-gradient-start: #052e1b;
+  --wallet-balance-gradient-middle: #22c55e;
+  --wallet-balance-gradient-end: #6ee7b7;
+  --wallet-balance-border: rgb(255 255 255 / 0.1);
+  --wallet-balance-label: rgb(255 255 255 / 0.8);
+  --wallet-balance-meta: rgb(255 255 255 / 0.5);
+  --wallet-balance-spinner: rgb(255 255 255 / 0.4);
+  --wallet-balance-foreground: #ffffff;
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #303030;
+  --card-foreground: #fafafa;
+  --popover: #09090b;
+  --popover-foreground: #fafafa;
+  --primary: #fafafa;
+  --primary-foreground: #18181b;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+  --destructive: #f87171;
+  --destructive-foreground: #09090b;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #d4d4d8;
+  --sidebar: #181818;
+  --dashboard-shell: #212121;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #fafafa;
+  --sidebar-primary-foreground: #09090b;
+  --sidebar-accent: #27272a;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-highlight: #2f2f2f;
+  --sidebar-border: #27272a;
+  --sidebar-ring: #d4d4d8;
+  --dialog-surface: #212121;
+  --dialog-overlay: rgb(0 0 0 / 0.5);
+  --sheet-overlay: rgb(0 0 0 / 0.1);
+  --quick-action-surface: #030712;
+  --quick-action-border: #1f2937;
+  --quick-action-hover: #27272a;
+  --quick-action-hover-border: #3f3f46;
+  --quick-action-foreground: #f3f4f6;
+  --wallet-balance-gradient-start: #052e1b;
+  --wallet-balance-gradient-middle: #22c55e;
+  --wallet-balance-gradient-end: #6ee7b7;
+  --wallet-balance-border: rgb(255 255 255 / 0.1);
+  --wallet-balance-label: rgb(255 255 255 / 0.8);
+  --wallet-balance-meta: rgb(255 255 255 / 0.5);
+  --wallet-balance-spinner: rgb(255 255 255 / 0.4);
+  --wallet-balance-foreground: #ffffff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-dashboard-shell: var(--dashboard-shell);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-highlight: var(--sidebar-highlight);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-dialog-surface: var(--dialog-surface);
+  --color-dialog-overlay: var(--dialog-overlay);
+  --color-sheet-overlay: var(--sheet-overlay);
+  --color-quick-action-surface: var(--quick-action-surface);
+  --color-quick-action-border: var(--quick-action-border);
+  --color-quick-action-hover: var(--quick-action-hover);
+  --color-quick-action-hover-border: var(--quick-action-hover-border);
+  --color-quick-action-foreground: var(--quick-action-foreground);
+  --color-wallet-balance-border: var(--wallet-balance-border);
+  --color-wallet-balance-label: var(--wallet-balance-label);
+  --color-wallet-balance-meta: var(--wallet-balance-meta);
+  --color-wallet-balance-spinner: var(--wallet-balance-spinner);
+  --color-wallet-balance-foreground: var(--wallet-balance-foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
+}
+
+* {
+  border-color: var(--border);
+}
+
+/* Remove number input arrows */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+button:focus,
+button:focus-visible,
+input:focus,
+input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
