@@ -132,7 +132,7 @@ Refund request created
 
 ## Current Constraints
 
-- Payment requests are **Polygon-only** and limited to **USDC / USDT**.
+- Payment requests are **Polygon-only** and limited to **USDC**.
 - Portfolio can read multiple EVM chains; the UI is filtered by `NEXT_PUBLIC_ENABLED_CHAINS`.
 - Business roles are `owner` and `cashier` (manager role exists in DB for future use).
 - Cashier wallets are HD-derived from the owner mnemonic using a `derivationIndex`.

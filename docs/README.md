@@ -29,7 +29,7 @@ Walty is an on-chain crypto payment platform for individuals and businesses. Use
 
 ### For businesses (business accounts)
 
-- Generate QR-code payment requests (Polygon, USDC/USDT)
+- Generate QR-code payment requests (Polygon, USDC)
 - Share a public `/pay/[requestId]` link — no account required for payers
 - Split payment support (multiple payers, one request)
 - Cashier invitation system with role-based access (owner / cashier)

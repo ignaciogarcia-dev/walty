@@ -9,7 +9,7 @@ Open an issue before large changes. State the user or operator problem first.
 ### Payments
 
 Current surface:
-- QR payment requests on Polygon (USDC / USDT)
+- QR payment requests on Polygon (USDC)
 - Split payments (multiple payers per request)
 - Public `/pay/[requestId]` — payers need no account
 - Cashier invitation flow and cashier wallet collection

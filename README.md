@@ -19,7 +19,7 @@ personal wallets and business payment operations without a backend signer.
 
 ### For businesses
 
-- Generate payment requests with a USD amount, payable in `USDC` or `USDT` on Polygon
+- Generate payment requests with a USD amount, payable in `USDC` on Polygon
 - Share QR codes or payment links with customers
 - Track payment status with on-chain reconciliation
 - Support split payments with multiple contributions
