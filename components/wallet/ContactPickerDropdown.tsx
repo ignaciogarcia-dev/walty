@@ -163,7 +163,7 @@ export function ContactPickerDropdown({
                   placeholder={t("search-contacts")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="rounded-xl h-8 text-sm flex-1"
+                  className="rounded-xl h-8 text-base md:text-sm flex-1"
                   autoFocus
                 />
                 <button
@@ -222,7 +222,7 @@ export function ContactPickerDropdown({
                   placeholder={t("contact-name-placeholder")}
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="rounded-xl h-8 text-sm"
+                  className="rounded-xl h-8 text-base md:text-sm"
                   autoFocus
                 />
               </div>
@@ -233,7 +233,7 @@ export function ContactPickerDropdown({
                   placeholder={t("username-or-address")}
                   value={newTo}
                   onChange={(e) => { setNewTo(e.target.value); setAddError(null) }}
-                  className="rounded-xl h-8 text-sm font-mono"
+                  className="rounded-xl h-8 text-base md:text-sm font-mono"
                 />
                 {isResolving && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">

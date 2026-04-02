@@ -20,7 +20,8 @@ export const en = {
   security: "Security",
   "settings-export-backup": "Download",
   "settings-export-backup-label": "Wallet backup",
-  "settings-export-backup-disclaimer": "The file contains your seed encrypted with your PIN. Store it somewhere safe and never share it. Anyone with the file and your PIN has full access to your wallet.",
+  "settings-export-backup-disclaimer":
+    "The file contains your seed encrypted with your PIN. Store it somewhere safe and never share it. Anyone with the file and your PIN has full access to your wallet.",
   logout: "Logout",
   transfer: "Transfer",
   pay: "Pay",
@@ -231,7 +232,7 @@ export const en = {
   "landing-self-custody-desc": "Your keys, your funds. Always.",
   "landing-for-businesses": "Got a business?",
   "landing-for-businesses-desc":
-    "Accept crypto payments directly — no intermediaries, no hidden fees. Generate QR codes, get instant confirmation, and manage your team of operators from one place.",
+    "Accept crypto payments directly no intermediaries, no hidden fees. Generate QR codes, get instant confirmation, and manage your team of operators from one place.",
   "landing-for-businesses-cta": "Start collecting",
   "landing-for-people": "New to crypto?",
   "landing-for-people-desc":

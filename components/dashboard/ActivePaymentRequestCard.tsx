@@ -51,7 +51,7 @@ export function ActivePaymentRequestCard({ request, onOpenQr, onCancel }: Active
   }
 
   return (
-    <div className="rounded-4xl border bg-card p-6 shadow-sm">
+    <div className="rounded-4xl border bg-card p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-muted-foreground">{t("active-collection")}</p>
@@ -69,9 +69,9 @@ export function ActivePaymentRequestCard({ request, onOpenQr, onCancel }: Active
         >
           {status === "confirming" ? t("payment-status-confirming")
             : status === "paid" ? t("payment-status-paid")
-            : status === "expired" ? t("payment-status-expired")
-            : status === "cancelled" ? t("payment-status-cancelled")
-            : t("payment-status-pending")}
+              : status === "expired" ? t("payment-status-expired")
+                : status === "cancelled" ? t("payment-status-cancelled")
+                  : t("payment-status-pending")}
         </span>
       </div>
 

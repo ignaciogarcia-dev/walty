@@ -142,8 +142,8 @@ export const GET = withErrorHandling(withAuth(async (_req: NextRequest, { auth }
   const currentFailed = currentMonthRequests.filter((r) => r.status === "expired")
   const previousPaid = previousMonthRequests.filter((r) => r.status === "paid")
 
-  const currentSalesTotal = sumAmounts(currentPaid.map((r) => r.amountUsd))
-  const previousSalesTotal = sumAmounts(previousPaid.map((r) => r.amountUsd))
+  const currentSalesTotal = sumAmounts(currentPaid.map((r) => r.receivedAmountUsd ?? r.amountUsd))
+  const previousSalesTotal = sumAmounts(previousPaid.map((r) => r.receivedAmountUsd ?? r.amountUsd))
 
   const totalRequests = currentPaid.length + currentFailed.length
   const successRate = totalRequests > 0 ? (currentPaid.length / totalRequests) * 100 : 0

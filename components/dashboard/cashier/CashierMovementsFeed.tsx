@@ -1,16 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { motion, AnimatePresence } from "motion/react"
 import { useQueries } from "@tanstack/react-query"
 import { ArrowUpRightIcon, ArrowSquareOutIcon, ArrowClockwiseIcon, MoneyIcon } from "@phosphor-icons/react"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet"
 import {
   Dialog,
   DialogContent,
@@ -112,6 +106,7 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 export function CashierMovementsFeed() {
   const { t, locale } = useTranslation()
   const [selected, setSelected] = useState<Movement | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
   const isMobile = useIsMobile()
   const openMovementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -126,6 +121,7 @@ export function CashierMovementsFeed() {
     openMovementTimeoutRef.current = setTimeout(() => {
       openMovementTimeoutRef.current = null
       setSelected(m)
+      setDetailOpen(true)
     }, MOVEMENT_ROW_TRANSITION_MS)
   }
 
@@ -390,19 +386,52 @@ export function CashierMovementsFeed() {
         const onClose = () => setSelected(null)
 
         if (isMobile) {
+          const onCloseMobile = () => setDetailOpen(false)
           return (
-            <Sheet open onOpenChange={(open) => { if (!open) onClose() }}>
-              <SheetContent side="bottom" className="rounded-t-2xl">
-                <SheetHeader className="items-center gap-3 pb-2">
+            <AnimatePresence onExitComplete={() => setSelected(null)}>
+              {detailOpen && <motion.div
+                key="mobile-detail-backdrop"
+                className="fixed inset-0 z-50 bg-black/40"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={onCloseMobile}
+              />}
+              {detailOpen && <motion.div
+                key="mobile-detail-panel"
+                className="fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl bg-background border-t pb-[env(safe-area-inset-bottom)]"
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.8 }}
+              >
+                {/* drag handle */}
+                <div className="flex justify-center pt-3 pb-1">
+                  <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+                </div>
+
+                <motion.div
+                  className="flex flex-col items-center gap-3 px-4 pt-4 pb-2"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1, duration: 0.3, ease: "easeOut" }}
+                >
                   {iconNode}
-                  <SheetTitle className={amountClass}>
-                    {isIn ? "+" : "−"}{amount}
-                  </SheetTitle>
-                  <SheetDescription>{label}</SheetDescription>
-                </SheetHeader>
-                <div className="px-4 pb-6">{detailRows}</div>
-              </SheetContent>
-            </Sheet>
+                  <span className={amountClass}>{isIn ? "+" : "−"}{amount}</span>
+                  <span className="text-sm text-muted-foreground">{label}</span>
+                </motion.div>
+
+                <motion.div
+                  className="px-4 pb-6"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.18, duration: 0.3, ease: "easeOut" }}
+                >
+                  {detailRows}
+                </motion.div>
+              </motion.div>}
+            </AnimatePresence>
           )
         }
 

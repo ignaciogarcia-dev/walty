@@ -1,11 +1,12 @@
 import { SidebarSimpleIcon } from "@phosphor-icons/react"
 import { cva, type VariantProps } from "class-variance-authority"
+import { AnimatePresence, motion } from "motion/react"
 import { Slot as SlotPrimitive } from "radix-ui"
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -127,6 +128,73 @@ function SidebarProvider({
   )
 }
 
+function MobileSidebar({
+  side,
+  openMobile,
+  setOpenMobile,
+  children,
+}: {
+  side: "left" | "right"
+  openMobile: boolean
+  setOpenMobile: (open: boolean) => void
+  children: React.ReactNode
+}) {
+  React.useEffect(() => {
+    if (!openMobile) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenMobile(false)
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [openMobile, setOpenMobile])
+
+  const panelX = side === "left" ? "-100%" : "100%"
+  const panelSide = side === "left" ? { left: 0 } : { right: 0 }
+
+  return createPortal(
+    <AnimatePresence>
+      {openMobile && (
+        <motion.div
+          key="mobile-sidebar-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-50 bg-black/60"
+          onClick={() => setOpenMobile(false)}
+          aria-hidden="true"
+        />
+      )}
+      {openMobile && (
+        <motion.div
+          key="mobile-sidebar-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sidebar"
+          data-sidebar="sidebar"
+          data-slot="sidebar"
+          data-mobile="true"
+          initial={{ x: panelX }}
+          animate={{ x: 0 }}
+          exit={{ x: panelX }}
+          transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+          style={
+            {
+              "--sidebar-width-mobile": SIDEBAR_WIDTH_MOBILE,
+              width: "var(--sidebar-width-mobile)",
+              ...panelSide,
+            } as unknown as React.CSSProperties
+          }
+          className="fixed inset-y-0 z-50 flex flex-col bg-sidebar text-sidebar-foreground"
+        >
+          <div className="flex h-full w-full flex-col">{children}</div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
+  )
+}
+
 function Sidebar({
   side = "left",
   variant = "sidebar",
@@ -155,26 +223,9 @@ function Sidebar({
 
   if (isMobile) {
     return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
-        <SheetContent
-          data-sidebar="sidebar"
-          data-slot="sidebar"
-          data-mobile="true"
-          className="w-[var(--sidebar-width-mobile)] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
-          style={
-            {
-              "--sidebar-width-mobile": SIDEBAR_WIDTH_MOBILE,
-            } as React.CSSProperties
-          }
-          side={side}
-        >
-          <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
-          </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
-        </SheetContent>
-      </Sheet>
+      <MobileSidebar side={side} openMobile={openMobile} setOpenMobile={setOpenMobile}>
+        {children}
+      </MobileSidebar>
     )
   }
 

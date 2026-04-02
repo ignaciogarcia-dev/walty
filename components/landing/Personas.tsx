@@ -25,7 +25,7 @@ export function Personas() {
 	return (
 		<section
 			ref={ref}
-			className="mx-[10%] grid grid-cols-1 lg:grid-cols-2 gap-6 my-24 min-h-[450px]"
+			className="px-4 md:px-0 md:mx-[10%] grid grid-cols-1 lg:grid-cols-2 gap-6 my-24 min-h-[450px]"
 		>
 			<AnimatePresence>
 				{isVisible && (

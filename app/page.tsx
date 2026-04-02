@@ -10,7 +10,9 @@ export default function LandingPage() {
 			<Header />
 			<main className="flex flex-col">
 				<Hero />
-				<Banner />
+				<div className="hidden md:block">
+					<Banner />
+				</div>
 				<Personas />
 			</main>
 			<Footer />
