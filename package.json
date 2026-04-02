@@ -40,6 +40,9 @@
     "tailwind-merge": "^3.5.0",
     "viem": "^2.47.6"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["bcrypt", "esbuild", "sharp", "unrs-resolver"]
+  },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.2.2",
