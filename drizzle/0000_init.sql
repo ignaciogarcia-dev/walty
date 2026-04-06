@@ -41,7 +41,8 @@ CREATE TABLE "contacts" (
 CREATE TABLE "user_profiles" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" integer NOT NULL REFERENCES "public"."users"("id") ON DELETE cascade,
-	"username" text NOT NULL,
+	"display_name" text NOT NULL DEFAULT '',
+	"username" text,
 	"created_at" timestamp DEFAULT now(),
 	CONSTRAINT "user_profiles_user_id_unique" UNIQUE("user_id"),
 	CONSTRAINT "user_profiles_username_unique" UNIQUE("username")
