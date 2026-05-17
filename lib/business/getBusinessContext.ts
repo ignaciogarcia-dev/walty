@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm"
 import { db } from "@/server/db"
-import { users, businessMembers } from "@/server/db/schema"
+import { businessMembers, businessSettings } from "@/server/db/schema"
 
 export type BusinessRole = "owner" | "cashier"
 
@@ -9,14 +9,23 @@ export type BusinessContext = {
   role: BusinessRole
   isOwner: boolean
   memberId?: number
-  walletAddress?: string | null // operator's HD-derived wallet; null for owner
+  walletAddress?: string | null
 }
 
-export async function getBusinessContext(userId: number, businessId?: number): Promise<BusinessContext | null> {
-  // Single query: left join resolves owner vs cashier in one roundtrip.
-  // Owner: userType === "business", no membership row needed.
-  // Cashier: userType !== "business", membership row required.
-  const memberJoinCondition = businessId != null
+/**
+ * Resolves business context for a user.
+ *
+ * Owner: no active business_members row for this user. The user is owner of the
+ * business whose id equals their own user id (1:1). Requires business_settings
+ * row to be considered an active business.
+ *
+ * Cashier: has an active business_members row pointing to another business.
+ */
+export async function getBusinessContext(
+  userId: number,
+  businessId?: number,
+): Promise<BusinessContext | null> {
+  const memberWhere = businessId != null
     ? and(
         eq(businessMembers.userId, userId),
         eq(businessMembers.status, "active"),
@@ -27,35 +36,37 @@ export async function getBusinessContext(userId: number, businessId?: number): P
         eq(businessMembers.status, "active"),
       )
 
-  const [row] = await db
+  const [member] = await db
     .select({
-      userType: users.userType,
-      memberId: businessMembers.id,
-      memberBusinessId: businessMembers.businessId,
-      memberRole: businessMembers.role,
-      memberWallet: businessMembers.walletAddress,
+      id: businessMembers.id,
+      businessId: businessMembers.businessId,
+      role: businessMembers.role,
+      walletAddress: businessMembers.walletAddress,
     })
-    .from(users)
-    .leftJoin(businessMembers, memberJoinCondition)
-    .where(eq(users.id, userId))
+    .from(businessMembers)
+    .where(memberWhere)
     .limit(1)
 
-  if (!row) return null
-
-  if (row.userType === "business") {
-    // Owner: businessId is the user's own id
-    if (businessId != null && userId !== businessId) return null
-    return { businessId: userId, role: "owner", isOwner: true, walletAddress: null }
+  if (member) {
+    return {
+      businessId: member.businessId,
+      role: member.role as BusinessRole,
+      isOwner: false,
+      memberId: member.id,
+      walletAddress: member.walletAddress ?? null,
+    }
   }
 
-  // Cashier: must have an active membership row
-  if (!row.memberId || !row.memberBusinessId) return null
+  // No active membership → owner of own business, but only if business_settings exist.
+  if (businessId != null && businessId !== userId) return null
 
-  return {
-    businessId: row.memberBusinessId,
-    role: row.memberRole as BusinessRole,
-    isOwner: false,
-    memberId: row.memberId,
-    walletAddress: row.memberWallet ?? null,
-  }
+  const [settings] = await db
+    .select({ userId: businessSettings.userId })
+    .from(businessSettings)
+    .where(eq(businessSettings.userId, userId))
+    .limit(1)
+
+  if (!settings) return null
+
+  return { businessId: userId, role: "owner", isOwner: true, walletAddress: null }
 }

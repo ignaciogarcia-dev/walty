@@ -4,7 +4,7 @@ import { Permission, type Actor, type PermissionContext } from "./types"
 import type { AuthPayload } from "@/lib/auth"
 import type { BusinessContext } from "@/lib/business/getBusinessContext"
 
-const mockUser: AuthPayload = { userId: 1, email: "test@example.com" }
+const mockUser: AuthPayload = { userId: 1 }
 const userActor: Actor = { type: "user", user: mockUser }
 const agentActor: Actor = { type: "agent", agentId: "agent-1" }
 

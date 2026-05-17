@@ -1,20 +1,20 @@
 import { NextRequest } from "next/server"
 import { eq } from "drizzle-orm"
 import { db } from "@/server/db"
-import { users, businessMembers, walletBackups, userProfiles } from "@/server/db/schema"
+import { users, businessMembers, walletBackups, businessSettings } from "@/server/db/schema"
 import { withErrorHandling, withAuth, ok, NotFoundError } from "@/lib/api"
 
 export type BusinessStatus = "active" | "suspended" | "revoked" | null
 
 export const GET = withErrorHandling(withAuth(async (_req: NextRequest, { auth }) => {
-  const [user, profile, memberships, walletBackup] = await Promise.all([
+  const [user, settings, memberships, walletBackup] = await Promise.all([
     db.query.users.findFirst({
       where: eq(users.id, auth.userId),
-      columns: { id: true, email: true, userType: true },
+      columns: { id: true, email: true },
     }),
-    db.query.userProfiles.findFirst({
-      where: eq(userProfiles.userId, auth.userId),
-      columns: { displayName: true, username: true },
+    db.query.businessSettings.findFirst({
+      where: eq(businessSettings.userId, auth.userId),
+      columns: { name: true },
     }),
     db.query.businessMembers.findMany({
       where: eq(businessMembers.userId, auth.userId),
@@ -31,10 +31,10 @@ export const GET = withErrorHandling(withAuth(async (_req: NextRequest, { auth }
   const active = memberships.find((m) => m.status === "active")
   const suspended = memberships.find((m) => m.status === "suspended")
   const revoked = memberships.find((m) => m.status === "revoked")
-  const isOwner = user.userType === "business"
-  const hasActiveBusiness = isOwner || !!active
+  const isOwner = !active && !suspended && !revoked
+  const hasActiveBusiness = isOwner ? !!settings : !!active
   const businessStatus: BusinessStatus = isOwner
-    ? "active"
+    ? (settings ? "active" : null)
     : active
       ? "active"
       : suspended
@@ -47,14 +47,14 @@ export const GET = withErrorHandling(withAuth(async (_req: NextRequest, { auth }
     user: {
       id: user.id,
       email: user.email,
-      userType: user.userType,
       hasWallet: !!walletBackup,
       hasActiveBusiness,
+      hasBusinessSettings: !!settings,
+      isOwner,
       businessStatus,
     },
-    profile: {
-      displayName: profile?.displayName ?? null,
-      username: profile?.username ?? null,
+    business: {
+      name: settings?.name ?? null,
     },
   })
 }))

@@ -19,7 +19,7 @@ export function UserMenu() {
   const { t } = useTranslation()
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  const username = user?.username ? `@${user.username}` : "@user"
+  const displayName = user?.businessName || user?.email || ""
   const email = user?.email || ""
 
   async function handleLogout() {
@@ -49,13 +49,13 @@ export function UserMenu() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <SidebarMenuButton
-                tooltip={username}
+                tooltip={displayName}
                 className="w-full rounded-xl hover:bg-sidebar-highlight active:bg-sidebar-highlight data-[state=open]:bg-sidebar-highlight data-[state=open]:text-sidebar-accent-foreground"
               >
                 <UserCircle className="h-4 w-4" />
                 <div className="flex flex-col items-start gap-0.5 overflow-hidden">
                   <span className="shrink-0 truncate text-sm font-medium transition-[margin,opacity] duration-200 ease-in-out group-data-[collapsible=icon]:-ml-8 group-data-[collapsible=icon]:opacity-0">
-                    {username}
+                    {displayName}
                   </span>
                   {email && (
                     <span

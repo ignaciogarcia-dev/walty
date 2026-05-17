@@ -69,34 +69,8 @@ export const en = {
   "no-assets-found": "No assets found",
   "recent-activity": "Recent Activity",
 
-  // Address book
-  "address-book": "Address book",
-  contacts: "Contacts",
-  "add-contact": "Add contact",
-  "contact-name": "Name",
-  "contact-name-placeholder": "Alice...",
-  "contact-address": "Address",
-  "no-contacts": "No contacts yet.",
-  "from-contacts": "From contacts",
-  "search-contacts": "Search contact...",
-  "no-results": "No results.",
   delete: "Delete",
   save: "Save",
-
-  // ENS
-  "resolving-ens": "Resolving ENS…",
-  "ens-not-found": "ENS name not found",
-
-  // Send flow
-  "select-token": "Select token",
-  recipient: "Recipient",
-  "username-or-address": "@alias or 0x address",
-  "resolving-username": "Resolving…",
-  "username-not-found": "Alias not found",
-  max: "Max",
-  "send-no-balance": "No balance in this token",
-  "balance-label": "Balance",
-  "no-tokens-with-balance": "No tokens with balance",
 
   // Login/Register
   login: "Login",
@@ -192,13 +166,6 @@ export const en = {
   "onboarding-confirm-pin-label": "Confirm PIN",
   "onboarding-continue": "Continue",
   "onboarding-skip": "Skip",
-  "onboarding-profile-title": "Your profile",
-  "onboarding-profile-description": "Tell us your name. Alias is optional.",
-  "onboarding-profile-name-label": "Name",
-  "onboarding-profile-name-placeholder": "Your name",
-  "onboarding-username-placeholder": "alias",
-  "onboarding-username-taken": "Alias already taken",
-  "onboarding-username-available": "Alias available",
   optional: "optional",
   "onboarding-complete-title": "You're all set",
   "onboarding-complete-description":
@@ -478,13 +445,11 @@ export const en = {
   "join-need-account": "You need to create an account to join the team.",
   "join-create-account": "Create account and join",
 
-  // Account type page
-  "account-type-title": "What type of account do you want?",
-  "account-type-subtitle": "You can change it later from settings.",
-  "account-type-individual": "Individual",
-  "account-type-individual-desc": "To use the app and make payments",
-  "account-type-business": "Business",
-  "account-type-business-desc": "To accept payments",
+  // Setup business
+  "setup-business-title": "Set up your business",
+  "setup-business-subtitle": "Tell us the name customers will see when they pay.",
+  "setup-business-name-label": "Business name",
+  "setup-business-name-placeholder": "Walty Coffee",
   saving: "Saving...",
 
   // Team panel

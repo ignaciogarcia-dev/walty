@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { TrendUp, TrendDown, CurrencyDollar, ChartLineUp } from "@phosphor-icons/react"
 import type { BusinessActivityStats } from "@/lib/activity/types"
 import { formatCurrency, formatChangePercent } from "@/lib/activity/utils"
-import { ACTIVITY_STATS_QUERY_KEY } from "./PersonStatsWidget"
+export const ACTIVITY_STATS_QUERY_KEY = ["activity-stats"] as const
 
 export function BusinessStatsWidget() {
 	const { data: stats, isLoading } = useQuery({

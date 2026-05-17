@@ -21,7 +21,6 @@ import { useOperatorWalletCollection } from "./useOperatorWalletCollection";
 import type { CollectStatus } from "./useOperatorWalletCollection";
 import { useWalletHistory } from "./useWalletHistory";
 import type { TxRecord } from "./useWalletHistory";
-import { useRelayTransfer } from "./useRelayTransfer";
 
 export type { WalletStatus, TxStatus, TxRecord, CollectStatus };
 
@@ -29,12 +28,6 @@ export function useWallet() {
   const lifecycle = useWalletLifecycle();
   const history = useWalletHistory(lifecycle.address, lifecycle.status);
   const transfer = useWalletTransfer(
-    lifecycle.address,
-    lifecycle.security,
-    history.loadTxHistory,
-    history.loadBalance,
-  );
-  const relay = useRelayTransfer(
     lifecycle.address,
     lifecycle.security,
     history.loadTxHistory,
@@ -67,13 +60,6 @@ export function useWallet() {
     executeTransfer: transfer.executeTransfer,
     signAndBroadcastIntent: transfer.signAndBroadcastIntent,
     resetTx: transfer.resetTx,
-
-    // Relay transfer — gasless, 1% fee (send/pay flows)
-    relayTxStatus: relay.txStatus,
-    relayTxHash: relay.txHash,
-    relayTxError: relay.txError,
-    executeRelayTransfer: relay.executeRelayTransfer,
-    resetRelayTx: relay.resetTx,
 
     // History
     txHistory: history.txHistory,

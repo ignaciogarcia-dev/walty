@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { and, eq } from "drizzle-orm"
 import { db } from "@/server/db"
-import { businessMembers, users, userProfiles } from "@/server/db/schema"
+import { businessMembers, users, businessSettings } from "@/server/db/schema"
 import { getBusinessContext } from "@/lib/business/getBusinessContext"
 import { hasPermission, Permission, type Actor } from "@/lib/permissions"
 import { logSecurityEvent } from "@/lib/security/logSecurityEvent"
@@ -13,7 +13,6 @@ type RouteCtx = { params: Promise<{ token: string }> }
 
 const JOIN_GET_RATE_LIMIT_PER_MIN = 10
 
-// GET is public — no auth required; rate limit by IP to avoid abuse
 export const GET = withErrorHandling(async (
   req: NextRequest,
   { params }: RouteCtx
@@ -42,33 +41,27 @@ export const GET = withErrorHandling(async (
     where: eq(users.id, member.businessId),
     columns: { email: true },
   })
-  const businessProfile = await db.query.userProfiles.findFirst({
-    where: eq(userProfiles.userId, member.businessId),
-    columns: { username: true },
+  const businessSetting = await db.query.businessSettings.findFirst({
+    where: eq(businessSettings.userId, member.businessId),
+    columns: { name: true },
   })
 
   const inviter = await db.query.users.findFirst({
     where: eq(users.id, member.invitedBy),
     columns: { email: true },
   })
-  const inviterProfile = await db.query.userProfiles.findFirst({
-    where: eq(userProfiles.userId, member.invitedBy),
-    columns: { username: true },
-  })
 
   return ok({
     status: "valid",
     id: member.id,
     businessId: member.businessId,
-    businessName: businessProfile?.username ?? business?.email ?? "Unknown",
+    businessName: businessSetting?.name ?? business?.email ?? "Unknown",
     role: member.role,
-    invitedByName: inviterProfile?.username ?? inviter?.email ?? "Unknown",
+    invitedByName: inviter?.email ?? "Unknown",
     expiresAt: member.expiresAt.toISOString(),
   })
 })
 
-// POST: auth required, manual JOIN_BUSINESS check
-// (inverse permission: JOIN_BUSINESS is granted when user has NO existing business context)
 export const POST = withErrorHandling<RouteCtx>(withAuth<RouteCtx>(async (req: NextRequest, { auth, params }) => {
   const { token } = await params
 
@@ -82,13 +75,13 @@ export const POST = withErrorHandling<RouteCtx>(withAuth<RouteCtx>(async (req: N
 
   await rateLimitByUser(auth.userId, 5)
 
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, auth.userId),
-    columns: { userType: true },
+  // Owner of an active business cannot also become an operator of another.
+  const ownerSettings = await db.query.businessSettings.findFirst({
+    where: eq(businessSettings.userId, auth.userId),
+    columns: { userId: true },
   })
-
-  if (user?.userType === "business") {
-    throw new ValidationError("business accounts cannot join as operators")
+  if (ownerSettings) {
+    throw new ValidationError("business owners cannot join as operators")
   }
 
   const member = await db.query.businessMembers.findFirst({
@@ -111,7 +104,6 @@ export const POST = withErrorHandling<RouteCtx>(withAuth<RouteCtx>(async (req: N
     throw new ValidationError("this invitation has expired")
   }
 
-  // Clear userId from any previous revoked membership to avoid UNIQUE constraint violation
   await db
     .update(businessMembers)
     .set({ userId: null })
@@ -122,10 +114,6 @@ export const POST = withErrorHandling<RouteCtx>(withAuth<RouteCtx>(async (req: N
     .update(businessMembers)
     .set({ userId: auth.userId, status: "active", lastActivityAt: now })
     .where(eq(businessMembers.id, member.id))
-
-  if (!user?.userType) {
-    await db.update(users).set({ userType: "person" }).where(eq(users.id, auth.userId))
-  }
 
   writeAuditLog(
     member.businessId,

@@ -15,6 +15,13 @@
       "when": 1744444800000,
       "tag": "0001_add_payment_request_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1747526400000,
+      "tag": "0002_business_only_refactor",
+      "breakpoints": true
     }
   ]
 }

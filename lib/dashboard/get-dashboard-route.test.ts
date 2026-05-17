@@ -4,10 +4,10 @@ import { getDashboardRoute } from "./get-dashboard-route"
 describe("getDashboardRoute", () => {
   const baseContext = {
     user: {
-      hasProfile: true,
+      isOwner: true,
       hasActiveBusiness: true,
-      businessStatus: null,
-      userType: "business" as const,
+      hasBusinessSettings: true,
+      businessStatus: null as null,
     },
     pathname: "/dashboard/home",
     walletStatus: "unlocked" as const,
@@ -23,22 +23,13 @@ describe("getDashboardRoute", () => {
       expect(route.type === "onboarding" && route.step).toBeDefined()
     })
 
-    it("redirects to onboarding if missing profile", () => {
+    it("redirects owner without business settings to setup-business", () => {
       const route = getDashboardRoute({
         ...baseContext,
-        user: { ...baseContext.user, hasProfile: false },
+        user: { ...baseContext.user, hasActiveBusiness: false, hasBusinessSettings: false },
       })
       expect(route.type).toBe("onboarding")
-      expect(route.type === "onboarding" && route.step).toBeDefined()
-    })
-
-    it("redirects to onboarding if missing active business when needed", () => {
-      const route = getDashboardRoute({
-        ...baseContext,
-        user: { ...baseContext.user, hasActiveBusiness: false, userType: "business" },
-      })
-      expect(route.type).toBe("onboarding")
-      expect(route.type === "onboarding" && route.step).toBeDefined()
+      expect(route.type === "onboarding" && route.step).toBe("/onboarding/setup-business")
     })
   })
 
@@ -46,7 +37,7 @@ describe("getDashboardRoute", () => {
     it("redirects to access-revoked if revoked", () => {
       const route = getDashboardRoute({
         ...baseContext,
-        user: { ...baseContext.user, businessStatus: "revoked" },
+        user: { ...baseContext.user, businessStatus: "revoked" as const },
       })
       expect(route).toEqual({ type: "access-revoked" })
     })
@@ -54,36 +45,35 @@ describe("getDashboardRoute", () => {
     it("redirects to access-suspended if suspended", () => {
       const route = getDashboardRoute({
         ...baseContext,
-        user: { ...baseContext.user, businessStatus: "suspended" },
+        user: { ...baseContext.user, businessStatus: "suspended" as const },
       })
       expect(route).toEqual({ type: "access-suspended" })
     })
   })
 
   describe("operator confinement", () => {
-    it("redirects operator to /business/* if accessing person routes", () => {
+    it("redirects operator outside /business/* to business home", () => {
       const route = getDashboardRoute({
         ...baseContext,
-        user: { ...baseContext.user, userType: "person", hasActiveBusiness: true },
-        pathname: "/dashboard/send",
+        user: { ...baseContext.user, isOwner: false, hasBusinessSettings: false },
+        pathname: "/dashboard/activity",
       })
       expect(route).toEqual({ type: "operator-redirect" })
     })
 
-    it("allows operator to access /business/* routes", () => {
+    it("allows operator under /business/*", () => {
       const route = getDashboardRoute({
         ...baseContext,
-        user: { ...baseContext.user, userType: "person", hasActiveBusiness: true },
+        user: { ...baseContext.user, isOwner: false, hasBusinessSettings: false },
         pathname: "/dashboard/business/home",
       })
       expect(route).toEqual({ type: "allow" })
     })
 
-    it("allows owner to access person routes", () => {
+    it("allows owner anywhere under /dashboard", () => {
       const route = getDashboardRoute({
         ...baseContext,
-        user: { ...baseContext.user, userType: "business", hasActiveBusiness: true },
-        pathname: "/dashboard/send",
+        pathname: "/dashboard/activity",
       })
       expect(route).toEqual({ type: "allow" })
     })
@@ -97,16 +87,15 @@ describe("getDashboardRoute", () => {
   })
 
   describe("priority order", () => {
-    it("prioritizes onboarding over other redirects", () => {
+    it("prioritizes onboarding over status redirects", () => {
       const route = getDashboardRoute({
         ...baseContext,
         walletStatus: "new",
         user: {
           ...baseContext.user,
-          businessStatus: "revoked",
+          businessStatus: "revoked" as const,
         },
       })
-      // Onboarding should win
       expect(route.type).toBe("onboarding")
     })
 
@@ -115,13 +104,12 @@ describe("getDashboardRoute", () => {
         ...baseContext,
         user: {
           ...baseContext.user,
-          userType: "person",
-          hasActiveBusiness: true,
-          businessStatus: "revoked",
+          isOwner: false,
+          hasBusinessSettings: false,
+          businessStatus: "revoked" as const,
         },
-        pathname: "/dashboard/send",
+        pathname: "/dashboard/activity",
       })
-      // Business status should win
       expect(route).toEqual({ type: "access-revoked" })
     })
   })

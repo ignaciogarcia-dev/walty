@@ -56,10 +56,10 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
     // Authenticated users should never sit in welcome/login/register.
     // Next step is fully determined by server user state + walletStatus.
     const nextStep = getNextOnboardingStep({
+      isOwner: user.isOwner,
       hasActiveBusiness: user.hasActiveBusiness,
-      userType: user.userType,
+      hasBusinessSettings: user.hasBusinessSettings,
       walletStatus: wallet.status,
-      hasProfile: user.hasProfile,
     })
 
     // If onboarding is complete, don't allow staying in /onboarding/*.
@@ -82,10 +82,8 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
       ].forEach((p) => allowedBases.add(p))
     } else if (nextBase === "/onboarding/recover") {
       allowedBases.add("/onboarding/recover")
-    } else if (nextBase === "/onboarding/account-type") {
-      allowedBases.add("/onboarding/account-type")
-    } else if (nextBase === "/onboarding/username") {
-      allowedBases.add("/onboarding/username")
+    } else if (nextBase === "/onboarding/setup-business") {
+      allowedBases.add("/onboarding/setup-business")
     } else {
       allowedBases.add(nextBase)
     }

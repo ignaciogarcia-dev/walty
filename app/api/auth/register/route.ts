@@ -35,7 +35,6 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
   const hash = await bcrypt.hash(password, BCRYPT_ROUNDS)
 
-  // --- Invite path ---
   if (inviteToken) {
     let newUserId!: number
     let memberSnap!: typeof businessMembers.$inferSelect
@@ -57,7 +56,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
         const [user] = await tx
           .insert(users)
-          .values({ email: cleanEmail, passwordHash: hash, userType: "person" })
+          .values({ email: cleanEmail, passwordHash: hash })
           .returning()
 
         await tx
@@ -81,10 +80,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
       ip
     )
 
-    const token = signSessionToken({
-      userId: newUserId,
-      userType: "person",
-    })
+    const token = signSessionToken({ userId: newUserId })
     return new Response(JSON.stringify({ ok: true, hasActiveBusiness: true }), {
       headers: {
         "Content-Type": "application/json",
@@ -93,7 +89,6 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     })
   }
 
-  // --- Standard registration path ---
   let inserted
   try {
     inserted = await db.insert(users).values({ email: cleanEmail, passwordHash: hash }).returning()
@@ -102,12 +97,9 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     throw error
   }
 
-  const token = signSessionToken({
-    userId: inserted[0].id,
-    userType: "person",
-  })
+  const token = signSessionToken({ userId: inserted[0].id })
 
-  return new Response(JSON.stringify({ ok: true, requiresUsername: true }), {
+  return new Response(JSON.stringify({ ok: true }), {
     headers: {
       "Content-Type": "application/json",
       "Set-Cookie": setTokenCookie(token),

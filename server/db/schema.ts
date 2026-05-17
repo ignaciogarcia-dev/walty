@@ -11,7 +11,6 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  userType: text("user_type"),
   createdAt: timestamp("created_at").defaultNow(),
 })
 
@@ -22,6 +21,20 @@ export const addresses = pgTable("addresses", {
 }, (t) => ({
   uniqUserAddr: unique("addresses_user_id_address_unique").on(t.userId, t.address),
 }))
+
+export const walletNonces = pgTable("wallet_nonces", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  nonce: text("nonce").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+})
+
+export const businessSettings = pgTable("business_settings", {
+  userId: integer("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
 
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
@@ -45,30 +58,6 @@ export const transactions = pgTable("transactions", {
   intentIdIdx: index("transactions_intent_id_idx").on(t.intentId),
   hashLogIdxUniq: unique("transactions_hash_logidx_unique").on(t.hash, t.logIndex),
 }))
-
-export const walletNonces = pgTable("wallet_nonces", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  nonce: text("nonce").notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-})
-
-export const contacts = pgTable("contacts", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  address: text("address").notNull(),
-  chainId: integer("chain_id").notNull().default(137),
-  createdAt: timestamp("created_at").defaultNow(),
-})
-
-export const userProfiles = pgTable("user_profiles", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
-  displayName: text("display_name").notNull().default(""),
-  username: text("username").unique(),
-  createdAt: timestamp("created_at").defaultNow(),
-})
 
 export const walletBackups = pgTable("wallet_backups", {
   userId: integer("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
@@ -105,7 +94,7 @@ export const paymentRequests = pgTable("payment_requests", {
   receivedAmountToken: text("received_amount_token"),
   receivedAmountUsd: text("received_amount_usd"),
   paymentDiscrepancy: text("payment_discrepancy"),
-  operatorId: integer("operator_id").references(() => users.id, { onDelete: "set null" }),
+  operatorId: integer("operator_id").references(() => users.id, { onDelete: "restrict" }),
 })
 
 export const businessMembers = pgTable("business_members", {
@@ -168,11 +157,13 @@ export const txIntents = pgTable("tx_intents", {
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   type: txIntentTypeEnum("type").notNull().default("transfer"),
   payload: jsonb("payload").notNull(),
+  payloadHash: text("payload_hash").notNull().default(""),
   signedRaw: text("signed_raw"),
   txHash: text("tx_hash"),
   status: txIntentStatusEnum("status").notNull().default("pending"),
   idempotencyKey: text("idempotency_key"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
 }, (t) => ({
   userIdIdx: index("tx_intents_user_id_idx").on(t.userId),
