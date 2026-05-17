@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server"
 import { db } from "@/server/db"
 import { paymentRequests, splitPaymentContributions } from "@/server/db/schema"
-import { eq, asc } from "drizzle-orm"
-import { toPaymentRequestView } from "@/lib/payments/paymentRequests"
-import type { SplitPaymentContribution } from "@/lib/payments/types"
+import { eq, and } from "drizzle-orm"
+import { toPublicPaymentRequestView } from "@/lib/payments/paymentRequests"
 import { withErrorHandling, ok, NotFoundError } from "@/lib/api"
 import { reconcilePendingPaymentRequests } from "@/lib/payments/reconcilePendingPaymentRequests"
 import { rateLimitByIp } from "@/lib/rate-limit"
@@ -19,8 +18,6 @@ export const GET = withErrorHandling(async (
 
   const { id } = await params
 
-  // Reconcile this specific request before reading the DB so each poll
-  // also scans the blockchain for incoming transfers.
   await reconcilePendingPaymentRequests({ id }).catch((err) => {
     console.error("[payment-requests/[id]] reconcile error:", err)
   })
@@ -33,34 +30,27 @@ export const GET = withErrorHandling(async (
     throw new NotFoundError("not found")
   }
 
-  const view = toPaymentRequestView(request)
+  const view = toPublicPaymentRequestView(request)
 
-  // If it's a split payment, fetch contributions
+  // For split payments expose summary counters only — never per-contribution detail.
+  let contributionsSummary: { count: number; confirmedCount: number } | undefined
   if (view.isSplitPayment) {
-    const contributions = await db
-      .select()
+    const allCount = await db
+      .select({ id: splitPaymentContributions.id, status: splitPaymentContributions.status })
       .from(splitPaymentContributions)
       .where(eq(splitPaymentContributions.paymentRequestId, id))
-      .orderBy(asc(splitPaymentContributions.createdAt))
-
-    const contributionViews: SplitPaymentContribution[] = contributions.map((c) => ({
-      id: c.id,
-      paymentRequestId: c.paymentRequestId,
-      txHash: c.txHash,
-      payerAddress: c.payerAddress,
-      amountToken: c.amountToken,
-      amountUsd: c.amountUsd,
-      tokenSymbol: c.tokenSymbol,
-      confirmations: c.confirmations,
-      status: c.status as SplitPaymentContribution["status"],
-      blockNumber: c.blockNumber ?? null,
-      detectedAt: c.detectedAt?.toISOString() ?? null,
-      confirmedAt: c.confirmedAt?.toISOString() ?? null,
-      createdAt: c.createdAt.toISOString(),
-    }))
-
-    view.contributions = contributionViews
+    const confirmedCount = await db
+      .select({ id: splitPaymentContributions.id })
+      .from(splitPaymentContributions)
+      .where(and(
+        eq(splitPaymentContributions.paymentRequestId, id),
+        eq(splitPaymentContributions.status, "confirmed"),
+      ))
+    contributionsSummary = {
+      count: allCount.length,
+      confirmedCount: confirmedCount.length,
+    }
   }
 
-  return ok(view)
+  return ok({ ...view, contributionsSummary })
 })

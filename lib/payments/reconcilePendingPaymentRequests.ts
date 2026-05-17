@@ -89,9 +89,13 @@ export async function reconcilePendingPaymentRequests(
     }
 
     const SAFE_BLOCK_OFFSET = 20n
+    // Clamp lastScannedBlock to currentBlock — a corrupt future value would
+    // otherwise leave the request permanently unreconciled.
+    const rawLastScanned = BigInt(request.lastScannedBlock)
+    const clampedLastScanned = rawLastScanned > currentBlock ? currentBlock : rawLastScanned
     const scanFromBlock =
-      BigInt(request.lastScannedBlock) > SAFE_BLOCK_OFFSET
-        ? BigInt(request.lastScannedBlock) - SAFE_BLOCK_OFFSET
+      clampedLastScanned > SAFE_BLOCK_OFFSET
+        ? clampedLastScanned - SAFE_BLOCK_OFFSET
         : 0n
     let matched = false
 
@@ -133,44 +137,59 @@ export async function reconcilePendingPaymentRequests(
           const transferAmountToken = log.args.value.toString()
           const transferAmountUsd = formatUnits(BigInt(transferAmountToken), request.tokenDecimals)
 
-          const currentTotalPaidToken = BigInt(request.totalPaidToken ?? "0")
-          const newTotalPaidToken = (currentTotalPaidToken + BigInt(transferAmountToken)).toString()
           const confirmations = Number(currentBlock - log.blockNumber + 1n)
           const contributionStatus = confirmations >= request.requiredConfirmations ? "confirmed" : "confirming"
 
           try {
-            // Create contribution
-            await db.insert(splitPaymentContributions).values({
-              paymentRequestId: request.id,
-              txHash: log.transactionHash,
-              payerAddress: log.args.from ? String(log.args.from) : "",
-              amountToken: transferAmountToken,
-              amountUsd: transferAmountUsd,
-              tokenSymbol: request.tokenSymbol,
-              confirmations,
-              status: contributionStatus,
-              blockNumber: log.blockNumber.toString(),
-              detectedAt: now,
-              confirmedAt: contributionStatus === "confirmed" ? now : null,
-            })
+            let isFullyPaid = false
+            await db.transaction(async (tx) => {
+              // Lock the payment request row for the duration of the contribution
+              // insert + total update. Serializes concurrent reconcilers on this row.
+              const [locked] = await tx
+                .select({
+                  amountToken: paymentRequests.amountToken,
+                })
+                .from(paymentRequests)
+                .where(eq(paymentRequests.id, request.id))
+                .for("update")
+              if (!locked) return
 
-            // Update payment request totals using SQL arithmetic to avoid
-            // lost-update race when two reconciler instances run concurrently.
-            const amountTokenBigInt = BigInt(request.amountToken)
-            const newTotalBigInt = BigInt(newTotalPaidToken)
-            const isFullyPaid = newTotalBigInt >= amountTokenBigInt
-
-            await db
-              .update(paymentRequests)
-              .set({
-                totalPaidToken: sql`${paymentRequests.totalPaidToken}::bigint + ${BigInt(transferAmountToken)}`,
-                totalPaidUsd: sql`(${paymentRequests.totalPaidUsd}::numeric + ${parseFloat(transferAmountUsd)})::text`,
-                status: isFullyPaid ? "paid" : "pending",
-                paidAt: isFullyPaid ? now : null,
-                lastScannedBlock: currentBlock.toString(),
-                updatedAt: now,
+              await tx.insert(splitPaymentContributions).values({
+                paymentRequestId: request.id,
+                txHash: log.transactionHash,
+                payerAddress: log.args.from ? String(log.args.from) : "",
+                amountToken: transferAmountToken,
+                amountUsd: transferAmountUsd,
+                tokenSymbol: request.tokenSymbol,
+                confirmations,
+                status: contributionStatus,
+                blockNumber: log.blockNumber.toString(),
+                detectedAt: now,
+                confirmedAt: contributionStatus === "confirmed" ? now : null,
               })
-              .where(eq(paymentRequests.id, request.id))
+
+              const [updated] = await tx
+                .update(paymentRequests)
+                .set({
+                  totalPaidToken: sql`${paymentRequests.totalPaidToken}::bigint + ${BigInt(transferAmountToken)}`,
+                  totalPaidUsd: sql`(${paymentRequests.totalPaidUsd}::numeric + ${parseFloat(transferAmountUsd)})::text`,
+                  lastScannedBlock: currentBlock.toString(),
+                  updatedAt: now,
+                })
+                .where(eq(paymentRequests.id, request.id))
+                .returning({ totalPaidToken: paymentRequests.totalPaidToken })
+
+              const postTotal = BigInt(updated?.totalPaidToken ?? "0")
+              const expected = BigInt(locked.amountToken)
+              isFullyPaid = postTotal >= expected
+
+              if (isFullyPaid) {
+                await tx
+                  .update(paymentRequests)
+                  .set({ status: "paid", paidAt: now })
+                  .where(and(eq(paymentRequests.id, request.id), eq(paymentRequests.status, "pending")))
+              }
+            })
 
             await db.insert(transactions).values({
               userId: request.merchantId,

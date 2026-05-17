@@ -23,7 +23,7 @@ export const POST = withErrorHandling<Ctx>(withAuth<Ctx>(async (
   // zero rows updated and receive an appropriate error, preventing duplicate broadcasts.
   const [claimed] = await db
     .update(txIntents)
-    .set({ status: "broadcasting" })
+    .set({ status: "broadcasting", updatedAt: new Date() })
     .where(and(
       eq(txIntents.id, id),
       eq(txIntents.userId, auth.userId),
@@ -46,7 +46,7 @@ export const POST = withErrorHandling<Ctx>(withAuth<Ctx>(async (
   }
 
   if (!claimed.signedRaw) {
-    await db.update(txIntents).set({ status: "failed" }).where(and(eq(txIntents.id, id), eq(txIntents.status, "broadcasting")))
+    await db.update(txIntents).set({ status: "failed", updatedAt: new Date() }).where(and(eq(txIntents.id, id), eq(txIntents.status, "broadcasting")))
     throw new ValidationError("No signed transaction data")
   }
 
@@ -63,14 +63,14 @@ export const POST = withErrorHandling<Ctx>(withAuth<Ctx>(async (
     // Back to pending so the user can sign again with a fresh nonce (e.g. after RPC mismatch).
     await db
       .update(txIntents)
-      .set({ status: "pending", signedRaw: null })
+      .set({ status: "pending", signedRaw: null, updatedAt: new Date() })
       .where(and(eq(txIntents.id, id), eq(txIntents.status, "broadcasting")))
     throw err
   }
 
   const [updated] = await db
     .update(txIntents)
-    .set({ txHash, status: "broadcasted", signedRaw: null })
+    .set({ txHash, status: "broadcasted", signedRaw: null, updatedAt: new Date() })
     .where(and(eq(txIntents.id, id), eq(txIntents.status, "broadcasting")))
     .returning()
 
