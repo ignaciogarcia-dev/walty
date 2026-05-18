@@ -12,6 +12,11 @@ RUN corepack enable && pnpm install --frozen-lockfile
 
 COPY . .
 
+# Next.js bakes NEXT_PUBLIC_* (and the rewrites() destinations) into the
+# build output. Set the API origin at build time, not runtime.
+ARG NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+
 RUN pnpm --filter @walty/web build
 
 EXPOSE 3000

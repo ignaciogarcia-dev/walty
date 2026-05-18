@@ -1,7 +1,5 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { NextRequest } from "next/server";
-import { AuthError } from "@walty/shared/api-utils/errors";
 import type { AuthPayload } from "@walty/shared/auth/payload";
 import { verifySessionToken } from "@walty/shared/auth/session-token";
 
@@ -19,19 +17,5 @@ export async function requireAuth(): Promise<AuthPayload> {
     return verifySessionToken(token);
   } catch {
     redirect("/onboarding");
-  }
-}
-
-/**
- * API route handlers — reads JWT from req.cookies, verifies signature.
- * Throws AuthError if token is missing or invalid (caught by withErrorHandling).
- */
-export function requireApiAuth(req: NextRequest): AuthPayload {
-  const token = req.cookies.get("token")?.value;
-  if (!token) throw new AuthError();
-  try {
-    return verifySessionToken(token);
-  } catch {
-    throw new AuthError();
   }
 }
