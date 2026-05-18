@@ -402,6 +402,43 @@ describe("reconciler — wash payment rejection (real db)", () => {
     expect(paid?.amount).toBe("10000000")
   })
 
+  it("split drops dust contributions below the minimum threshold", async () => {
+    const { pr } = await seedMerchantAndRequest({
+      isSplitPayment: true,
+      amountToken: "10000000",
+      amountUsd: "10",
+    })
+    fakeRpc.logs = [
+      transferLog({ from: STRANGER_A, value: 1n, txHash: "0xdust1" }),
+      transferLog({ from: STRANGER_B, value: 99_999n, txHash: "0xdust2" }),
+    ]
+    await reconcilePendingPaymentRequests({ id: pr.id })
+
+    const contributions = await db
+      .select()
+      .from(splitPaymentContributions)
+      .where(eq(splitPaymentContributions.paymentRequestId, pr.id))
+    expect(contributions).toHaveLength(0)
+  })
+
+  it("split accepts contributions at or above the minimum threshold", async () => {
+    const { pr } = await seedMerchantAndRequest({
+      isSplitPayment: true,
+      amountToken: "10000000",
+      amountUsd: "10",
+    })
+    fakeRpc.logs = [
+      transferLog({ from: STRANGER_A, value: 100_000n, txHash: "0xokmin" }),
+    ]
+    await reconcilePendingPaymentRequests({ id: pr.id })
+
+    const contributions = await db
+      .select()
+      .from(splitPaymentContributions)
+      .where(eq(splitPaymentContributions.paymentRequestId, pr.id))
+    expect(contributions).toHaveLength(1)
+  })
+
   it("does not emit anything when the request is unchanged", async () => {
     const { pr } = await seedMerchantAndRequest({
       isSplitPayment: false,

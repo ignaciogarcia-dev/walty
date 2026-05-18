@@ -11,6 +11,7 @@ import {
 } from "@walty/db"
 import { normalizePaymentRequest } from "@walty/shared/payments/paymentRequests"
 import type { PaymentRequestEventSink } from "./events"
+import { SPLIT_MIN_CONTRIBUTION_TOKEN } from "./config"
 
 /**
  * Lower-cased set of every address that the merchant controls and could
@@ -221,6 +222,10 @@ export async function reconcilePendingPaymentRequests(
           })
 
           if (claimedRequest) continue
+
+          // Drop dust contributions — without this an attacker can flood a
+          // split request with 1-wei transfers and inflate the counter.
+          if (log.args.value < SPLIT_MIN_CONTRIBUTION_TOKEN) continue
 
           const transferAmountToken = log.args.value.toString()
           const transferAmountUsd = formatUnits(BigInt(transferAmountToken), request.tokenDecimals)
