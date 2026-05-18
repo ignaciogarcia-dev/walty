@@ -90,6 +90,15 @@ export function getIo(): Server | null {
   return ioInstance
 }
 
+export function closeWebSocket(): Promise<void> {
+  const io = ioInstance
+  if (!io) return Promise.resolve()
+  ioInstance = null
+  return new Promise((resolve) => {
+    io.close(() => resolve())
+  })
+}
+
 export type PaymentRequestEvent =
   | { type: "detected"; requestId: string; txHash: string }
   | {

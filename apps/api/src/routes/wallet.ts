@@ -64,6 +64,16 @@ walletRouter.post(
 
     const { address, signature, nonce } = req.body ?? {}
 
+    if (!address || !isAddress(address)) {
+      throw new ValidationError("Invalid address")
+    }
+    if (typeof signature !== "string" || !signature.startsWith("0x")) {
+      throw new ValidationError("Invalid signature")
+    }
+    if (typeof nonce !== "string" || nonce.length === 0) {
+      throw new ValidationError("Invalid nonce")
+    }
+
     const record = await db.query.walletNonces.findFirst({
       where: and(
         eq(walletNonces.nonce, nonce),
@@ -75,7 +85,11 @@ walletRouter.post(
     }
 
     const message = `Link wallet ${address} nonce ${nonce}`
-    const valid = await verifyMessage({ address, message, signature })
+    const valid = await verifyMessage({
+      address,
+      message,
+      signature: signature as `0x${string}`,
+    })
     if (!valid) throw new ForbiddenError("wallet.invalid_signature")
 
     await db.delete(walletNonces).where(eq(walletNonces.id, record.id))
