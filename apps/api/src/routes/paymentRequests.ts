@@ -20,6 +20,7 @@ import {
 import {
   PAYMENT_CHAIN_ID,
   PAYMENT_EXPIRY_MINUTES,
+  PAYMENT_MAX_AMOUNT_USD,
   PAYMENT_REQUIRED_CONFIRMATIONS,
   getPaymentTokenDefinition,
   isPaymentTokenSymbol,
@@ -146,6 +147,9 @@ paymentRequestsRouter.post(
     if (!amountUsd || isNaN(amount) || amount <= 0) {
       throw new ValidationError("invalid amount")
     }
+    if (amount > PAYMENT_MAX_AMOUNT_USD) {
+      throw new ValidationError("amount exceeds maximum allowed")
+    }
     if (!merchantWalletAddress || !isAddress(merchantWalletAddress)) {
       throw new ValidationError("invalid merchant wallet address")
     }
@@ -177,7 +181,14 @@ paymentRequestsRouter.post(
     const tokenDef = getPaymentTokenDefinition(token)
     if (!tokenDef?.address) throw new ValidationError("token must be USDC or USDT")
 
-    const amountToken = parseUnits(amountUsd, tokenDef.decimals).toString()
+    let amountToken: string
+    try {
+      amountToken = parseUnits(amountUsd, tokenDef.decimals).toString()
+    } catch {
+      // parseUnits rejects scientific notation, > decimals precision, etc.
+      // Surface as 400 instead of letting the throw bubble to a 500.
+      throw new ValidationError("amount format is invalid")
+    }
 
     const client = getPublicClient(PAYMENT_CHAIN_ID)
     const startBlock = (await client.getBlockNumber()).toString()
