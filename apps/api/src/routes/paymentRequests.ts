@@ -36,6 +36,7 @@ import { rateLimitByIp, rateLimitByUser } from "@walty/shared/rate-limit"
 import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent"
 import { asyncHandler } from "../middleware/asyncHandler.js"
+import { businessed } from "../middleware/typedHandlers.js"
 import { withBusinessAuth } from "../middleware/withBusiness.js"
 import { emitPaymentRequestEvent } from "../ws/io.js"
 
@@ -45,9 +46,8 @@ export const paymentRequestsRouter: Router = Router()
 paymentRequestsRouter.get(
   "/payment-requests",
   ...withBusinessAuth(Permission.PAYMENT_REQUEST_READ),
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
+  businessed(async (req, res) => {
+    const { auth, business } = req
 
     const baseWhere = and(
       eq(paymentRequests.merchantId, business.businessId),
@@ -71,11 +71,9 @@ paymentRequestsRouter.get(
 paymentRequestsRouter.patch(
   "/payment-requests",
   ...withBusinessAuth(Permission.PAYMENT_REQUEST_CANCEL),
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
-    const actor = req.actor!
-    const ip = req.clientIp ?? "unknown"
+  businessed(async (req, res) => {
+    const { auth, business, actor } = req
+    const ip = req.clientIp
 
     const { id } = req.body ?? {}
     if (!id || typeof id !== "string") throw new ValidationError("invalid id")
@@ -132,10 +130,9 @@ paymentRequestsRouter.patch(
 paymentRequestsRouter.post(
   "/payment-requests",
   ...withBusinessAuth(Permission.PAYMENT_REQUEST_CREATE),
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
-    const ip = req.clientIp ?? "unknown"
+  businessed(async (req, res) => {
+    const { auth, business } = req
+    const ip = req.clientIp
 
     await rateLimitByUser(auth.userId, 10)
 
@@ -237,9 +234,8 @@ paymentRequestsRouter.post(
 paymentRequestsRouter.get(
   "/payment-requests/history",
   ...withBusinessAuth(Permission.PAYMENT_HISTORY_READ),
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
+  businessed(async (req, res) => {
+    const { auth, business } = req
 
     const statusParam = (req.query.status as string) || "all"
     const limit = Math.min(Number(req.query.limit ?? 50), 100)
@@ -406,8 +402,8 @@ paymentRequestsRouter.get(
 paymentRequestsRouter.get(
   "/business/payment-requests/:id",
   ...withBusinessAuth(Permission.PAYMENT_REQUEST_READ),
-  asyncHandler(async (req, res) => {
-    const business = req.business!
+  businessed(async (req, res) => {
+    const { business } = req
     const { id } = req.params
 
     await reconcilePendingPaymentRequests({ id, onEvent: emitPaymentRequestEvent }).catch((err) => {

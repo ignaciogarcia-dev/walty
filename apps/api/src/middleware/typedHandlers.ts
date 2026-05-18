@@ -13,6 +13,11 @@ export interface AuthedRequest extends Request {
   auth: AuthPayload
 }
 
+export interface BusinessContextRequest extends Request {
+  auth: AuthPayload
+  business: BusinessContext
+}
+
 export interface BusinessRequest extends Request {
   auth: AuthPayload
   business: BusinessContext
@@ -35,6 +40,28 @@ export function authed(
   return asyncHandler(async (req, res, next) => {
     if (!req.auth) throw new Error("authed: req.auth missing (middleware order)")
     return handler(req as AuthedRequest, res, next)
+  })
+}
+
+/**
+ * For handlers composed behind withAuth + withBusinessContext only (no
+ * permission gate). Caller still has auth + business; actor / clientIp
+ * are not populated.
+ */
+export function withBusinessHandler(
+  handler: (
+    req: BusinessContextRequest,
+    res: Response,
+    next: NextFunction,
+  ) => Promise<unknown> | unknown,
+): RequestHandler {
+  return asyncHandler(async (req, res, next) => {
+    if (!req.auth || !req.business) {
+      throw new Error(
+        "withBusinessHandler: missing auth/business (middleware order)",
+      )
+    }
+    return handler(req as BusinessContextRequest, res, next)
   })
 }
 

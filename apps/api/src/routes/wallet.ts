@@ -20,7 +20,7 @@ import {
 import { rateLimitByUser } from "@walty/shared/rate-limit"
 import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import { validateBackup as validateBackupShape } from "@walty/shared/wallet-backup/validation"
-import { asyncHandler } from "../middleware/asyncHandler.js"
+import { authed } from "../middleware/typedHandlers.js"
 import { withAuth } from "../middleware/withAuth.js"
 
 export const walletRouter: Router = Router()
@@ -38,8 +38,8 @@ const ERC20_ABI = [
 walletRouter.post(
   "/wallet/nonce",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     await rateLimitByUser(auth.userId, 5, 60_000)
 
     await db.delete(walletNonces).where(lt(walletNonces.expiresAt, new Date()))
@@ -58,8 +58,8 @@ walletRouter.post(
 walletRouter.post(
   "/wallet/link",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     await rateLimitByUser(auth.userId, 3, 60_000)
 
     const { address, signature, nonce } = req.body ?? {}
@@ -102,8 +102,8 @@ walletRouter.post(
 walletRouter.get(
   "/wallet/backup",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     await rateLimitByUser(auth.userId, 5, 60_000)
 
     const backup = await db.query.walletBackups.findFirst({
@@ -117,8 +117,8 @@ walletRouter.get(
 walletRouter.post(
   "/wallet/backup",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     await rateLimitByUser(auth.userId, 5, 60_000)
 
     const body = req.body
@@ -143,8 +143,8 @@ walletRouter.post(
 walletRouter.get(
   "/wallet/balance",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     await rateLimitByUser(auth.userId, 20, 60_000)
 
     const address = typeof req.query.address === "string" ? req.query.address : null
@@ -182,8 +182,8 @@ walletRouter.get(
 walletRouter.get(
   "/addresses",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     const result = await db
       .select()
       .from(addresses)
