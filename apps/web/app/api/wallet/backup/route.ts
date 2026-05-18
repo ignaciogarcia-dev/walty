@@ -4,7 +4,7 @@ import { db } from "@walty/db"
 import { walletBackups } from "@walty/db"
 import { withErrorHandling, withAuth, ok, ValidationError } from "@/lib/api"
 import { rateLimitByUser } from "@walty/shared/rate-limit"
-import { validateBackup as validateBackupShape } from "@/lib/wallet-backup/validation"
+import { validateBackup as validateBackupShape } from "@walty/shared/wallet-backup/validation"
 
 function validateBackup(data: unknown): void {
   try {

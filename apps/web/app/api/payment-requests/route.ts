@@ -14,7 +14,7 @@ import {
 import { toPaymentRequestView } from "@walty/shared/payments/paymentRequests"
 import { db } from "@walty/db"
 import { addresses, paymentRequests } from "@walty/db"
-import { getPublicClient } from "@/lib/rpc/getPublicClient"
+import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import { writeAuditLog, AUDIT_ACTIONS } from "@walty/shared/business/auditLog"
 import { withBusinessAuth, ok, ValidationError, NotFoundError } from "@/lib/api"
 import { Permission } from "@walty/shared/permissions"

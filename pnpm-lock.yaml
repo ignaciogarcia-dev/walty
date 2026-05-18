@@ -53,6 +53,9 @@ importers:
       pino-http:
         specifier: ^10.3.0
         version: 10.5.0
+      viem:
+        specifier: ^2.47.6
+        version: 2.47.6(typescript@5.9.3)(zod@4.3.6)
     devDependencies:
       '@types/bcrypt':
         specifier: ^5.0.2

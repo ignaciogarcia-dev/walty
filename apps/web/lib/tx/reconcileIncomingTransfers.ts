@@ -2,7 +2,7 @@ import { eq, and } from "drizzle-orm"
 import { parseAbiItem } from "viem"
 import { db } from "@walty/db"
 import { tokenScanCursors, transactions, addresses } from "@walty/db"
-import { getPublicClient } from "@/lib/rpc/getPublicClient"
+import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import { getTokensByChain } from "@walty/shared/tokens/tokenRegistry"
 import { PAYMENT_CHAIN_ID, PAYMENT_ALLOWED_TOKENS } from "@walty/shared/payments/config"
 

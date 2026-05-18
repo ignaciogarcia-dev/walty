@@ -1,5 +1,5 @@
 import { erc20Abi } from "viem"
-import { getPublicClient } from "@/lib/rpc/getPublicClient"
+import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import { PAYMENT_CHAIN_ID, getPaymentTokenDefinition } from "@walty/shared/payments/config"
 
 const PAYMENT_TOKENS = ["USDC", "USDT"] as const

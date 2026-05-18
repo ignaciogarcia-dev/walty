@@ -22,10 +22,10 @@ import {
   type PublicClient,
 } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
-import { getViemChain } from "@/lib/rpc/viemChains"
-import { getAlchemyUrls } from "@/lib/providers/rpc/alchemy"
-import { getAnkrUrls } from "@/lib/providers/rpc/ankr"
-import { getPublicUrls } from "@/lib/providers/rpc/public"
+import { getViemChain } from "@walty/shared/rpc/viemChains"
+import { getAlchemyUrls } from "@walty/shared/providers/rpc/alchemy"
+import { getAnkrUrls } from "@walty/shared/providers/rpc/ankr"
+import { getPublicUrls } from "@walty/shared/providers/rpc/public"
 
 // ── Singletons ────────────────────────────────────────────────────────────────
 

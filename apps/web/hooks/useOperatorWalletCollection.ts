@@ -13,7 +13,7 @@
 import { useCallback, useState } from "react";
 import { formatUnits, parseUnits } from "viem";
 import type { Token } from "@walty/shared/tokens/tokenRegistry";
-import { getPublicClient } from "@/lib/rpc/getPublicClient";
+import { getPublicClient } from "@walty/shared/rpc/getPublicClient";
 import { signIntent } from "@/lib/transactions/signIntent";
 import {
   createTxIntent,

@@ -19,7 +19,10 @@
     "./business/*": "./src/business/*.ts",
     "./db-errors": "./src/db-errors.ts",
     "./rate-limit": "./src/rate-limit.ts",
-    "./providers/pricing/*": "./src/providers/pricing/*.ts"
+    "./providers/pricing/*": "./src/providers/pricing/*.ts",
+    "./providers/rpc/*": "./src/providers/rpc/*.ts",
+    "./rpc/*": "./src/rpc/*.ts",
+    "./wallet-backup/*": "./src/wallet-backup/*.ts"
   },
   "scripts": {
     "test": "vitest",

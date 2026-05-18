@@ -1,5 +1,5 @@
 import { erc20Abi } from "viem"
-import { getPublicClient } from "@/lib/rpc/getPublicClient"
+import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import type { UnsignedTx } from "@/lib/signing/types"
 import type { BaseTx } from "./build"
 

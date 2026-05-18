@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { validateBackup } from "../../../../lib/wallet-backup/validation"
+import { validateBackup } from "@walty/shared/wallet-backup/validation"
 const VALID_BACKUP = {
   encryptedSeed: "base64data",
   seedIv: "base64iv",

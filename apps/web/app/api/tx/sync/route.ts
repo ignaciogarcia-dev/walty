@@ -2,7 +2,7 @@ import { NextRequest } from "next/server"
 import { eq, and, lt } from "drizzle-orm"
 import { db } from "@walty/db"
 import { transactions, txIntents } from "@walty/db"
-import { getPublicClient } from "@/lib/rpc/getPublicClient"
+import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import { withErrorHandling, withAuth, ok } from "@/lib/api"
 import { rateLimitByUser } from "@walty/shared/rate-limit"
 

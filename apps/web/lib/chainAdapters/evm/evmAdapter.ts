@@ -1,5 +1,5 @@
 import { parseUnits, erc20Abi } from "viem"
-import { getPublicClient } from "@/lib/rpc/getPublicClient"
+import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import { getWalletClient } from "@/lib/rpc/getWalletClient"
 import type { Token } from "@walty/shared/tokens/tokenRegistry"
 import type {

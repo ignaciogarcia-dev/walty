@@ -18,7 +18,7 @@ import {
   confirmTxIntent,
   getTxIntent,
 } from "@/lib/tx-intents/client";
-import { getPublicClient } from "@/lib/rpc/getPublicClient";
+import { getPublicClient } from "@walty/shared/rpc/getPublicClient";
 import { getTxUrl } from "@/lib/explorer/getTxUrl";
 import { toast } from "@/hooks/useToast";
 import type { WalletSecurityManager } from "@/lib/wallet/WalletSecurityManager";

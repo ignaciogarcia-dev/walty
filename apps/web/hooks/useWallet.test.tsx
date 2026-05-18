@@ -52,7 +52,7 @@ const mockEstimateFeesPerGas = vi.fn(async () => ({
   maxPriorityFeePerGas: 1000000000n,
 }));
 
-vi.mock("@/lib/rpc/getPublicClient", () => ({
+vi.mock("@walty/shared/rpc/getPublicClient", () => ({
   getPublicClient: vi.fn(() => ({
     getBalance: mockGetBalance,
     waitForTransactionReceipt: mockWaitForTransactionReceipt,

@@ -11,6 +11,7 @@ import { healthRouter } from "./routes/health.js"
 import { pricesRouter } from "./routes/prices.js"
 import { sessionRouter } from "./routes/session.js"
 import { versionRouter } from "./routes/version.js"
+import { walletRouter } from "./routes/wallet.js"
 
 export function createApp(): Express {
   const app = express()
@@ -35,6 +36,7 @@ export function createApp(): Express {
   app.use(pricesRouter)
   app.use(authRouter)
   app.use(sessionRouter)
+  app.use(walletRouter)
 
   app.use(notFoundHandler)
   app.use(errorHandler)

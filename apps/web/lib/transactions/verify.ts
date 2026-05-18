@@ -1,5 +1,5 @@
 import { type Hex } from "viem"
-import { getPublicClient } from "@/lib/rpc/getPublicClient"
+import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 
 export type VerifyTxExpected = {
   from?: string

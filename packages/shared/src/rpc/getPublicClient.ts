@@ -1,8 +1,8 @@
 import { createPublicClient, http, fallback, type PublicClient } from "viem"
 import { getViemChain } from "./viemChains"
-import { getAlchemyUrls } from "@/lib/providers/rpc/alchemy"
-import { getAnkrUrls } from "@/lib/providers/rpc/ankr"
-import { getPublicUrls } from "@/lib/providers/rpc/public"
+import { getAlchemyUrls } from "../providers/rpc/alchemy"
+import { getAnkrUrls } from "../providers/rpc/ankr"
+import { getPublicUrls } from "../providers/rpc/public"
 
 const clients = new Map<number, PublicClient>()
 

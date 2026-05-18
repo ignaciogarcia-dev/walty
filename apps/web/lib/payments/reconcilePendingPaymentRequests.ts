@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import { parseAbiItem, formatUnits } from "viem"
-import { getPublicClient } from "@/lib/rpc/getPublicClient"
+import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import { db } from "@walty/db"
 import { paymentRequests, splitPaymentContributions, transactions } from "@walty/db"
 import { normalizePaymentRequest } from "@walty/shared/payments/paymentRequests"
