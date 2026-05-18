@@ -26,6 +26,7 @@ import {
 import { rateLimitByIp, rateLimitByUser } from "@walty/shared/rate-limit"
 import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent"
 import { asyncHandler } from "../middleware/asyncHandler.js"
+import { authed } from "../middleware/typedHandlers.js"
 import { withAuth } from "../middleware/withAuth.js"
 
 export const joinRouter: Router = Router()
@@ -99,8 +100,8 @@ joinRouter.get(
 joinRouter.post(
   "/join/:token",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     const { token } = req.params
     const ip = getIp(req)
 

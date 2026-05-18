@@ -32,7 +32,7 @@ import {
 } from "@walty/shared/transactions/verify"
 import type { TxIntentPayload } from "@walty/shared/tx-intents/types"
 import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent"
-import { asyncHandler } from "../middleware/asyncHandler.js"
+import { businessed } from "../middleware/typedHandlers.js"
 import { withBusinessAuth } from "../middleware/withBusiness.js"
 import { emitTxIntentStatus } from "../ws/io.js"
 
@@ -51,9 +51,8 @@ type RefundStatus =
 refundRequestsRouter.get(
   "/business/refund-requests",
   ...withBusinessAuth(Permission.REFUND_REQUEST_LIST),
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
+  businessed(async (req, res) => {
+    const { auth, business } = req
 
     const statusParam = (req.query.status as string) || "pending"
     let statusFilter: RefundStatus[]
@@ -129,11 +128,9 @@ refundRequestsRouter.get(
 refundRequestsRouter.post(
   "/business/refund-requests",
   ...withBusinessAuth(Permission.REFUND_REQUEST_CREATE),
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
-    const actor = req.actor!
-    const ip = req.clientIp ?? "unknown"
+  businessed(async (req, res) => {
+    const { auth, business, actor } = req
+    const ip = req.clientIp
 
     await rateLimitByUser(auth.userId, 5)
 
@@ -254,11 +251,9 @@ refundRequestsRouter.post(
 refundRequestsRouter.patch(
   "/business/refund-requests/:id",
   ...withBusinessAuth(Permission.REFUND_REVIEW),
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
-    const actor = req.actor!
-    const ip = req.clientIp ?? "unknown"
+  businessed(async (req, res) => {
+    const { auth, business, actor } = req
+    const ip = req.clientIp
 
     const { id } = req.params
     const { action, txHash } = req.body ?? {}

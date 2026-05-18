@@ -23,7 +23,7 @@ import {
   assertSignedRawMatchesPayload,
   SignedTxMismatchError,
 } from "@walty/shared/tx-intents/verifySigned"
-import { asyncHandler } from "../middleware/asyncHandler.js"
+import { authed } from "../middleware/typedHandlers.js"
 import { withAuth } from "../middleware/withAuth.js"
 import {
   emitTxIntentStatus,
@@ -71,8 +71,8 @@ function hashPayload(payload: TxIntentPayload, type: TxIntentType): string {
 txIntentsRouter.post(
   "/tx-intents",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     await rateLimitByIp(`tx-create:${auth.userId}`, 10)
 
     const body = req.body ?? {}
@@ -171,8 +171,8 @@ txIntentsRouter.post(
 txIntentsRouter.get(
   "/tx-intents",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     const rawLimit = parseInt((req.query.limit as string) ?? "", 10)
     const limit = Math.min(
       Number.isFinite(rawLimit) && rawLimit >= 1 ? rawLimit : 20,
@@ -192,8 +192,8 @@ txIntentsRouter.get(
 txIntentsRouter.get(
   "/tx-intents/:id",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     const { id } = req.params
 
     const [intent] = await db
@@ -217,8 +217,8 @@ txIntentsRouter.get(
 txIntentsRouter.patch(
   "/tx-intents/:id",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     const { id } = req.params
     await rateLimitByIp(`tx-confirm:${auth.userId}`, 10)
 
@@ -264,8 +264,8 @@ txIntentsRouter.patch(
 txIntentsRouter.post(
   "/tx-intents/:id/sign",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     const { id } = req.params
     await rateLimitByIp(`tx-sign:${auth.userId}`, 10)
 
@@ -321,8 +321,8 @@ txIntentsRouter.post(
 txIntentsRouter.post(
   "/tx-intents/:id/broadcast",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     const { id } = req.params
     await rateLimitByIp(`tx-broadcast:${auth.userId}`, 5)
 
@@ -402,8 +402,8 @@ txIntentsRouter.post(
 txIntentsRouter.post(
   "/tx-intents/:id/retry",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     const { id } = req.params
     await rateLimitByIp(`tx-retry:${auth.userId}`, 5)
 

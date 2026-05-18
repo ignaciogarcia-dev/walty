@@ -8,7 +8,9 @@ function getRequiredEnv(name: string): string {
 
 /** Validate all required env vars at startup. Call from instrumentation.ts. */
 export function validateEnv() {
-  const required = ["DATABASE_URL", "JWT_SECRET"]
+  // Web is pure UI/SSR — DATABASE_URL belongs to apps/api now. JWT_SECRET
+  // is still required for the SSR cookie verify in requireAuth().
+  const required = ["JWT_SECRET"]
 
   const missing = required.filter((key) => !process.env[key])
   if (missing.length > 0) {
