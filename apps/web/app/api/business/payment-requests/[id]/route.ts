@@ -6,7 +6,7 @@ import { toPaymentRequestView } from "@walty/shared/payments/paymentRequests"
 import type { SplitPaymentContribution } from "@walty/shared/payments/types"
 import { ok, NotFoundError, withBusinessAuth } from "@/lib/api"
 import { Permission } from "@walty/shared/permissions"
-import { reconcilePendingPaymentRequests } from "@/lib/payments/reconcilePendingPaymentRequests"
+import { reconcilePendingPaymentRequests } from "@walty/shared/payments/reconcilePendingPaymentRequests"
 
 type RouteCtx = { params: Promise<{ id: string }> }
 

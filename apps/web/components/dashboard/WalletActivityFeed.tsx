@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslation } from "@/hooks/useTranslation"
-import type { TransactionActivityItem } from "@/lib/activity/types"
+import type { TransactionActivityItem } from "@walty/shared/activity/types"
 import {
   formatActivityUsd,
   groupActivityByDate,

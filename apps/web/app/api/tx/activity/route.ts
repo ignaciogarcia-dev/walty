@@ -4,7 +4,7 @@ import { db } from "@walty/db";
 import { transactions, addresses } from "@walty/db";
 import { withErrorHandling, withAuth, ok } from "@/lib/api";
 import { rateLimitByUser } from "@walty/shared/rate-limit";
-import type { TransactionActivityItem } from "@/lib/activity/types";
+import type { TransactionActivityItem } from "@walty/shared/activity/types";
 
 export const GET = withErrorHandling(
   withAuth(async (req: NextRequest, { auth }) => {

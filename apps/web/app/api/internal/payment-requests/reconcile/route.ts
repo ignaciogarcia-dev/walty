@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { env } from "@/lib/env"
 import { PAYMENT_RECONCILE_HEADER } from "@walty/shared/payments/config"
-import { reconcilePendingPaymentRequests } from "@/lib/payments/reconcilePendingPaymentRequests"
+import { reconcilePendingPaymentRequests } from "@walty/shared/payments/reconcilePendingPaymentRequests"
 import { reconcileIncomingTransfers } from "@/lib/tx/reconcileIncomingTransfers"
 import { cleanupExpiredEntries } from "@walty/shared/rate-limit"
 import { withErrorHandling, ok, AuthError } from "@/lib/api"

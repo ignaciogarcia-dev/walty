@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ExplorerLink } from "@/components/wallet/ExplorerLink"
 import { useTranslation } from "@/hooks/useTranslation"
 import { getNetwork } from "@walty/shared/networks/networks"
-import type { PaymentRequestHistoryItem, PaymentRequestStatusFilter } from "@/lib/activity/types"
+import type { PaymentRequestHistoryItem, PaymentRequestStatusFilter } from "@walty/shared/activity/types"
 import { formatActivityUsd, groupActivityByDate, truncateMiddle } from "@/lib/activity/utils"
 import { cn } from "@/utils/style"
 

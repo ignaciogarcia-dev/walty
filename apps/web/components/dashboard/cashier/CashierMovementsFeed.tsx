@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslation } from "@/hooks/useTranslation"
-import type { PaymentRequestHistoryItem } from "@/lib/activity/types"
+import type { PaymentRequestHistoryItem } from "@walty/shared/activity/types"
 import { PAYMENT_CHAIN_ID } from "@walty/shared/payments/config"
 import { getTxUrl } from "@/lib/explorer/getTxUrl"
 

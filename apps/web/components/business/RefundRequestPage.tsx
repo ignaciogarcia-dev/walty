@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { useRouter } from "next/navigation"
 import { useTranslation } from "@/hooks/useTranslation"
-import type { PaymentRequestHistoryItem } from "@/lib/activity/types"
+import type { PaymentRequestHistoryItem } from "@walty/shared/activity/types"
 
 type Step = "select" | "form" | "success"
 

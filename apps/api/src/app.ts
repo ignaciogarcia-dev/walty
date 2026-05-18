@@ -9,6 +9,7 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js"
 import { authRouter } from "./routes/auth.js"
 import { businessRouter } from "./routes/business.js"
 import { healthRouter } from "./routes/health.js"
+import { paymentRequestsRouter } from "./routes/paymentRequests.js"
 import { pricesRouter } from "./routes/prices.js"
 import { sessionRouter } from "./routes/session.js"
 import { versionRouter } from "./routes/version.js"
@@ -39,6 +40,7 @@ export function createApp(): Express {
   app.use(sessionRouter)
   app.use(walletRouter)
   app.use(businessRouter)
+  app.use(paymentRequestsRouter)
 
   app.use(notFoundHandler)
   app.use(errorHandler)

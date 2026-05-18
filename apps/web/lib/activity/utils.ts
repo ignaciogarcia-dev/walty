@@ -1,4 +1,4 @@
-import type { TransactionActivityItem } from "./types"
+import type { TransactionActivityItem } from "@walty/shared/activity/types"
 
 /** USD formatting matching CashierMovementsFeed: no cents when the amount is a whole number. */
 export function formatActivityUsd(amount: string | number): string {

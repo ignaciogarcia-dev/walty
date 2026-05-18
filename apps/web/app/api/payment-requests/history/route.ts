@@ -2,7 +2,7 @@ import { NextRequest } from "next/server"
 import { and, desc, inArray, eq } from "drizzle-orm"
 import { db } from "@walty/db"
 import { paymentRequests } from "@walty/db"
-import type { PaymentRequestHistoryItem } from "@/lib/activity/types"
+import type { PaymentRequestHistoryItem } from "@walty/shared/activity/types"
 import { withBusinessAuth, ok } from "@/lib/api"
 import { Permission } from "@walty/shared/permissions"
 

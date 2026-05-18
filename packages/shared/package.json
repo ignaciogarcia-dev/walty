@@ -23,7 +23,8 @@
     "./providers/rpc/*": "./src/providers/rpc/*.ts",
     "./rpc/*": "./src/rpc/*.ts",
     "./wallet-backup/*": "./src/wallet-backup/*.ts",
-    "./security/*": "./src/security/*.ts"
+    "./security/*": "./src/security/*.ts",
+    "./activity/*": "./src/activity/*.ts"
   },
   "scripts": {
     "test": "vitest",
