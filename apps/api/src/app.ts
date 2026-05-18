@@ -12,6 +12,7 @@ import { healthRouter } from "./routes/health.js"
 import { paymentRequestsRouter } from "./routes/paymentRequests.js"
 import { pricesRouter } from "./routes/prices.js"
 import { sessionRouter } from "./routes/session.js"
+import { txRouter } from "./routes/tx.js"
 import { txIntentsRouter } from "./routes/txIntents.js"
 import { versionRouter } from "./routes/version.js"
 import { walletRouter } from "./routes/wallet.js"
@@ -43,6 +44,7 @@ export function createApp(): Express {
   app.use(businessRouter)
   app.use(paymentRequestsRouter)
   app.use(txIntentsRouter)
+  app.use(txRouter)
 
   app.use(notFoundHandler)
   app.use(errorHandler)

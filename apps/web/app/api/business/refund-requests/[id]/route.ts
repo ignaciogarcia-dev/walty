@@ -26,7 +26,7 @@ import type { TxIntentPayload } from "@walty/shared/tx-intents/types";
 import {
   verifyTransaction,
   TxVerificationError,
-} from "@/lib/transactions/verify";
+} from "@walty/shared/transactions/verify";
 
 const TX_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
 
