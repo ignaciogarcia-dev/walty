@@ -4,7 +4,7 @@ import { verifyMessage } from "viem"
 import { db } from "@walty/db"
 import { walletNonces, addresses } from "@walty/db"
 import { withErrorHandling, withAuth, ok, ValidationError, ForbiddenError } from "@/lib/api"
-import { rateLimitByUser } from "@/lib/rate-limit"
+import { rateLimitByUser } from "@walty/shared/rate-limit"
 
 export const POST = withErrorHandling(withAuth(async (req: NextRequest, { auth }) => {
   await rateLimitByUser(auth.userId, 3, 60_000)

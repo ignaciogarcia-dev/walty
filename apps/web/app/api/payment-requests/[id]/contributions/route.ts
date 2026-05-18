@@ -3,7 +3,7 @@ import { db } from "@walty/db"
 import { paymentRequests, splitPaymentContributions } from "@walty/db"
 import { and, eq } from "drizzle-orm"
 import { withErrorHandling, ok, NotFoundError, getIp } from "@/lib/api"
-import { rateLimitByIp } from "@/lib/rate-limit"
+import { rateLimitByIp } from "@walty/shared/rate-limit"
 
 type RouteCtx = { params: Promise<{ id: string }> }
 

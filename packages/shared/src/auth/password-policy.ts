@@ -1,8 +1,5 @@
-import { ValidationError } from "@walty/shared/api-utils/errors"
-import {
-  PASSWORD_MAX_BYTES,
-  PASSWORD_MIN_LENGTH,
-} from "@/lib/auth/constants"
+import { ValidationError } from "../api-utils/errors"
+import { PASSWORD_MAX_BYTES, PASSWORD_MIN_LENGTH } from "./constants"
 
 const encoder = new TextEncoder()
 

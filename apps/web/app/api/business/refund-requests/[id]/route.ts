@@ -8,7 +8,7 @@ import {
   txIntents,
   businessMembers,
 } from "@walty/db";
-import { writeAuditLog, AUDIT_ACTIONS } from "@/lib/business/auditLog";
+import { writeAuditLog, AUDIT_ACTIONS } from "@walty/shared/business/auditLog";
 import {
   canApproveRefund,
   canRejectRefund,

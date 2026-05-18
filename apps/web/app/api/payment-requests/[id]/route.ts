@@ -5,7 +5,7 @@ import { eq, and } from "drizzle-orm"
 import { toPublicPaymentRequestView } from "@walty/shared/payments/paymentRequests"
 import { withErrorHandling, ok, NotFoundError } from "@/lib/api"
 import { reconcilePendingPaymentRequests } from "@/lib/payments/reconcilePendingPaymentRequests"
-import { rateLimitByIp } from "@/lib/rate-limit"
+import { rateLimitByIp } from "@walty/shared/rate-limit"
 import { getIp } from "@/lib/api"
 
 type RouteCtx = { params: Promise<{ id: string }> }

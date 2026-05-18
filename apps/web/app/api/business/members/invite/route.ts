@@ -4,7 +4,7 @@ import { DatabaseError } from "pg"
 import { isAddress } from "viem"
 import { db } from "@walty/db"
 import { businessMembers } from "@walty/db"
-import { writeAuditLog, AUDIT_ACTIONS } from "@/lib/business/auditLog"
+import { writeAuditLog, AUDIT_ACTIONS } from "@walty/shared/business/auditLog"
 import { withBusinessAuth, ok, ValidationError } from "@/lib/api"
 import { Permission } from "@walty/shared/permissions"
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { RateLimitError } from "@/lib/rate-limit"
+import { RateLimitError } from "@walty/shared/rate-limit"
 import { AppError } from "@walty/shared/api-utils/errors"
 
 export function withErrorHandling<TContext>(

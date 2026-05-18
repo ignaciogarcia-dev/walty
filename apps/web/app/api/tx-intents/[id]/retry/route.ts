@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm"
 import { db } from "@walty/db"
 import { txIntents } from "@walty/db"
 import { withErrorHandling, withAuth, ok, ValidationError, NotFoundError } from "@/lib/api"
-import { rateLimitByIp } from "@/lib/rate-limit"
+import { rateLimitByIp } from "@walty/shared/rate-limit"
 
 type Ctx = { params: Promise<{ id: string }> }
 

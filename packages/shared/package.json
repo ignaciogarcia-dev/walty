@@ -17,20 +17,26 @@
     "./networks/*": "./src/networks/*.ts",
     "./auth/*": "./src/auth/*.ts",
     "./business/*": "./src/business/*.ts",
-    "./db-errors": "./src/db-errors.ts"
+    "./db-errors": "./src/db-errors.ts",
+    "./rate-limit": "./src/rate-limit.ts"
   },
   "scripts": {
     "test": "vitest",
     "test:run": "vitest run"
   },
   "dependencies": {
-    "@walty/db": "workspace:*"
+    "@walty/db": "workspace:*",
+    "bcrypt": "^6.0.0",
+    "drizzle-orm": "^0.45.1",
+    "jsonwebtoken": "^9.0.3"
   },
   "peerDependencies": {
     "next": "^16.0.0",
     "viem": "^2.0.0"
   },
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.7",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   }

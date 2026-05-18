@@ -5,8 +5,8 @@ import { businessMembers, users, businessSettings } from "@walty/db"
 import { getBusinessContext } from "@/lib/business/getBusinessContext"
 import { hasPermission, Permission, type Actor } from "@walty/shared/permissions"
 import { logSecurityEvent } from "@/lib/security/logSecurityEvent"
-import { rateLimitByUser, rateLimitByIp } from "@/lib/rate-limit"
-import { writeAuditLog, AUDIT_ACTIONS } from "@/lib/business/auditLog"
+import { rateLimitByUser, rateLimitByIp } from "@walty/shared/rate-limit"
+import { writeAuditLog, AUDIT_ACTIONS } from "@walty/shared/business/auditLog"
 import { withErrorHandling, withAuth, getIp, ok, ForbiddenError, ValidationError, NotFoundError, ConflictError } from "@/lib/api"
 
 type RouteCtx = { params: Promise<{ token: string }> }

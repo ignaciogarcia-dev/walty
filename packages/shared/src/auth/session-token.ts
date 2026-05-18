@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken"
 import { SESSION_MAX_AGE_SEC } from "./constants"
-import type { AuthPayload } from "@walty/shared/auth/payload"
+import type { AuthPayload } from "./payload"
 
 const ALGORITHM = "HS256" as const
 

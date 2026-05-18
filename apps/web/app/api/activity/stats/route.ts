@@ -7,7 +7,7 @@ import { sumAmounts } from "@/lib/activity/utils"
 import { withErrorHandling, ok } from "@/lib/api"
 import { withAuth } from "@/lib/api"
 import { withBusinessContext } from "@/lib/api/pipeline"
-import { rateLimitByUser } from "@/lib/rate-limit"
+import { rateLimitByUser } from "@walty/shared/rate-limit"
 
 function getMonthRange(monthOffset: number = 0): { start: Date; end: Date } {
   const now = new Date()

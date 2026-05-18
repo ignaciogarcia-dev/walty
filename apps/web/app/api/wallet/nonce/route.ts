@@ -4,7 +4,7 @@ import { lt } from "drizzle-orm"
 import { db } from "@walty/db"
 import { walletNonces } from "@walty/db"
 import { withErrorHandling, withAuth, ok } from "@/lib/api"
-import { rateLimitByUser } from "@/lib/rate-limit"
+import { rateLimitByUser } from "@walty/shared/rate-limit"
 
 export const POST = withErrorHandling(withAuth(async (_req: NextRequest, { auth }) => {
   await rateLimitByUser(auth.userId, 5, 60_000)

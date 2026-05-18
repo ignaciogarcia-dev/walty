@@ -1,4 +1,4 @@
-import { clearTokenCookie } from "@/lib/cookie"
+import { clearTokenCookie } from "@walty/shared/auth/cookie"
 
 export async function POST() {
   return new Response(JSON.stringify({ ok: true }), {

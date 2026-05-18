@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm"
 import { db } from "@walty/db"
 import { businessSettings, businessMembers } from "@walty/db"
 import { withErrorHandling, withAuth, ok, ValidationError, ConflictError } from "@/lib/api"
-import { rateLimitByUser } from "@/lib/rate-limit"
+import { rateLimitByUser } from "@walty/shared/rate-limit"
 
 export const GET = withErrorHandling(withAuth(async (_req: NextRequest, { auth }) => {
   const [settings] = await db

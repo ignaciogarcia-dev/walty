@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { NextRequest } from "next/server";
 import { AuthError } from "@walty/shared/api-utils/errors";
 import type { AuthPayload } from "@walty/shared/auth/payload";
-import { verifySessionToken } from "./auth/session-token";
+import { verifySessionToken } from "@walty/shared/auth/session-token";
 
 export type { AuthPayload } from "@walty/shared/auth/payload";
 

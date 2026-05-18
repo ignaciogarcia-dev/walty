@@ -2,7 +2,7 @@ import { NextRequest } from "next/server"
 import { isAddress, encodeFunctionData, decodeFunctionResult } from "viem"
 import { withErrorHandling, withAuth, ok, ValidationError } from "@/lib/api"
 import { getPublicClient } from "@/lib/rpc/getPublicClient"
-import { rateLimitByUser } from "@/lib/rate-limit"
+import { rateLimitByUser } from "@walty/shared/rate-limit"
 
 const ERC20_ABI = [
   {

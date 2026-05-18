@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { getPortfolio } from "@/lib/portfolio/portfolio-engine"
 import { withErrorHandling, withAuth, ok, ValidationError } from "@/lib/api"
-import { rateLimitByUser } from "@/lib/rate-limit"
+import { rateLimitByUser } from "@walty/shared/rate-limit"
 
 export const GET = withErrorHandling(withAuth(async (req: NextRequest, { auth }) => {
   await rateLimitByUser(auth.userId, 10, 60_000)

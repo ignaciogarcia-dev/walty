@@ -4,7 +4,7 @@ import { db } from "@walty/db"
 import { transactions, txIntents } from "@walty/db"
 import { getPublicClient } from "@/lib/rpc/getPublicClient"
 import { withErrorHandling, withAuth, ok } from "@/lib/api"
-import { rateLimitByUser } from "@/lib/rate-limit"
+import { rateLimitByUser } from "@walty/shared/rate-limit"
 
 /** Intents stuck in "broadcasting" longer than this are considered failed. */
 const BROADCASTING_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes

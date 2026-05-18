@@ -3,7 +3,7 @@ import { eq, desc } from "drizzle-orm";
 import { db } from "@walty/db";
 import { transactions, addresses } from "@walty/db";
 import { withErrorHandling, withAuth, ok } from "@/lib/api";
-import { rateLimitByUser } from "@/lib/rate-limit";
+import { rateLimitByUser } from "@walty/shared/rate-limit";
 import type { TransactionActivityItem } from "@/lib/activity/types";
 
 export const GET = withErrorHandling(

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm"
 import { db } from "@walty/db"
 import { walletBackups } from "@walty/db"
 import { withErrorHandling, withAuth, ok, ValidationError } from "@/lib/api"
-import { rateLimitByUser } from "@/lib/rate-limit"
+import { rateLimitByUser } from "@walty/shared/rate-limit"
 import { validateBackup as validateBackupShape } from "@/lib/wallet-backup/validation"
 
 function validateBackup(data: unknown): void {

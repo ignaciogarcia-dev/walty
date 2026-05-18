@@ -5,7 +5,7 @@ import { db } from "@walty/db"
 import { transactions } from "@walty/db"
 import { withErrorHandling, withAuth, ok, ValidationError } from "@/lib/api"
 import { verifyTransaction } from "@/lib/transactions/verify"
-import { rateLimitByUser } from "@/lib/rate-limit"
+import { rateLimitByUser } from "@walty/shared/rate-limit"
 
 export const POST = withErrorHandling(withAuth(async (req: NextRequest, { auth }) => {
   await rateLimitByUser(auth.userId, 20, 60_000)
