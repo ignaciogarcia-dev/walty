@@ -8,12 +8,9 @@ export async function runReconciler(): Promise<void> {
     const [pending, incoming] = await Promise.all([
       reconcilePendingPaymentRequests(),
       reconcileIncomingTransfers(),
-      cleanupExpiredEntries(),
     ])
-    logger.info(
-      { pending, incoming },
-      "reconciler tick",
-    )
+    await cleanupExpiredEntries()
+    logger.info({ pending, incoming }, "reconciler tick")
   } catch (err) {
     logger.error({ err }, "reconciler failed")
   }

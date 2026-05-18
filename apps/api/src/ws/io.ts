@@ -1,8 +1,12 @@
 import type { Server as HttpServer } from "node:http"
+import { and, eq } from "drizzle-orm"
 import { Server } from "socket.io"
+import { db, txIntents } from "@walty/db"
 import { verifySessionToken } from "@walty/shared/auth/session-token"
 import { env } from "../config/env.js"
 import { logger } from "../config/logger.js"
+
+const INTENT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/
 
 let ioInstance: Server | null = null
 
@@ -41,12 +45,24 @@ export function initWebSocket(httpServer: HttpServer): Server {
     }
   })
   txIntentsNs.on("connection", (socket) => {
-    socket.on("subscribe", (intentId: unknown) => {
-      if (typeof intentId !== "string" || intentId.length === 0) return
-      socket.join(`intent:${intentId}`)
+    socket.on("subscribe", async (intentId: unknown) => {
+      if (typeof intentId !== "string" || !INTENT_ID_RE.test(intentId)) return
+      const userId = socket.data.userId as number | undefined
+      if (typeof userId !== "number") return
+      try {
+        const [owned] = await db
+          .select({ id: txIntents.id })
+          .from(txIntents)
+          .where(and(eq(txIntents.id, intentId), eq(txIntents.userId, userId)))
+          .limit(1)
+        if (!owned) return
+        socket.join(`intent:${intentId}`)
+      } catch (err) {
+        logger.warn({ err, intentId }, "tx-intents subscribe lookup failed")
+      }
     })
     socket.on("unsubscribe", (intentId: unknown) => {
-      if (typeof intentId !== "string" || intentId.length === 0) return
+      if (typeof intentId !== "string" || !INTENT_ID_RE.test(intentId)) return
       socket.leave(`intent:${intentId}`)
     })
   })
@@ -56,11 +72,11 @@ export function initWebSocket(httpServer: HttpServer): Server {
   const paymentNs = io.of("/payment-requests")
   paymentNs.on("connection", (socket) => {
     socket.on("subscribe", (requestId: unknown) => {
-      if (typeof requestId !== "string" || requestId.length === 0) return
+      if (typeof requestId !== "string" || !INTENT_ID_RE.test(requestId)) return
       socket.join(`request:${requestId}`)
     })
     socket.on("unsubscribe", (requestId: unknown) => {
-      if (typeof requestId !== "string" || requestId.length === 0) return
+      if (typeof requestId !== "string" || !INTENT_ID_RE.test(requestId)) return
       socket.leave(`request:${requestId}`)
     })
   })
