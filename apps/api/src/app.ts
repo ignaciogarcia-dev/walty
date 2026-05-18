@@ -10,6 +10,7 @@ import { activityRouter } from "./routes/activity.js"
 import { authRouter } from "./routes/auth.js"
 import { businessRouter } from "./routes/business.js"
 import { healthRouter } from "./routes/health.js"
+import { joinRouter } from "./routes/join.js"
 import { paymentRequestsRouter } from "./routes/paymentRequests.js"
 import { refundRequestsRouter } from "./routes/refundRequests.js"
 import { pricesRouter } from "./routes/prices.js"
@@ -49,6 +50,7 @@ export function createApp(): Express {
   app.use(txRouter)
   app.use(refundRequestsRouter)
   app.use(activityRouter)
+  app.use(joinRouter)
 
   app.use(notFoundHandler)
   app.use(errorHandler)
