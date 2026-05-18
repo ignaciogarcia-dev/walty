@@ -219,11 +219,14 @@ describe("tx-intents (real db)", () => {
       .set("Cookie", cookie)
       .send({ signedRaw: honest })
 
-    // Race two broadcasts. We don't expect both to succeed: the second one
-    // either sees `broadcasting`/`broadcasted` (409) or a non-signed status
-    // (400). Either way only one CAS wins. RPC will fail because the EOA
-    // has no balance, but that's after the claim, so we look at outcomes
-    // rather than success.
+    // Race two broadcasts. The CAS guarantee is "at most one winner":
+    // exactly one request transitions the intent signed→broadcasting and
+    // proceeds to RPC, the other sees the new status and returns 409.
+    // The winner then hits Polygon RPC; the EOA has no balance, so the
+    // RPC rejects, the route reverts to pending and the response is 500.
+    // The invariant we assert is "at least one 409" — that proves the
+    // CAS rejected the loser. Two 500s (a bug where both win CAS and
+    // both go to RPC) or two 200s would NOT satisfy this.
     const [a, b] = await Promise.all([
       request(app)
         .post(`/tx-intents/${create.body.id}/broadcast`)
@@ -232,9 +235,10 @@ describe("tx-intents (real db)", () => {
         .post(`/tx-intents/${create.body.id}/broadcast`)
         .set("Cookie", cookie),
     ])
-    const statuses = [a.status, b.status].sort()
-    // One of the two must NOT be a successful broadcast: at most one wins
-    // the signed→broadcasting CAS.
-    expect(statuses.some((s) => s >= 400)).toBe(true)
+    const statuses = [a.status, b.status]
+    expect(statuses).toContain(409)
+    // And the loser's error body is the ConflictError, not a generic 5xx.
+    const loser = a.status === 409 ? a : b
+    expect(loser.body.error).toBe("conflict")
   })
 })

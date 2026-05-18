@@ -7,7 +7,8 @@
  * `walty_test` database does the job locally; the scripts/test-integration
  * helper wires that up.
  */
-import { sql } from "drizzle-orm"
+import { getTableName, is, sql } from "drizzle-orm"
+import { PgTable } from "drizzle-orm/pg-core"
 import { beforeAll, beforeEach } from "vitest"
 
 const url = process.env.INTEGRATION_DATABASE_URL
@@ -23,27 +24,16 @@ process.env.WORKERS_ENABLED = "false"
 process.env.LOG_LEVEL = process.env.LOG_LEVEL ?? "silent"
 
 // db is imported lazily so the env vars above are in place before the pool boots.
-const { db } = await import("@walty/db")
+const dbModule = await import("@walty/db")
+const { db } = dbModule
 
 // Tables wiped between tests so each case starts from a clean slate.
 // TRUNCATE ... CASCADE handles FK chains; RESTART IDENTITY resets serial PKs.
-// audit log + rate-limit are wiped along the way so prior tests can't bleed.
-const TABLES = [
-  "business_audit_logs",
-  "refund_requests",
-  "split_payment_contributions",
-  "payment_requests",
-  "tx_intents",
-  "transactions",
-  "token_scan_cursors",
-  "addresses",
-  "wallet_nonces",
-  "wallet_backups",
-  "business_members",
-  "business_settings",
-  "rate_limit_entries",
-  "users",
-]
+// Driven off the Drizzle schema export so a future migration that adds a
+// table is truncated automatically — no silent leakage across tests.
+const TABLES = (Object.values(dbModule) as unknown[])
+  .filter((v): v is PgTable => is(v, PgTable))
+  .map((t) => `"${getTableName(t)}"`)
 
 beforeAll(async () => {
   // Smoke: make sure the schema looks right.
