@@ -3,7 +3,7 @@ import { and, desc, eq, inArray } from "drizzle-orm"
 import { parseUnits, isAddress } from "viem"
 import { rateLimitByUser } from "@walty/shared/rate-limit"
 import { canCancelPayment } from "@walty/shared/policies/payment.policy"
-import { logSecurityEvent } from "@/lib/security/logSecurityEvent"
+import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent"
 import {
   PAYMENT_CHAIN_ID,
   PAYMENT_EXPIRY_MINUTES,

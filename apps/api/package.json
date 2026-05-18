@@ -20,6 +20,7 @@
     "drizzle-orm": "^0.45.1",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.3",
+    "pg": "^8.20.0",
     "pino": "^9.5.0",
     "pino-http": "^10.3.0",
     "viem": "^2.47.6"
@@ -31,6 +32,7 @@
     "@types/express": "^4.17.21",
     "@types/express-serve-static-core": "^4.19.5",
     "@types/jsonwebtoken": "^9.0.7",
+    "@types/pg": "^8.20.0",
     "@types/node": "^20.0.0",
     "@types/supertest": "^6.0.2",
     "supertest": "^7.0.0",

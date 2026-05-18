@@ -22,7 +22,8 @@
     "./providers/pricing/*": "./src/providers/pricing/*.ts",
     "./providers/rpc/*": "./src/providers/rpc/*.ts",
     "./rpc/*": "./src/rpc/*.ts",
-    "./wallet-backup/*": "./src/wallet-backup/*.ts"
+    "./wallet-backup/*": "./src/wallet-backup/*.ts",
+    "./security/*": "./src/security/*.ts"
   },
   "scripts": {
     "test": "vitest",

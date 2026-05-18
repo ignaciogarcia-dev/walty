@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { requireAuth } from "@/lib/auth"
-import { getBusinessContext } from "@/lib/business/getBusinessContext"
+import { getBusinessContext } from "@walty/shared/business/getBusinessContext"
 import { hasPermission, Permission } from "@walty/shared/permissions"
 import { RefundManagePage } from "@/components/business/RefundManagePage"
 

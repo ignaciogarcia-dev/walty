@@ -3,7 +3,7 @@ import { and, eq, isNotNull } from "drizzle-orm"
 import { formatUnits } from "viem"
 import { db } from "@walty/db"
 import { businessMembers, users } from "@walty/db"
-import { getOperatorTokenBalances } from "@/lib/business/operatorBalance"
+import { getOperatorTokenBalances } from "@walty/shared/business/operatorBalance"
 import { withBusinessAuth, ok } from "@/lib/api"
 import { Permission } from "@walty/shared/permissions"
 

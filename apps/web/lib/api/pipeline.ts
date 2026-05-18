@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server"
 import { requireApiAuth, type AuthPayload } from "@/lib/auth"
-import { getBusinessContext, type BusinessContext } from "@/lib/business/getBusinessContext"
+import { getBusinessContext, type BusinessContext } from "@walty/shared/business/getBusinessContext"
 import { hasPermission, type Permission, type Actor } from "@walty/shared/permissions"
-import { logSecurityEvent } from "@/lib/security/logSecurityEvent"
+import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent"
 import { ForbiddenError } from "@walty/shared/api-utils/errors"
 import { getIp } from "@walty/shared/api-utils/get-ip"
 

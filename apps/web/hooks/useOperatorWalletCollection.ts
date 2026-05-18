@@ -99,7 +99,7 @@ export function useOperatorWalletCollection(
       setCollectError(null);
 
       const { getOperatorSingleTokenBalance } = await import(
-        "@/lib/business/operatorBalance"
+        "@walty/shared/business/operatorBalance"
       );
 
       try {

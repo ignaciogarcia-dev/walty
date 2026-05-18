@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server"
 import type { AuthPayload } from "@/lib/auth"
-import type { BusinessContext } from "@/lib/business/getBusinessContext"
+import type { BusinessContext } from "@walty/shared/business/getBusinessContext"
 import type { Actor, Permission } from "@walty/shared/permissions"
 import { withErrorHandling } from "./with-error-handling"
 import { withAuth, withBusinessContext, withPermission } from "./pipeline"

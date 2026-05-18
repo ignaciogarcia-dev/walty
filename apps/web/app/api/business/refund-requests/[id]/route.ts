@@ -14,7 +14,7 @@ import {
   canRejectRefund,
   canExecuteRefund,
 } from "@walty/shared/policies/payment.policy";
-import { logSecurityEvent } from "@/lib/security/logSecurityEvent";
+import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent";
 import {
   withBusinessAuth,
   ok,
