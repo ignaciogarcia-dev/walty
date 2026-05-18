@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { formatUnits } from "viem"
 import { QRCodeSVG } from "qrcode.react"
 import {
@@ -25,10 +25,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { getTxUrl } from "@/lib/explorer/getTxUrl"
-import {
-  PAYMENT_CHAIN_ID,
-  PAYMENT_MODAL_POLL_INTERVAL_MS,
-} from "@walty/shared/payments/config"
+import { PAYMENT_CHAIN_ID } from "@walty/shared/payments/config"
+import { usePaymentRequestStatus } from "@/hooks/usePaymentRequestStatus"
 import { getAbsolutePaymentUrl } from "@/lib/payments/paymentLinks"
 import type { PaymentRequestView } from "@walty/shared/payments/types"
 import {
@@ -100,27 +98,43 @@ export function CollectModal({
 
   const requestId = request?.id
   const pollableStatus = request?.status === "pending" || request?.status === "confirming"
+  const queryClient = useQueryClient()
 
-  const { data: polledRequest } = useQuery({
-    queryKey: ["payment-request-detail", requestId],
+  // Subscribe to live status events. On each transition we refetch the full
+  // detail row once (the WS payload only carries status/txHash, not the
+  // surplus / received-amount fields the UI needs).
+  const detailQueryKey = useMemo(
+    () => ["payment-request-detail", requestId] as const,
+    [requestId],
+  )
+  const liveStatus = usePaymentRequestStatus(
+    requestId && pollableStatus ? requestId : null,
+  )
+
+  const { data: detail } = useQuery({
+    queryKey: detailQueryKey,
     queryFn: async () => {
       const res = await fetch(`/api/business/payment-requests/${requestId}`)
       if (!res.ok) return null
-      const { data: next } = await res.json() as { data: PaymentRequestView }
+      const { data: next } = (await res.json()) as { data: PaymentRequestView }
       return next
     },
     enabled: !!requestId && pollableStatus,
-    refetchInterval: pollableStatus ? PAYMENT_MODAL_POLL_INTERVAL_MS : false,
     staleTime: 0,
     gcTime: 0,
   })
 
   useEffect(() => {
-    if (!polledRequest) return
-    setRequest(polledRequest)
-    onRequestChange?.(polledRequest)
-    if (polledRequest.status === "paid") setStep("confirmed")
-  }, [polledRequest, onRequestChange])
+    if (!liveStatus || !requestId) return
+    queryClient.invalidateQueries({ queryKey: detailQueryKey })
+  }, [liveStatus, requestId, queryClient, detailQueryKey])
+
+  useEffect(() => {
+    if (!detail) return
+    setRequest(detail)
+    onRequestChange?.(detail)
+    if (detail.status === "paid") setStep("confirmed")
+  }, [detail, onRequestChange])
 
   const requestStatus = request ? getPaymentRequestStatus(request, now ?? 0) : "pending"
   const countdown = request && now > 0
