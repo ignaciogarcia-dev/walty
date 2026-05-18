@@ -19,6 +19,10 @@ import type {
   TxIntentType,
 } from "@walty/shared/tx-intents/types"
 import { validateAndNormalizePayload } from "@walty/shared/tx-intents/validate"
+import {
+  assertSignedRawMatchesPayload,
+  SignedTxMismatchError,
+} from "@walty/shared/tx-intents/verifySigned"
 import { asyncHandler } from "../middleware/asyncHandler.js"
 import { withAuth } from "../middleware/withAuth.js"
 import {
@@ -284,6 +288,21 @@ txIntentsRouter.post(
     }
 
     await assertNotExpired(intent)
+
+    // Independently verify the signed bytes match the authorized payload
+    // before persisting them. A compromised client must not be able to
+    // swap recipient/amount/asset between intent creation and signing.
+    try {
+      await assertSignedRawMatchesPayload(
+        signedRaw as `0x${string}`,
+        intent.payload as TxIntentPayload,
+      )
+    } catch (err) {
+      if (err instanceof SignedTxMismatchError) {
+        throw new ValidationError(`Signed tx does not match payload: ${err.code}`)
+      }
+      throw err
+    }
 
     const [updated] = await db
       .update(txIntents)
