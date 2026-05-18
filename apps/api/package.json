@@ -8,6 +8,7 @@
     "start": "node --import tsx/esm src/server.ts",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "lint": "echo 'no lint configured'"
   },
   "dependencies": {
