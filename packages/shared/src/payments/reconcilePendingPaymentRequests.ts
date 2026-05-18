@@ -31,6 +31,10 @@ async function getMerchantOwnedAddresses(
     if (row.address) owned.add(row.address.toLowerCase())
   }
 
+  // Include operators of every status (invited, active, suspended, revoked).
+  // A revoked or suspended cashier whose wallet was HD-derived from the
+  // owner's seed still has the private key — leaving those addresses out
+  // would reopen the wash-payment vector for ex-operators.
   const operators = await db
     .select({ walletAddress: businessMembers.walletAddress })
     .from(businessMembers)

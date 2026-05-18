@@ -11,11 +11,15 @@ import {
   users,
 } from "@walty/db"
 
-const MERCHANT_WALLET = "0xMerchantWallet0000000000000000000000Aaaa"
-const LINKED_WALLET = "0xLinkedOwnerWallet000000000000000000Bbbb"
-const OPERATOR_WALLET = "0xOperatorWallet000000000000000000000Cccc"
-const STRANGER_A = "0xStranger00000000000000000000000000aA00"
-const STRANGER_B = "0xStranger00000000000000000000000000bB00"
+// EIP-55 mixed-case 20-byte hex addresses — fixtures are stored as-is in the
+// DB and the reconciler receives lowercase `from` from viem logs, so this
+// shape genuinely exercises the case-insensitive compare.
+const MERCHANT_WALLET = "0xAbCdEf0123456789AbCdEf0123456789AbCdEf01"
+const LINKED_WALLET = "0xfEdCbA9876543210FedcbA9876543210fEdCBa98"
+const OPERATOR_WALLET = "0x1234567890aBcDeF1234567890AbCdEf12345678"
+const REVOKED_OPERATOR_WALLET = "0x9876543210FEDCba9876543210FedcbA98765432"
+const STRANGER_A = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+const STRANGER_B = "0xBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBb"
 const USDC = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"
 
 // Pinned block window the fake RPC always reports as "current".
@@ -89,15 +93,26 @@ async function seedMerchantAndRequest(opts: {
   await db
     .insert(addresses)
     .values({ userId: user.id, address: LINKED_WALLET })
-  await db.insert(businessMembers).values({
-    businessId: user.id,
-    role: "cashier",
-    status: "active",
-    invitedBy: user.id,
-    expiresAt: new Date(Date.now() + 86_400_000),
-    derivationIndex: 1,
-    walletAddress: OPERATOR_WALLET,
-  })
+  await db.insert(businessMembers).values([
+    {
+      businessId: user.id,
+      role: "cashier",
+      status: "active",
+      invitedBy: user.id,
+      expiresAt: new Date(Date.now() + 86_400_000),
+      derivationIndex: 1,
+      walletAddress: OPERATOR_WALLET,
+    },
+    {
+      businessId: user.id,
+      role: "cashier",
+      status: "revoked",
+      invitedBy: user.id,
+      expiresAt: new Date(Date.now() + 86_400_000),
+      derivationIndex: 2,
+      walletAddress: REVOKED_OPERATOR_WALLET,
+    },
+  ])
 
   const now = new Date()
   const [pr] = await db
@@ -221,6 +236,53 @@ describe("reconciler — wash payment rejection (real db)", () => {
       .where(eq(paymentRequests.id, pr.id))
     expect(after.status).toBe("pending")
     expect(after.txHash).toBeNull()
+  })
+
+  it("split skips a contribution from a REVOKED operator (key still controlled by ex-cashier)", async () => {
+    const { pr } = await seedMerchantAndRequest({
+      isSplitPayment: true,
+      amountToken: "10000000",
+      amountUsd: "10",
+    })
+    fakeRpc.logs = [
+      transferLog({
+        from: REVOKED_OPERATOR_WALLET,
+        value: 5_000_000n,
+        txHash: "0x33",
+      }),
+    ]
+    await reconcilePendingPaymentRequests({ id: pr.id })
+
+    const contributions = await db
+      .select()
+      .from(splitPaymentContributions)
+      .where(eq(splitPaymentContributions.paymentRequestId, pr.id))
+    expect(contributions).toHaveLength(0)
+  })
+
+  it("compares case-insensitively: EIP-55 stored address vs lowercase log.from", async () => {
+    const { pr } = await seedMerchantAndRequest({
+      isSplitPayment: true,
+      amountToken: "10000000",
+      amountUsd: "10",
+    })
+    // Viem normalizes log.args.from to lowercase; the DB stores OPERATOR_WALLET
+    // in EIP-55 mixed case. Without the lowercase compare, this contribution
+    // would be accepted as if it came from a stranger.
+    fakeRpc.logs = [
+      transferLog({
+        from: OPERATOR_WALLET.toLowerCase(),
+        value: 5_000_000n,
+        txHash: "0x44",
+      }),
+    ]
+    await reconcilePendingPaymentRequests({ id: pr.id })
+
+    const contributions = await db
+      .select()
+      .from(splitPaymentContributions)
+      .where(eq(splitPaymentContributions.paymentRequestId, pr.id))
+    expect(contributions).toHaveLength(0)
   })
 
   it("non-split accepts a stranger's transfer of the right amount", async () => {
