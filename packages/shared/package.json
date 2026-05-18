@@ -1,0 +1,37 @@
+{
+  "name": "@walty/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./policies": "./src/policies/index.ts",
+    "./policies/*": "./src/policies/*.ts",
+    "./permissions": "./src/permissions/index.ts",
+    "./permissions/*": "./src/permissions/*.ts",
+    "./payments/*": "./src/payments/*.ts",
+    "./tx-intents/*": "./src/tx-intents/*.ts",
+    "./api-utils/*": "./src/api-utils/*.ts",
+    "./tokens/*": "./src/tokens/*.ts",
+    "./networks/*": "./src/networks/*.ts",
+    "./auth/*": "./src/auth/*.ts",
+    "./business/*": "./src/business/*.ts",
+    "./db-errors": "./src/db-errors.ts"
+  },
+  "scripts": {
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@walty/db": "workspace:*"
+  },
+  "peerDependencies": {
+    "next": "^16.0.0",
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
+}

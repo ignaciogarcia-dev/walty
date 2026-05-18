@@ -17,9 +17,9 @@ done
 
 echo "Running DB migrations..."
 if [ "$NODE_ENV" = "production" ]; then
-  CMD="pnpm drizzle-kit migrate"
+  CMD="pnpm --filter @walty/db exec drizzle-kit migrate"
 else
-  CMD="pnpm drizzle-kit push"
+  CMD="pnpm --filter @walty/db exec drizzle-kit push"
 fi
 if $CMD; then
   echo "✓ Database schema synchronized"
@@ -30,4 +30,4 @@ else
 fi
 
 echo "Starting app..."
-exec pnpm start
+exec pnpm --filter @walty/web start

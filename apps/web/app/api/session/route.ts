@@ -1,0 +1,60 @@
+import { NextRequest } from "next/server"
+import { eq } from "drizzle-orm"
+import { db } from "@walty/db"
+import { users, businessMembers, walletBackups, businessSettings } from "@walty/db"
+import { withErrorHandling, withAuth, ok, NotFoundError } from "@/lib/api"
+
+export type BusinessStatus = "active" | "suspended" | "revoked" | null
+
+export const GET = withErrorHandling(withAuth(async (_req: NextRequest, { auth }) => {
+  const [user, settings, memberships, walletBackup] = await Promise.all([
+    db.query.users.findFirst({
+      where: eq(users.id, auth.userId),
+      columns: { id: true, email: true },
+    }),
+    db.query.businessSettings.findFirst({
+      where: eq(businessSettings.userId, auth.userId),
+      columns: { name: true },
+    }),
+    db.query.businessMembers.findMany({
+      where: eq(businessMembers.userId, auth.userId),
+      columns: { status: true },
+    }),
+    db.query.walletBackups.findFirst({
+      where: eq(walletBackups.userId, auth.userId),
+      columns: { userId: true },
+    }),
+  ])
+
+  if (!user) throw new NotFoundError("user not found")
+
+  const active = memberships.find((m) => m.status === "active")
+  const suspended = memberships.find((m) => m.status === "suspended")
+  const revoked = memberships.find((m) => m.status === "revoked")
+  const isOwner = !active && !suspended && !revoked
+  const hasActiveBusiness = isOwner ? !!settings : !!active
+  const businessStatus: BusinessStatus = isOwner
+    ? (settings ? "active" : null)
+    : active
+      ? "active"
+      : suspended
+        ? "suspended"
+        : revoked
+          ? "revoked"
+          : null
+
+  return ok({
+    user: {
+      id: user.id,
+      email: user.email,
+      hasWallet: !!walletBackup,
+      hasActiveBusiness,
+      hasBusinessSettings: !!settings,
+      isOwner,
+      businessStatus,
+    },
+    business: {
+      name: settings?.name ?? null,
+    },
+  })
+}))
