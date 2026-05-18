@@ -25,7 +25,8 @@
     "./wallet-backup/*": "./src/wallet-backup/*.ts",
     "./security/*": "./src/security/*.ts",
     "./activity/*": "./src/activity/*.ts",
-    "./transactions/*": "./src/transactions/*.ts"
+    "./transactions/*": "./src/transactions/*.ts",
+    "./tx/*": "./src/tx/*.ts"
   },
   "scripts": {
     "test": "vitest",

@@ -1,6 +1,7 @@
 import { createApp } from "./app.js"
 import { env } from "./config/env.js"
 import { logger } from "./config/logger.js"
+import { startWorkers } from "./workers/index.js"
 import { initWebSocket } from "./ws/io.js"
 
 const app = createApp()
@@ -10,6 +11,7 @@ const server = app.listen(env.port, () => {
 })
 
 initWebSocket(server)
+startWorkers()
 
 const shutdown = (signal: string) => {
   logger.info({ signal }, "shutting down")

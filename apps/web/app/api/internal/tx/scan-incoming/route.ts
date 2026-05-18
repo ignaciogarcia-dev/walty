@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { env } from "@/lib/env"
 import { PAYMENT_RECONCILE_HEADER } from "@walty/shared/payments/config"
-import { reconcileIncomingTransfers } from "@/lib/tx/reconcileIncomingTransfers"
+import { reconcileIncomingTransfers } from "@walty/shared/tx/reconcileIncomingTransfers"
 import { withErrorHandling, ok, AuthError } from "@/lib/api"
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
