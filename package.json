@@ -5,8 +5,11 @@
   "packageManager": "pnpm@10.30.2",
   "scripts": {
     "dev": "pnpm --filter @walty/web dev",
+    "dev:api": "pnpm --filter @walty/api dev",
+    "dev:all": "pnpm -r --parallel run dev",
     "build": "pnpm --filter @walty/web build",
     "start": "pnpm --filter @walty/web start",
+    "start:api": "pnpm --filter @walty/api start",
     "lint": "pnpm -r --parallel run lint",
     "test": "pnpm -r run test",
     "test:run": "pnpm -r run test:run",
