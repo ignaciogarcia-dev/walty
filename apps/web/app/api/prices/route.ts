@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { ALL_TOKENS } from "@walty/shared/tokens/tokenRegistry"
-import { getPrices } from "@/lib/providers/pricing/pricingRouter"
+import { getPrices } from "@walty/shared/providers/pricing/pricingRouter"
 
 // Module-level cache — persists across requests in the same serverless instance
 let priceCache: { data: Record<string, number>; ts: number } | null = null

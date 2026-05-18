@@ -2,7 +2,7 @@ import { formatUnits } from "viem"
 import { getEVMNetworks } from "@walty/shared/networks/networks"
 import { getAdapter } from "@/lib/chainAdapters/adapterRegistry"
 import { TOKEN_REGISTRY, type Token } from "@walty/shared/tokens/tokenRegistry"
-import { getPrices } from "@/lib/providers/pricing/pricingRouter"
+import { getPrices } from "@walty/shared/providers/pricing/pricingRouter"
 
 export type TokenPosition = {
   token: Token

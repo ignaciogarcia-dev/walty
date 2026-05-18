@@ -8,8 +8,8 @@ describe("api skeleton", () => {
   it("GET /health returns ok", async () => {
     const res = await request(app).get("/health")
     expect(res.status).toBe(200)
-    expect(res.body.ok).toBe(true)
-    expect(typeof res.body.uptime).toBe("number")
+    expect(res.body.status).toBe("ok")
+    expect(res.headers["cache-control"]).toBe("no-store")
   })
 
   it("GET /version returns package info", async () => {

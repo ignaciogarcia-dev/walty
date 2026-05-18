@@ -8,6 +8,7 @@ import { logger } from "./config/logger.js"
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js"
 import { authRouter } from "./routes/auth.js"
 import { healthRouter } from "./routes/health.js"
+import { pricesRouter } from "./routes/prices.js"
 import { sessionRouter } from "./routes/session.js"
 import { versionRouter } from "./routes/version.js"
 
@@ -31,6 +32,7 @@ export function createApp(): Express {
 
   app.use(healthRouter)
   app.use(versionRouter)
+  app.use(pricesRouter)
   app.use(authRouter)
   app.use(sessionRouter)
 

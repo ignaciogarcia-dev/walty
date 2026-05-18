@@ -13,8 +13,8 @@ function getCoinGeckoUrl(pathname: string): URL {
 }
 
 /** Pro vs public/demo use different auth headers — sending both can yield 400. */
-function coinGeckoAuthHeaders(apiKey: string): HeadersInit {
-  const headers: HeadersInit = { Accept: "application/json" }
+function coinGeckoAuthHeaders(apiKey: string): Record<string, string> {
+  const headers: Record<string, string> = { Accept: "application/json" }
   if (coinGeckoBaseUrl().includes("pro-api.coingecko.com")) {
     headers["x-cg-pro-api-key"] = apiKey
   } else {
@@ -45,7 +45,7 @@ export async function getPricesByIds(
   if (nonStable.length === 0) return prices
 
   const apiKey = process.env.COINGECKO_API_KEY?.trim()
-  const headers: HeadersInit = apiKey
+  const headers: Record<string, string> = apiKey
     ? coinGeckoAuthHeaders(apiKey)
     : { Accept: "application/json" }
 
@@ -54,7 +54,7 @@ export async function getPricesByIds(
     url.searchParams.set("ids", nonStable.join(","))
     url.searchParams.set("vs_currencies", "usd")
 
-    const res = await fetch(url.toString(), { headers, cache: "no-store" })
+    const res = await fetch(url.toString(), { headers })
     if (!res.ok) {
       const body = await res.text().catch(() => "")
       console.warn(
