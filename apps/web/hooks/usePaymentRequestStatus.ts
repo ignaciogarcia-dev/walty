@@ -13,13 +13,17 @@ export type PaymentRequestStatus = {
 /**
  * Subscribes to live status updates for a payment request via the
  * /payment-requests socket.io namespace. Returns the latest snapshot;
- * `null` until at least one event arrives or the subscription is
- * disabled.
+ * starts at `initialStatus` (typical pattern: pass the result of an
+ * initial `GET /payment-requests/:id` so requests already paid/expired
+ * before the page mounts render correctly).
  */
 export function usePaymentRequestStatus(
   requestId: string | null | undefined,
+  initialStatus: PaymentRequestStatus | null = null,
 ): PaymentRequestStatus | null {
-  const [status, setStatus] = useState<PaymentRequestStatus | null>(null)
+  const [status, setStatus] = useState<PaymentRequestStatus | null>(
+    initialStatus,
+  )
 
   useEffect(() => {
     if (!requestId) return
@@ -54,12 +58,19 @@ export function usePaymentRequestStatus(
       }
     }
 
+    // Re-emit `subscribe` on every (re)connect so the server-side room
+    // membership survives transient drops. socket.io-client queues emits
+    // while disconnected, so the initial subscribe also goes through
+    // even if `socket.connected === false` at this point.
+    const subscribe = () => socket.emit("subscribe", requestId)
+
     socket.on("request:detected", handle)
     socket.on("request:confirming", handle)
     socket.on("request:paid", handle)
     socket.on("request:expired", handle)
     socket.on("request:cancelled", handle)
-    socket.emit("subscribe", requestId)
+    socket.on("connect", subscribe)
+    subscribe()
 
     return () => {
       socket.emit("unsubscribe", requestId)
@@ -68,6 +79,7 @@ export function usePaymentRequestStatus(
       socket.off("request:paid", handle)
       socket.off("request:expired", handle)
       socket.off("request:cancelled", handle)
+      socket.off("connect", subscribe)
     }
   }, [requestId])
 

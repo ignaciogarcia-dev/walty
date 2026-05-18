@@ -230,6 +230,7 @@ export async function reconcilePendingPaymentRequests(
 
           try {
             let isFullyPaid = false
+            let cumulativeTotalToken = "0"
             await db.transaction(async (tx) => {
               // Lock the payment request row for the duration of the contribution
               // insert + total update. Serializes concurrent reconcilers on this row.
@@ -269,13 +270,25 @@ export async function reconcilePendingPaymentRequests(
 
               const postTotal = BigInt(updated?.totalPaidToken ?? "0")
               const expected = BigInt(locked.amountToken)
-              isFullyPaid = postTotal >= expected
+              cumulativeTotalToken = postTotal.toString()
+              const reachedThreshold = postTotal >= expected
 
-              if (isFullyPaid) {
-                await tx
+              if (reachedThreshold) {
+                // Gate the "paid" emit on the conditional UPDATE actually
+                // flipping the row. Two racing reconcilers can both compute
+                // reachedThreshold=true but only the first transitions
+                // pending→paid; the loser must not emit a duplicate event.
+                const flipped = await tx
                   .update(paymentRequests)
                   .set({ status: "paid", paidAt: now })
-                  .where(and(eq(paymentRequests.id, request.id), eq(paymentRequests.status, "pending")))
+                  .where(
+                    and(
+                      eq(paymentRequests.id, request.id),
+                      eq(paymentRequests.status, "pending"),
+                    ),
+                  )
+                  .returning({ id: paymentRequests.id })
+                isFullyPaid = flipped.length > 0
               }
             })
 
@@ -306,11 +319,13 @@ export async function reconcilePendingPaymentRequests(
             })
             if (isFullyPaid) {
               result.paid += 1
+              // Carry the cumulative total, not just the triggering contribution
+              // (a split paid via 4/3/3 should report 10, not 3).
               emit({
                 type: "paid",
                 requestId: request.id,
                 txHash: log.transactionHash,
-                amount: transferAmountToken,
+                amount: cumulativeTotalToken,
               })
             }
           } catch (error) {
@@ -497,17 +512,29 @@ export async function reconcilePendingPaymentRequests(
     if (matched) continue
 
     if (now > request.expiresAt) {
-      await db
+      // Only expire requests that are still pending/confirming. A cancel
+      // (REST) or detect (this very tick) may have flipped the row out
+      // from under us; without the predicate `expired` would overwrite
+      // `cancelled` in both the DB and the WS stream.
+      const flipped = await db
         .update(paymentRequests)
         .set({
           status: "expired",
           lastScannedBlock: currentBlock.toString(),
           updatedAt: now,
         })
-        .where(eq(paymentRequests.id, request.id))
+        .where(
+          and(
+            eq(paymentRequests.id, request.id),
+            inArray(paymentRequests.status, ["pending", "confirming"]),
+          ),
+        )
+        .returning({ id: paymentRequests.id })
 
-      result.expired += 1
-      emit({ type: "expired", requestId: request.id })
+      if (flipped.length > 0) {
+        result.expired += 1
+        emit({ type: "expired", requestId: request.id })
+      }
       continue
     }
 
