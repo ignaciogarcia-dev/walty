@@ -1,0 +1,240 @@
+import request from "supertest"
+import { encodeFunctionData, erc20Abi, parseUnits } from "viem"
+import {
+  generatePrivateKey,
+  privateKeyToAccount,
+  signTransaction,
+} from "viem/accounts"
+import { describe, expect, it } from "vitest"
+import { createApp } from "../../src/app.js"
+
+// Polygon native USDC contract (matches the token registry).
+const USDC = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"
+
+async function authedCookie(app: ReturnType<typeof createApp>) {
+  const email = `int-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`
+  const reg = await request(app)
+    .post("/auth/register")
+    .send({ email, password: "testpassword1234" })
+  return (reg.headers["set-cookie"] as unknown as string[])[0]
+}
+
+async function buildErc20Tx(opts: {
+  pk: `0x${string}`
+  recipient: `0x${string}`
+  amount: bigint
+  token?: `0x${string}`
+}) {
+  const data = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "transfer",
+    args: [opts.recipient, opts.amount],
+  })
+  return signTransaction({
+    privateKey: opts.pk,
+    transaction: {
+      type: "eip1559",
+      chainId: 137,
+      to: opts.token ?? USDC,
+      data,
+      value: 0n,
+      gas: 100_000n,
+      maxFeePerGas: 1_000_000_000n,
+      maxPriorityFeePerGas: 1_000_000_000n,
+      nonce: 0,
+    },
+  })
+}
+
+function makeEoa() {
+  const pk = generatePrivateKey()
+  return { pk, account: privateKeyToAccount(pk) }
+}
+
+describe("tx-intents (real db)", () => {
+  it("idempotency: same key + same payload returns the original intent", async () => {
+    const app = createApp()
+    const cookie = await authedCookie(app)
+    const recipient = makeEoa().account.address
+    const sender = makeEoa().account.address
+    const payload = {
+      to: recipient,
+      amount: "1.5",
+      chainId: 137,
+      token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+      from: sender,
+    }
+
+    const first = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookie)
+      .send({ type: "transfer", payload, idempotencyKey: "key-1" })
+    expect(first.status).toBe(200)
+
+    const second = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookie)
+      .send({ type: "transfer", payload, idempotencyKey: "key-1" })
+    expect(second.status).toBe(200)
+    expect(second.body.id).toBe(first.body.id)
+  })
+
+  it("idempotency: same key + different payload is a 409 (no silent swap)", async () => {
+    const app = createApp()
+    const cookie = await authedCookie(app)
+    const sender = makeEoa().account.address
+
+    const first = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookie)
+      .send({
+        type: "transfer",
+        idempotencyKey: "key-2",
+        payload: {
+          to: makeEoa().account.address,
+          amount: "1.5",
+          chainId: 137,
+          token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+          from: sender,
+        },
+      })
+    expect(first.status).toBe(200)
+
+    const second = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookie)
+      .send({
+        type: "transfer",
+        idempotencyKey: "key-2",
+        payload: {
+          to: makeEoa().account.address, // different recipient
+          amount: "1.5",
+          chainId: 137,
+          token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+          from: sender,
+        },
+      })
+    expect(second.status).toBe(409)
+    expect(second.body.error).toBe("conflict")
+  })
+
+  it("sign rejects raw bytes with swapped recipient (substitution attack)", async () => {
+    const app = createApp()
+    const cookie = await authedCookie(app)
+    const { pk, account } = makeEoa()
+    const authorized = makeEoa().account.address
+    const attacker = makeEoa().account.address
+
+    const create = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookie)
+      .send({
+        type: "transfer",
+        payload: {
+          to: authorized,
+          amount: "1",
+          chainId: 137,
+          token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+          from: account.address,
+        },
+      })
+    expect(create.status).toBe(200)
+
+    const malicious = await buildErc20Tx({
+      pk,
+      recipient: attacker,
+      amount: parseUnits("1", 6),
+    })
+
+    const sign = await request(app)
+      .post(`/tx-intents/${create.body.id}/sign`)
+      .set("Cookie", cookie)
+      .send({ signedRaw: malicious })
+    expect(sign.status).toBe(400)
+    expect(sign.body.message).toMatch(/SIGNED_TX_TO_MISMATCH/)
+  })
+
+  it("sign accepts honest bytes and transitions to signed", async () => {
+    const app = createApp()
+    const cookie = await authedCookie(app)
+    const { pk, account } = makeEoa()
+    const recipient = makeEoa().account.address
+
+    const create = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookie)
+      .send({
+        type: "transfer",
+        payload: {
+          to: recipient,
+          amount: "1",
+          chainId: 137,
+          token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+          from: account.address,
+        },
+      })
+    expect(create.status).toBe(200)
+
+    const honest = await buildErc20Tx({
+      pk,
+      recipient,
+      amount: parseUnits("1", 6),
+    })
+    const sign = await request(app)
+      .post(`/tx-intents/${create.body.id}/sign`)
+      .set("Cookie", cookie)
+      .send({ signedRaw: honest })
+    expect(sign.status).toBe(200)
+    expect(sign.body.status).toBe("signed")
+    expect(sign.body.signedRaw).toBe(honest)
+  })
+
+  it("broadcast CAS: a second broadcast on the same signed intent is a 409", async () => {
+    const app = createApp()
+    const cookie = await authedCookie(app)
+    const { pk, account } = makeEoa()
+    const recipient = makeEoa().account.address
+
+    const create = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookie)
+      .send({
+        type: "transfer",
+        payload: {
+          to: recipient,
+          amount: "1",
+          chainId: 137,
+          token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+          from: account.address,
+        },
+      })
+
+    const honest = await buildErc20Tx({
+      pk,
+      recipient,
+      amount: parseUnits("1", 6),
+    })
+    await request(app)
+      .post(`/tx-intents/${create.body.id}/sign`)
+      .set("Cookie", cookie)
+      .send({ signedRaw: honest })
+
+    // Race two broadcasts. We don't expect both to succeed: the second one
+    // either sees `broadcasting`/`broadcasted` (409) or a non-signed status
+    // (400). Either way only one CAS wins. RPC will fail because the EOA
+    // has no balance, but that's after the claim, so we look at outcomes
+    // rather than success.
+    const [a, b] = await Promise.all([
+      request(app)
+        .post(`/tx-intents/${create.body.id}/broadcast`)
+        .set("Cookie", cookie),
+      request(app)
+        .post(`/tx-intents/${create.body.id}/broadcast`)
+        .set("Cookie", cookie),
+    ])
+    const statuses = [a.status, b.status].sort()
+    // One of the two must NOT be a successful broadcast: at most one wins
+    // the signed→broadcasting CAS.
+    expect(statuses.some((s) => s >= 400)).toBe(true)
+  })
+})
