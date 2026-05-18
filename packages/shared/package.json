@@ -24,7 +24,8 @@
     "./rpc/*": "./src/rpc/*.ts",
     "./wallet-backup/*": "./src/wallet-backup/*.ts",
     "./security/*": "./src/security/*.ts",
-    "./activity/*": "./src/activity/*.ts"
+    "./activity/*": "./src/activity/*.ts",
+    "./transactions/*": "./src/transactions/*.ts"
   },
   "scripts": {
     "test": "vitest",

@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm"
-import { db } from "@walty/db"
-import { txIntents } from "@walty/db"
-import { ValidationError } from "@/lib/api"
+import { db, txIntents } from "@walty/db"
+import { ValidationError } from "../api-utils/errors"
 
 /** Returns true if the intent is expired. If so, marks it as expired in the DB. */
 export async function expireIfStale(intent: { id: string; expiresAt: Date | string }): Promise<boolean> {

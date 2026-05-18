@@ -7,7 +7,7 @@ import { withErrorHandling, withAuth, ok, ValidationError, ConflictError } from 
 import { rateLimitByIp } from "@walty/shared/rate-limit"
 import { isUniqueViolation } from "@walty/shared/db-errors"
 import { validateAndNormalizePayload } from "@walty/shared/tx-intents/validate"
-import { expireIfStale } from "@/lib/tx-intents/expire"
+import { expireIfStale } from "@walty/shared/tx-intents/expire"
 import type { TxIntentPayload, TxIntentType } from "@walty/shared/tx-intents/types"
 
 function canonicalStringify(value: unknown): string {
