@@ -6,6 +6,7 @@ import pinoHttp from "pino-http"
 import { env } from "./config/env.js"
 import { logger } from "./config/logger.js"
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js"
+import { activityRouter } from "./routes/activity.js"
 import { authRouter } from "./routes/auth.js"
 import { businessRouter } from "./routes/business.js"
 import { healthRouter } from "./routes/health.js"
@@ -47,6 +48,7 @@ export function createApp(): Express {
   app.use(txIntentsRouter)
   app.use(txRouter)
   app.use(refundRequestsRouter)
+  app.use(activityRouter)
 
   app.use(notFoundHandler)
   app.use(errorHandler)
