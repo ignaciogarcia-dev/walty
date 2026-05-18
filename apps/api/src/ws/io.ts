@@ -3,8 +3,34 @@ import { and, eq } from "drizzle-orm"
 import { Server } from "socket.io"
 import { db, txIntents } from "@walty/db"
 import { verifySessionToken } from "@walty/shared/auth/session-token"
+import { getBusinessContext } from "@walty/shared/business/getBusinessContext"
 import { env } from "../config/env.js"
 import { logger } from "../config/logger.js"
+
+function authMiddleware(
+  socket: import("socket.io").Socket,
+  next: (err?: Error) => void,
+) {
+  const cookieHeader = socket.handshake.headers.cookie ?? ""
+  const cookieToken = /(?:^|;\s*)token=([^;]+)/.exec(cookieHeader)?.[1]
+  const bearer = /^Bearer\s+(.+)$/i.exec(
+    socket.handshake.headers.authorization ?? "",
+  )?.[1]
+  const token = cookieToken
+    ? decodeURIComponent(cookieToken)
+    : (bearer ?? null)
+  if (!token) {
+    next(new Error("unauthorized"))
+    return
+  }
+  try {
+    const auth = verifySessionToken(token)
+    socket.data.userId = auth.userId
+    next()
+  } catch {
+    next(new Error("unauthorized"))
+  }
+}
 
 const INTENT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/
 
@@ -23,27 +49,7 @@ export function initWebSocket(httpServer: HttpServer): Server {
   // client → server `intent:sign-response`) lives here too. For now we only
   // ship status updates emitted from the REST routes.
   const txIntentsNs = io.of("/tx-intents")
-  txIntentsNs.use((socket, next) => {
-    const cookieHeader = socket.handshake.headers.cookie ?? ""
-    const cookieToken = /(?:^|;\s*)token=([^;]+)/.exec(cookieHeader)?.[1]
-    const bearer = /^Bearer\s+(.+)$/i.exec(
-      socket.handshake.headers.authorization ?? "",
-    )?.[1]
-    const token = cookieToken
-      ? decodeURIComponent(cookieToken)
-      : (bearer ?? null)
-    if (!token) {
-      next(new Error("unauthorized"))
-      return
-    }
-    try {
-      const auth = verifySessionToken(token)
-      socket.data.userId = auth.userId
-      next()
-    } catch {
-      next(new Error("unauthorized"))
-    }
-  })
+  txIntentsNs.use(authMiddleware)
   txIntentsNs.on("connection", (socket) => {
     socket.on("subscribe", async (intentId: unknown) => {
       if (typeof intentId !== "string" || !INTENT_ID_RE.test(intentId)) return
@@ -65,6 +71,28 @@ export function initWebSocket(httpServer: HttpServer): Server {
       if (typeof intentId !== "string" || !INTENT_ID_RE.test(intentId)) return
       socket.leave(`intent:${intentId}`)
     })
+  })
+
+  // /business namespace — authenticated, one room per business. Used to
+  // notify the dashboard that the active payment request changed so the
+  // home page can refetch without polling. Server resolves the room from
+  // the session and ignores any client-supplied businessId.
+  const businessNs = io.of("/business")
+  businessNs.use(authMiddleware)
+  businessNs.on("connection", async (socket) => {
+    const userId = socket.data.userId as number | undefined
+    if (typeof userId !== "number") {
+      socket.disconnect(true)
+      return
+    }
+    try {
+      const ctx = await getBusinessContext(userId)
+      if (!ctx) return
+      socket.data.businessId = ctx.businessId
+      socket.join(`business:${ctx.businessId}`)
+    } catch (err) {
+      logger.warn({ err, userId }, "business namespace join failed")
+    }
   })
 
   // /payment-requests namespace — public, room per request id.
@@ -118,6 +146,19 @@ export type TxIntentStatus =
   | "confirmed"
   | "failed"
   | "expired"
+
+/**
+ * "Active payment request changed for this business". No payload — the
+ * client refetches /payment-requests once. Covers create/cancel/paid/
+ * expired transitions so the home page can drop its 30s poll.
+ */
+export function emitBusinessActiveChanged(businessId: number): void {
+  const io = ioInstance
+  if (!io) return
+  io.of("/business")
+    .to(`business:${businessId}`)
+    .emit("business:active-changed", {})
+}
 
 export function emitTxIntentStatus(intent: {
   id: string

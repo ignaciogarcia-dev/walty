@@ -11,8 +11,14 @@ export type PaymentRequestEvent =
       confirmations: number
       requiredConfirmations: number
     }
-  | { type: "paid"; requestId: string; txHash: string; amount: string }
-  | { type: "expired"; requestId: string }
-  | { type: "cancelled"; requestId: string }
+  | {
+      type: "paid"
+      requestId: string
+      txHash: string
+      amount: string
+      merchantId: number
+    }
+  | { type: "expired"; requestId: string; merchantId: number }
+  | { type: "cancelled"; requestId: string; merchantId: number }
 
 export type PaymentRequestEventSink = (event: PaymentRequestEvent) => void

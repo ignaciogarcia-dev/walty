@@ -349,7 +349,7 @@ describe("reconciler — wash payment rejection (real db)", () => {
       id: pr.id,
       onEvent: (e) => events.push(e),
     })
-    expect(events).toEqual([{ type: "expired", requestId: pr.id }])
+    expect(events).toHaveLength(1); expect(events[0]).toMatchObject({ type: "expired", requestId: pr.id })
   })
 
   it("skips cancelled rows entirely (no expire override, no emit)", async () => {

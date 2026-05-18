@@ -39,7 +39,11 @@ import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent"
 import { asyncHandler } from "../middleware/asyncHandler.js"
 import { businessed } from "../middleware/typedHandlers.js"
 import { withBusinessAuth } from "../middleware/withBusiness.js"
-import { emitPaymentRequestEvent } from "../ws/io.js"
+import {
+  emitBusinessActiveChanged,
+  emitPaymentRequestEvent,
+} from "../ws/io.js"
+import { reconcilerSink } from "../ws/reconcilerSink.js"
 
 export const paymentRequestsRouter: Router = Router()
 
@@ -122,7 +126,12 @@ paymentRequestsRouter.patch(
       ip,
     )
 
-    emitPaymentRequestEvent({ type: "cancelled", requestId: id })
+    emitPaymentRequestEvent({
+      type: "cancelled",
+      requestId: id,
+      merchantId: business.businessId,
+    })
+    emitBusinessActiveChanged(business.businessId)
 
     res.json(toPaymentRequestView(updated))
   }),
@@ -237,6 +246,8 @@ paymentRequestsRouter.post(
       ip,
     )
 
+    emitBusinessActiveChanged(business.businessId)
+
     res.json(toPaymentRequestView(request))
   }),
 )
@@ -317,7 +328,7 @@ paymentRequestsRouter.get(
 
     const { id } = req.params
 
-    await reconcilePendingPaymentRequests({ id, onEvent: emitPaymentRequestEvent }).catch((err) => {
+    await reconcilePendingPaymentRequests({ id, onEvent: reconcilerSink }).catch((err) => {
       // eslint-disable-next-line no-console
       console.error("[payment-requests/:id] reconcile error:", err)
     })
@@ -417,7 +428,7 @@ paymentRequestsRouter.get(
     const { business } = req
     const { id } = req.params
 
-    await reconcilePendingPaymentRequests({ id, onEvent: emitPaymentRequestEvent }).catch((err) => {
+    await reconcilePendingPaymentRequests({ id, onEvent: reconcilerSink }).catch((err) => {
       // eslint-disable-next-line no-console
       console.error("[business/payment-requests/:id] reconcile error:", err)
     })
