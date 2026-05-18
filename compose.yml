@@ -1,0 +1,54 @@
+name: walty
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wallet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wallet}
+      POSTGRES_DB: ${POSTGRES_DB:-wallet}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wallet} -d ${POSTGRES_DB:-wallet}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      API_PORT: "4000"
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      # In a multi-replica deploy set this to false on every non-leader
+      # replica so the reconciler + sweep run on exactly one instance.
+      WORKERS_LEADER: ${WORKERS_LEADER:-true}
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://api:4000}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

@@ -17,6 +17,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "docker": "docker compose up -d --build",
+    "docker:down": "docker compose down",
     "docker:dev": "docker compose -f compose.dev.yml up -d",
     "docker:dev:down": "docker compose -f compose.dev.yml down",
     "dev:clean": "bash scripts/dev-clean.sh",

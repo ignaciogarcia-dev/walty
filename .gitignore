@@ -12,6 +12,7 @@ node_modules
 
 # testing
 /coverage
+**/coverage/
 /playwright-report/
 /test-results/
 /blob-report/
