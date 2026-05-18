@@ -1,14 +1,17 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useUser } from "@/hooks/useUser"
-import { PAYMENT_MODAL_POLL_INTERVAL_MS } from "@walty/shared/payments/config"
 import type { PaymentRequestView } from "@walty/shared/payments/types"
 import {
   getPaymentRequestCountdown,
   getPaymentRequestStatus,
 } from "@walty/shared/payments/types"
+import {
+  usePaymentRequestStatus,
+  type PaymentRequestStatus,
+} from "@/hooks/usePaymentRequestStatus"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "@/hooks/useTranslation"
@@ -25,6 +28,9 @@ export default function PayLandingPage() {
   const [now, setNow] = useState(0)
   const [copiedAddress, setCopiedAddress] = useState(false)
 
+  // Initial REST snapshot — covers the "already paid/expired before the page
+  // mounts" case and gives the WS hook a seed so renders never flash null.
+  // No refetchInterval: live updates ride socket.io.
   const { data: request, isLoading: loading } = useQuery({
     queryKey: ["payment-request-public", requestId],
     queryFn: async () => {
@@ -33,24 +39,37 @@ export default function PayLandingPage() {
       const { data } = await res.json()
       return data as PaymentRequestView
     },
-    refetchInterval: (query) => {
-      const s = query.state.data?.status
-      return s === "pending" || s === "confirming"
-        ? PAYMENT_MODAL_POLL_INTERVAL_MS
-        : false
-    },
     staleTime: 0,
   })
 
-  // Clock for countdown — pure UI state
-  const isPollable = request?.status === "pending" || request?.status === "confirming"
+  const initialStatus = useMemo<PaymentRequestStatus | null>(() => {
+    if (!request) return null
+    return {
+      status: request.status as PaymentRequestStatus["status"],
+      confirmations: request.confirmations,
+      requiredConfirmations: request.requiredConfirmations,
+    }
+  }, [request])
+
+  const liveStatus = usePaymentRequestStatus(requestId, initialStatus)
+  // "detected" is a transient pre-confirmation event; treat as confirming for UI.
+  const rawStatus = liveStatus?.status ?? request?.status ?? "pending"
+  const wsStatus: PaymentRequestView["status"] =
+    rawStatus === "detected" ? "confirming" : rawStatus
+  const wsConfirmations = liveStatus?.confirmations ?? request?.confirmations ?? 0
+
+  // Clock for countdown — pure UI state.
+  const isPollable = wsStatus === "pending" || wsStatus === "confirming"
   useEffect(() => {
     if (!isPollable) return
     const id = setInterval(() => setNow(Date.now()), 1_000)
     return () => clearInterval(id)
   }, [isPollable])
 
-  const status = request ? getPaymentRequestStatus(request, now ?? 0) : "pending"
+  // Merge the live status into the view shape getPaymentRequestStatus expects.
+  const status = request
+    ? getPaymentRequestStatus({ ...request, status: wsStatus }, now ?? 0)
+    : "pending"
   const countdown = request && now > 0 ? getPaymentRequestCountdown(request.expiresAt, now) : null
 
   if (loading) {
@@ -158,7 +177,7 @@ export default function PayLandingPage() {
             </div>
             {status === "confirming" ? (
               <span className="font-mono text-xs text-amber-600">
-                {request.confirmations}/{request.requiredConfirmations} {t("confirmations")}
+                {wsConfirmations}/{request.requiredConfirmations} {t("confirmations")}
               </span>
             ) : (
               <span className="font-mono text-xs text-muted-foreground">
