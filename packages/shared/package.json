@@ -46,6 +46,7 @@
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.7",
+    "@vitest/coverage-v8": "^4.1.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   }

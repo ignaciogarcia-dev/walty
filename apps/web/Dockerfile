@@ -21,6 +21,6 @@ RUN pnpm --filter @walty/web build
 
 EXPOSE 3000
 
-RUN chmod +x entrypoint.sh
+RUN chmod +x apps/web/entrypoint.sh
 
-CMD ["./entrypoint.sh"]
+CMD ["./apps/web/entrypoint.sh"]
