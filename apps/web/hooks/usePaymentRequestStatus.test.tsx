@@ -21,6 +21,10 @@ class FakeSocket {
   push(event: string, payload: unknown) {
     this.handlers.get(event)?.forEach((h) => h(payload))
   }
+  /** Test helper — clear all listeners between tests. */
+  reset() {
+    this.handlers = new Map()
+  }
 }
 
 const socket = new FakeSocket()
@@ -34,8 +38,7 @@ const { usePaymentRequestStatus } = await import("./usePaymentRequestStatus")
 
 afterEach(() => {
   socket.emitted = []
-  // @ts-expect-error reach into private for cleanup between tests
-  socket["handlers"] = new Map()
+  socket.reset()
 })
 
 describe("usePaymentRequestStatus", () => {

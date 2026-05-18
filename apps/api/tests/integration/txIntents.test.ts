@@ -241,4 +241,230 @@ describe("tx-intents (real db)", () => {
     const loser = a.status === 409 ? a : b
     expect(loser.body.error).toBe("conflict")
   })
+
+  it("GET /tx-intents lists only own intents", async () => {
+    const app = createApp()
+    const cookieA = await authedCookie(app)
+    const cookieB = await authedCookie(app)
+
+    const sender = makeEoa().account.address
+    const payload = {
+      to: makeEoa().account.address,
+      amount: "1",
+      chainId: 137,
+      token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+      from: sender,
+    }
+    await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookieA)
+      .send({ type: "transfer", payload })
+
+    const listA = await request(app).get("/tx-intents").set("Cookie", cookieA)
+    const listB = await request(app).get("/tx-intents").set("Cookie", cookieB)
+    expect(listA.body).toHaveLength(1)
+    expect(listB.body).toHaveLength(0)
+  })
+
+  it("GET /tx-intents/:id returns 404 for a foreign user", async () => {
+    const app = createApp()
+    const cookieA = await authedCookie(app)
+    const cookieB = await authedCookie(app)
+    const created = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookieA)
+      .send({
+        type: "transfer",
+        payload: {
+          to: makeEoa().account.address,
+          amount: "1",
+          chainId: 137,
+          token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+          from: makeEoa().account.address,
+        },
+      })
+    const res = await request(app)
+      .get(`/tx-intents/${created.body.id}`)
+      .set("Cookie", cookieB)
+    expect(res.status).toBe(404)
+  })
+
+  it("POST /sign rejects when intent is not pending", async () => {
+    const app = createApp()
+    const cookie = await authedCookie(app)
+    const { pk, account } = makeEoa()
+    const recipient = makeEoa().account.address
+    const create = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookie)
+      .send({
+        type: "transfer",
+        payload: {
+          to: recipient,
+          amount: "1",
+          chainId: 137,
+          token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+          from: account.address,
+        },
+      })
+    const raw = await buildErc20Tx({
+      pk,
+      recipient,
+      amount: parseUnits("1", 6),
+    })
+    const first = await request(app)
+      .post(`/tx-intents/${create.body.id}/sign`)
+      .set("Cookie", cookie)
+      .send({ signedRaw: raw })
+    expect(first.status).toBe(200)
+
+    const second = await request(app)
+      .post(`/tx-intents/${create.body.id}/sign`)
+      .set("Cookie", cookie)
+      .send({ signedRaw: raw })
+    expect(second.status).toBe(400)
+    expect(second.body.message).toMatch(/Cannot sign intent in status "signed"/)
+  })
+
+  it("POST /broadcast rejects when intent is still pending (not signed)", async () => {
+    const app = createApp()
+    const cookie = await authedCookie(app)
+    const create = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookie)
+      .send({
+        type: "transfer",
+        payload: {
+          to: makeEoa().account.address,
+          amount: "1",
+          chainId: 137,
+          token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+          from: makeEoa().account.address,
+        },
+      })
+    const res = await request(app)
+      .post(`/tx-intents/${create.body.id}/broadcast`)
+      .set("Cookie", cookie)
+    expect(res.status).toBe(400)
+    expect(res.body.message).toMatch(/status "pending"/)
+  })
+
+  it("POST /retry only works from failed", async () => {
+    const app = createApp()
+    const cookie = await authedCookie(app)
+    const create = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookie)
+      .send({
+        type: "transfer",
+        payload: {
+          to: makeEoa().account.address,
+          amount: "1",
+          chainId: 137,
+          token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+          from: makeEoa().account.address,
+        },
+      })
+    const res = await request(app)
+      .post(`/tx-intents/${create.body.id}/retry`)
+      .set("Cookie", cookie)
+    expect(res.status).toBe(400)
+    expect(res.body.message).toMatch(/status "pending"/)
+  })
+
+  it("PATCH /tx-intents/:id rejects invalid status values", async () => {
+    const app = createApp()
+    const cookie = await authedCookie(app)
+    const create = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookie)
+      .send({
+        type: "transfer",
+        payload: {
+          to: makeEoa().account.address,
+          amount: "1",
+          chainId: 137,
+          token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+          from: makeEoa().account.address,
+        },
+      })
+    const res = await request(app)
+      .patch(`/tx-intents/${create.body.id}`)
+      .set("Cookie", cookie)
+      .send({ status: "something_weird" })
+    expect(res.status).toBe(400)
+  })
+
+  it("PATCH /tx-intents/:id only flips broadcasted → confirmed", async () => {
+    const app = createApp()
+    const cookie = await authedCookie(app)
+    const create = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookie)
+      .send({
+        type: "transfer",
+        payload: {
+          to: makeEoa().account.address,
+          amount: "1",
+          chainId: 137,
+          token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+          from: makeEoa().account.address,
+        },
+      })
+    // Request is still "pending" — PATCH should be a no-op, returning current.
+    const res = await request(app)
+      .patch(`/tx-intents/${create.body.id}`)
+      .set("Cookie", cookie)
+      .send({ status: "confirmed" })
+    expect(res.status).toBe(200)
+    expect(res.body.status).toBe("pending")
+  })
+
+  it("POST /sign rejects bytes that don't decode (malformed hex)", async () => {
+    const app = createApp()
+    const cookie = await authedCookie(app)
+    const create = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", cookie)
+      .send({
+        type: "transfer",
+        payload: {
+          to: makeEoa().account.address,
+          amount: "1",
+          chainId: 137,
+          token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+          from: makeEoa().account.address,
+        },
+      })
+    const bad = await request(app)
+      .post(`/tx-intents/${create.body.id}/sign`)
+      .set("Cookie", cookie)
+      .send({ signedRaw: "0xnothex" })
+    expect(bad.status).toBe(400)
+    expect(bad.body.message).toMatch(/Invalid signed transaction/)
+  })
+
+  it("GET /tx-intents respects ?limit", async () => {
+    const app = createApp()
+    const cookie = await authedCookie(app)
+    for (let i = 0; i < 3; i++) {
+      await request(app)
+        .post("/tx-intents")
+        .set("Cookie", cookie)
+        .send({
+          type: "transfer",
+          payload: {
+            to: makeEoa().account.address,
+            amount: `${i + 1}`,
+            chainId: 137,
+            token: { symbol: "USDC", address: USDC, type: "erc20", decimals: 6 },
+            from: makeEoa().account.address,
+          },
+        })
+    }
+    const res = await request(app)
+      .get("/tx-intents?limit=2")
+      .set("Cookie", cookie)
+    expect(res.body).toHaveLength(2)
+  })
 })
