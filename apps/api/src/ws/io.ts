@@ -99,17 +99,8 @@ export function closeWebSocket(): Promise<void> {
   })
 }
 
-export type PaymentRequestEvent =
-  | { type: "detected"; requestId: string; txHash: string }
-  | {
-      type: "confirming"
-      requestId: string
-      confirmations: number
-      requiredConfirmations: number
-    }
-  | { type: "paid"; requestId: string; txHash: string; amount: string }
-  | { type: "expired"; requestId: string }
-  | { type: "cancelled"; requestId: string }
+export { type PaymentRequestEvent } from "@walty/shared/payments/events"
+import type { PaymentRequestEvent } from "@walty/shared/payments/events"
 
 export function emitPaymentRequestEvent(event: PaymentRequestEvent): void {
   const io = ioInstance

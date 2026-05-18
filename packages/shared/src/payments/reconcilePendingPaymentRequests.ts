@@ -10,6 +10,7 @@ import {
   transactions,
 } from "@walty/db"
 import { normalizePaymentRequest } from "@walty/shared/payments/paymentRequests"
+import type { PaymentRequestEventSink } from "./events"
 
 /**
  * Lower-cased set of every address that the merchant controls and could
@@ -53,6 +54,15 @@ const TRANSFER_EVENT = parseAbiItem(
 type ReconcileOptions = {
   limit?: number
   id?: string
+  /**
+   * Called on every meaningful state transition (detected, confirming, paid,
+   * expired). The shared module emits typed events; the worker / route
+   * decides how to fan them out (today: socket.io rooms in apps/api).
+   * Sink is invoked synchronously after the DB write succeeds and must not
+   * throw — errors are swallowed so reconciler progress never stalls on a
+   * downstream WS hiccup.
+   */
+  onEvent?: PaymentRequestEventSink
 }
 
 type ReconcileResult = {
@@ -73,6 +83,15 @@ export async function reconcilePendingPaymentRequests(
     detected: 0,
     paid: 0,
     expired: 0,
+  }
+
+  const emit: PaymentRequestEventSink = (event) => {
+    if (!options.onEvent) return
+    try {
+      options.onEvent(event)
+    } catch {
+      // sink must never disrupt the reconciler loop
+    }
   }
 
   const statusFilter = inArray(paymentRequests.status, ["pending", "confirming"])
@@ -122,8 +141,20 @@ export async function reconcilePendingPaymentRequests(
 
       if (nextStatus === "paid") {
         result.paid += 1
+        emit({
+          type: "paid",
+          requestId: request.id,
+          txHash: request.txHash,
+          amount: request.amountToken,
+        })
       } else {
         result.confirming += 1
+        emit({
+          type: "confirming",
+          requestId: request.id,
+          confirmations,
+          requiredConfirmations: request.requiredConfirmations,
+        })
       }
 
       continue
@@ -199,6 +230,7 @@ export async function reconcilePendingPaymentRequests(
 
           try {
             let isFullyPaid = false
+            let cumulativeTotalToken = "0"
             await db.transaction(async (tx) => {
               // Lock the payment request row for the duration of the contribution
               // insert + total update. Serializes concurrent reconcilers on this row.
@@ -238,13 +270,25 @@ export async function reconcilePendingPaymentRequests(
 
               const postTotal = BigInt(updated?.totalPaidToken ?? "0")
               const expected = BigInt(locked.amountToken)
-              isFullyPaid = postTotal >= expected
+              cumulativeTotalToken = postTotal.toString()
+              const reachedThreshold = postTotal >= expected
 
-              if (isFullyPaid) {
-                await tx
+              if (reachedThreshold) {
+                // Gate the "paid" emit on the conditional UPDATE actually
+                // flipping the row. Two racing reconcilers can both compute
+                // reachedThreshold=true but only the first transitions
+                // pending→paid; the loser must not emit a duplicate event.
+                const flipped = await tx
                   .update(paymentRequests)
                   .set({ status: "paid", paidAt: now })
-                  .where(and(eq(paymentRequests.id, request.id), eq(paymentRequests.status, "pending")))
+                  .where(
+                    and(
+                      eq(paymentRequests.id, request.id),
+                      eq(paymentRequests.status, "pending"),
+                    ),
+                  )
+                  .returning({ id: paymentRequests.id })
+                isFullyPaid = flipped.length > 0
               }
             })
 
@@ -268,8 +312,21 @@ export async function reconcilePendingPaymentRequests(
 
             matched = true
             result.detected += 1
+            emit({
+              type: "detected",
+              requestId: request.id,
+              txHash: log.transactionHash,
+            })
             if (isFullyPaid) {
               result.paid += 1
+              // Carry the cumulative total, not just the triggering contribution
+              // (a split paid via 4/3/3 should report 10, not 3).
+              emit({
+                type: "paid",
+                requestId: request.id,
+                txHash: log.transactionHash,
+                amount: cumulativeTotalToken,
+              })
             }
           } catch (error) {
             if (
@@ -425,10 +482,27 @@ export async function reconcilePendingPaymentRequests(
 
           matched = true
           result.detected += 1
+          emit({
+            type: "detected",
+            requestId: request.id,
+            txHash: log.transactionHash,
+          })
           if (nextStatus === "paid") {
             result.paid += 1
+            emit({
+              type: "paid",
+              requestId: request.id,
+              txHash: log.transactionHash,
+              amount: receivedAmountToken,
+            })
           } else {
             result.confirming += 1
+            emit({
+              type: "confirming",
+              requestId: request.id,
+              confirmations,
+              requiredConfirmations: request.requiredConfirmations,
+            })
           }
           break
         }
@@ -438,16 +512,29 @@ export async function reconcilePendingPaymentRequests(
     if (matched) continue
 
     if (now > request.expiresAt) {
-      await db
+      // Only expire requests that are still pending/confirming. A cancel
+      // (REST) or detect (this very tick) may have flipped the row out
+      // from under us; without the predicate `expired` would overwrite
+      // `cancelled` in both the DB and the WS stream.
+      const flipped = await db
         .update(paymentRequests)
         .set({
           status: "expired",
           lastScannedBlock: currentBlock.toString(),
           updatedAt: now,
         })
-        .where(eq(paymentRequests.id, request.id))
+        .where(
+          and(
+            eq(paymentRequests.id, request.id),
+            inArray(paymentRequests.status, ["pending", "confirming"]),
+          ),
+        )
+        .returning({ id: paymentRequests.id })
 
-      result.expired += 1
+      if (flipped.length > 0) {
+        result.expired += 1
+        emit({ type: "expired", requestId: request.id })
+      }
       continue
     }
 

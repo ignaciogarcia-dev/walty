@@ -310,7 +310,7 @@ paymentRequestsRouter.get(
 
     const { id } = req.params
 
-    await reconcilePendingPaymentRequests({ id }).catch((err) => {
+    await reconcilePendingPaymentRequests({ id, onEvent: emitPaymentRequestEvent }).catch((err) => {
       // eslint-disable-next-line no-console
       console.error("[payment-requests/:id] reconcile error:", err)
     })
@@ -410,7 +410,7 @@ paymentRequestsRouter.get(
     const business = req.business!
     const { id } = req.params
 
-    await reconcilePendingPaymentRequests({ id }).catch((err) => {
+    await reconcilePendingPaymentRequests({ id, onEvent: emitPaymentRequestEvent }).catch((err) => {
       // eslint-disable-next-line no-console
       console.error("[business/payment-requests/:id] reconcile error:", err)
     })
