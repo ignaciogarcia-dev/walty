@@ -19,6 +19,14 @@ export class SignedTxMismatchError extends Error {
 
 const TRANSFER_SELECTOR = "0xa9059cbb"
 
+// Fee envelope. Polygon spikes rarely exceed 500 gwei base fee; 1000 gwei
+// is a generous ceiling that still blocks the "burn the wallet's native
+// balance" exfiltration vector. Gas is capped at 500k — far above what a
+// transfer or erc20.transfer needs (~21k / ~65k).
+const MAX_FEE_PER_GAS = 1_000_000_000_000n // 1000 gwei
+const MAX_PRIORITY_FEE_PER_GAS = 100_000_000_000n // 100 gwei
+const MAX_GAS = 500_000n
+
 function eq(a: string | null | undefined, b: string | null | undefined): boolean {
   if (!a || !b) return false
   return a.toLowerCase() === b.toLowerCase()
@@ -42,10 +50,42 @@ export async function assertSignedRawMatchesPayload(
     throw new SignedTxMismatchError("SIGNED_TX_PARSE", "Cannot decode signed transaction")
   }
 
+  // Wallet code only emits EIP-1559. Anything else (legacy, 2930, 4844 blob,
+  // 7702 delegation) is by definition not what the UI authorized and could
+  // change semantics drastically — 7702 in particular delegates the EOA to
+  // a contract regardless of the apparent transfer fields.
+  if (parsed.type !== "eip1559") {
+    throw new SignedTxMismatchError(
+      "SIGNED_TX_UNSUPPORTED_TYPE",
+      `Signed tx type ${parsed.type ?? "unknown"} is not allowed`,
+    )
+  }
+
   if (parsed.chainId !== payload.chainId) {
     throw new SignedTxMismatchError(
       "SIGNED_TX_CHAIN_MISMATCH",
       `Signed tx chainId ${parsed.chainId} != payload chainId ${payload.chainId}`,
+    )
+  }
+
+  // Bound the fee envelope so a compromised client cannot drain the wallet's
+  // native balance via inflated gas price / gas limit.
+  if ((parsed.gas ?? 0n) > MAX_GAS) {
+    throw new SignedTxMismatchError(
+      "SIGNED_TX_GAS_TOO_HIGH",
+      `Signed tx gas ${parsed.gas} exceeds cap ${MAX_GAS}`,
+    )
+  }
+  if ((parsed.maxFeePerGas ?? 0n) > MAX_FEE_PER_GAS) {
+    throw new SignedTxMismatchError(
+      "SIGNED_TX_FEE_TOO_HIGH",
+      `Signed tx maxFeePerGas ${parsed.maxFeePerGas} exceeds cap ${MAX_FEE_PER_GAS}`,
+    )
+  }
+  if ((parsed.maxPriorityFeePerGas ?? 0n) > MAX_PRIORITY_FEE_PER_GAS) {
+    throw new SignedTxMismatchError(
+      "SIGNED_TX_TIP_TOO_HIGH",
+      `Signed tx maxPriorityFeePerGas ${parsed.maxPriorityFeePerGas} exceeds cap ${MAX_PRIORITY_FEE_PER_GAS}`,
     )
   }
 

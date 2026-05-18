@@ -284,3 +284,179 @@ describe("assertSignedRawMatchesPayload — bad input", () => {
   })
 })
 
+describe("assertSignedRawMatchesPayload — extra surface", () => {
+  it("rejects native tx with calldata", async () => {
+    const { pk, account } = makeEoa()
+    const to = makeEoa().account.address
+    const raw = await signTransaction({
+      privateKey: pk,
+      transaction: {
+        type: "eip1559",
+        chainId: 137,
+        to,
+        value: 10n ** 16n,
+        data: "0xdeadbeef",
+        gas: 100_000n,
+        maxFeePerGas: 1_000_000_000n,
+        maxPriorityFeePerGas: 1_000_000_000n,
+        nonce: 0,
+      },
+    })
+    const payload: TxIntentPayload = {
+      to,
+      amount: "0.01",
+      chainId: 137,
+      token: { symbol: "MATIC", address: null, type: "native", decimals: 18 },
+      from: account.address,
+    }
+    await expect(
+      assertSignedRawMatchesPayload(raw, payload),
+    ).rejects.toMatchObject({ code: "SIGNED_TX_UNEXPECTED_DATA" })
+  })
+
+  it("rejects ERC-20 tx with non-zero native value", async () => {
+    const { pk, account } = makeEoa()
+    const recipient = makeEoa().account.address
+    const data = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: "transfer",
+      args: [recipient, parseUnits("1", 6)],
+    })
+    const raw = await signTransaction({
+      privateKey: pk,
+      transaction: {
+        type: "eip1559",
+        chainId: 137,
+        to: USDC_ADDR,
+        data,
+        value: 10n,
+        gas: 100_000n,
+        maxFeePerGas: 1_000_000_000n,
+        maxPriorityFeePerGas: 1_000_000_000n,
+        nonce: 0,
+      },
+    })
+    const payload: TxIntentPayload = {
+      to: recipient,
+      amount: "1",
+      chainId: 137,
+      token: { symbol: "USDC", address: USDC_ADDR, type: "erc20", decimals: 6 },
+      from: account.address,
+    }
+    await expect(
+      assertSignedRawMatchesPayload(raw, payload),
+    ).rejects.toMatchObject({ code: "SIGNED_TX_UNEXPECTED_VALUE" })
+  })
+
+  it("rejects legacy transactions", async () => {
+    const { pk, account } = makeEoa()
+    const to = makeEoa().account.address
+    const raw = await signTransaction({
+      privateKey: pk,
+      transaction: {
+        type: "legacy",
+        chainId: 137,
+        to,
+        value: 10n ** 16n,
+        gas: 21_000n,
+        gasPrice: 1_000_000_000n,
+        nonce: 0,
+      },
+    })
+    const payload: TxIntentPayload = {
+      to,
+      amount: "0.01",
+      chainId: 137,
+      token: { symbol: "MATIC", address: null, type: "native", decimals: 18 },
+      from: account.address,
+    }
+    await expect(
+      assertSignedRawMatchesPayload(raw, payload),
+    ).rejects.toMatchObject({ code: "SIGNED_TX_UNSUPPORTED_TYPE" })
+  })
+
+  it("rejects EIP-2930 access-list transactions", async () => {
+    const { pk, account } = makeEoa()
+    const to = makeEoa().account.address
+    const raw = await signTransaction({
+      privateKey: pk,
+      transaction: {
+        type: "eip2930",
+        chainId: 137,
+        to,
+        value: 10n ** 16n,
+        gas: 21_000n,
+        gasPrice: 1_000_000_000n,
+        accessList: [],
+        nonce: 0,
+      },
+    })
+    const payload: TxIntentPayload = {
+      to,
+      amount: "0.01",
+      chainId: 137,
+      token: { symbol: "MATIC", address: null, type: "native", decimals: 18 },
+      from: account.address,
+    }
+    await expect(
+      assertSignedRawMatchesPayload(raw, payload),
+    ).rejects.toMatchObject({ code: "SIGNED_TX_UNSUPPORTED_TYPE" })
+  })
+
+  it("rejects inflated maxFeePerGas (fee griefing)", async () => {
+    const { pk, account } = makeEoa()
+    const to = makeEoa().account.address
+    const raw = await signTransaction({
+      privateKey: pk,
+      transaction: {
+        type: "eip1559",
+        chainId: 137,
+        to,
+        value: 10n ** 16n,
+        gas: 21_000n,
+        maxFeePerGas: 10_000_000_000_000n, // 10000 gwei — past the cap
+        maxPriorityFeePerGas: 1_000_000_000n,
+        nonce: 0,
+      },
+    })
+    const payload: TxIntentPayload = {
+      to,
+      amount: "0.01",
+      chainId: 137,
+      token: { symbol: "MATIC", address: null, type: "native", decimals: 18 },
+      from: account.address,
+    }
+    await expect(
+      assertSignedRawMatchesPayload(raw, payload),
+    ).rejects.toMatchObject({ code: "SIGNED_TX_FEE_TOO_HIGH" })
+  })
+
+  it("rejects inflated gas limit", async () => {
+    const { pk, account } = makeEoa()
+    const to = makeEoa().account.address
+    const raw = await signTransaction({
+      privateKey: pk,
+      transaction: {
+        type: "eip1559",
+        chainId: 137,
+        to,
+        value: 10n ** 16n,
+        gas: 30_000_000n, // past the cap
+        maxFeePerGas: 1_000_000_000n,
+        maxPriorityFeePerGas: 1_000_000_000n,
+        nonce: 0,
+      },
+    })
+    const payload: TxIntentPayload = {
+      to,
+      amount: "0.01",
+      chainId: 137,
+      token: { symbol: "MATIC", address: null, type: "native", decimals: 18 },
+      from: account.address,
+    }
+    await expect(
+      assertSignedRawMatchesPayload(raw, payload),
+    ).rejects.toMatchObject({ code: "SIGNED_TX_GAS_TOO_HIGH" })
+  })
+})
+
