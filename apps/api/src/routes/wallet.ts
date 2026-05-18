@@ -67,7 +67,7 @@ walletRouter.post(
     if (!address || !isAddress(address)) {
       throw new ValidationError("Invalid address")
     }
-    if (typeof signature !== "string" || !signature.startsWith("0x")) {
+    if (typeof signature !== "string" || !/^0x[0-9a-fA-F]+$/.test(signature)) {
       throw new ValidationError("Invalid signature")
     }
     if (typeof nonce !== "string" || nonce.length === 0) {
