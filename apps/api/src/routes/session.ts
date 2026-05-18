@@ -8,7 +8,7 @@ import {
   walletBackups,
 } from "@walty/db"
 import { NotFoundError } from "@walty/shared/api-utils/errors"
-import { asyncHandler } from "../middleware/asyncHandler.js"
+import { authed } from "../middleware/typedHandlers.js"
 import { withAuth } from "../middleware/withAuth.js"
 
 export const sessionRouter: Router = Router()
@@ -18,8 +18,8 @@ export type BusinessStatus = "active" | "suspended" | "revoked" | null
 sessionRouter.get(
   "/session",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     const [user, settings, memberships, walletBackup] = await Promise.all([
       db.query.users.findFirst({
         where: eq(users.id, auth.userId),
