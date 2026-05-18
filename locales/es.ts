@@ -68,34 +68,8 @@ export const es = {
   "no-assets-found": "No se encontraron activos",
   "recent-activity": "Actividad reciente",
 
-  // Address book
-  "address-book": "Libreta de direcciones",
-  contacts: "Contactos",
-  "add-contact": "Agregar contacto",
-  "contact-name": "Nombre",
-  "contact-name-placeholder": "Alicia...",
-  "contact-address": "Dirección",
-  "no-contacts": "Sin contactos aún.",
-  "from-contacts": "De contactos",
-  "search-contacts": "Buscar contacto...",
-  "no-results": "Sin resultados.",
   delete: "Eliminar",
   save: "Guardar",
-
-  // ENS
-  "resolving-ens": "Resolviendo ENS…",
-  "ens-not-found": "Nombre ENS no encontrado",
-
-  // Send flow
-  "select-token": "Seleccionar token",
-  recipient: "Destinatario",
-  "username-or-address": "@alias o dirección 0x",
-  "resolving-username": "Resolviendo…",
-  "username-not-found": "Alias no encontrado",
-  max: "Máx",
-  "send-no-balance": "No tenés balance en este token",
-  "balance-label": "Balance",
-  "no-tokens-with-balance": "Sin tokens con saldo",
 
   // Login/Register
   login: "Ingresar",
@@ -192,14 +166,6 @@ export const es = {
   "onboarding-confirm-pin-label": "Confirmar PIN",
   "onboarding-continue": "Continuar",
   "onboarding-skip": "Omitir",
-  "onboarding-profile-title": "Tu perfil",
-  "onboarding-profile-description":
-    "Cuéntanos cómo te llamas. El nombre de alias es opcional.",
-  "onboarding-profile-name-label": "Nombre",
-  "onboarding-profile-name-placeholder": "Tu nombre",
-  "onboarding-username-placeholder": "alias",
-  "onboarding-username-taken": "Nombre de alias ya en uso",
-  "onboarding-username-available": "Nombre de alias disponible",
   optional: "opcional",
   "onboarding-complete-title": "¡Todo listo!",
   "onboarding-complete-description": "Tu wallet ha sido creada y asegurada.",
@@ -479,13 +445,11 @@ export const es = {
   "join-need-account": "Necesitás crear una cuenta para unirte al equipo.",
   "join-create-account": "Crear cuenta y unirse",
 
-  // Account type page
-  "account-type-title": "¿Qué tipo de cuenta quieres?",
-  "account-type-subtitle": "Podés cambiarlo más adelante desde ajustes.",
-  "account-type-individual": "Persona",
-  "account-type-individual-desc": "Para usar la app y pagar",
-  "account-type-business": "Negocio",
-  "account-type-business-desc": "Para aceptar pagos",
+  // Setup business
+  "setup-business-title": "Configurá tu negocio",
+  "setup-business-subtitle": "Indicanos el nombre que verán tus clientes al pagar.",
+  "setup-business-name-label": "Nombre del negocio",
+  "setup-business-name-placeholder": "Walty Café",
   saving: "Guardando...",
 
   // Team panel

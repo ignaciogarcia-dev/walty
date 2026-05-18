@@ -17,15 +17,9 @@ function getJwtSecret(): string {
   return secret
 }
 
-/**
- * Issue a session JWT (HttpOnly cookie). HS256 only — prevents algorithm confusion.
- */
 export function signSessionToken(payload: AuthPayload): string {
   return jwt.sign(
-    {
-      userId: payload.userId,
-      userType: payload.userType ?? "person",
-    },
+    { userId: payload.userId },
     getJwtSecret(),
     {
       algorithm: ALGORITHM,
@@ -34,22 +28,14 @@ export function signSessionToken(payload: AuthPayload): string {
   )
 }
 
-/**
- * Verify a session JWT. Rejects wrong algorithm / none / malformed tokens.
- */
 export function verifySessionToken(token: string): AuthPayload {
   const decoded = jwt.verify(token, getJwtSecret(), {
     algorithms: [ALGORITHM],
-  }) as jwt.JwtPayload & { userId?: unknown; userType?: unknown }
+  }) as jwt.JwtPayload & { userId?: unknown }
 
   if (typeof decoded.userId !== "number" || !Number.isFinite(decoded.userId)) {
     throw new Error("Invalid token payload")
   }
 
-  const userType =
-    decoded.userType === "business" || decoded.userType === "person"
-      ? decoded.userType
-      : "person"
-
-  return { userId: decoded.userId, userType }
+  return { userId: decoded.userId }
 }

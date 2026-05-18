@@ -1,5 +1,5 @@
 "use client"
-import { AddressBook, ClockCounterClockwise, House, MoneyIcon, PaperPlaneTilt, Receipt, SidebarSimpleIcon, Users, Wallet } from "@phosphor-icons/react"
+import { ClockCounterClockwise, House, Receipt, SidebarSimpleIcon, Users, Wallet } from "@phosphor-icons/react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -33,12 +33,8 @@ export function DashboardSidebar() {
   const { user } = useUser()
   const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebarState()
   const isCollapsed = state === "collapsed"
-  const isOwner = user?.userType === "business"
-  const isOperator = !isOwner && user?.hasActiveBusiness === true
-  // Person and owner see wallet tabs (pay, send, activity, contacts); operators don't
-  const showWalletTabs = !isOperator
-  // Only person users (non-operator) see the Pay tab
-  const showPayTab = user?.userType === "person" && !isOperator
+  const isOwner = user?.isOwner ?? false
+  const showActivityTab = true
   const showTeamTab = isOwner
   const showRefundsTab = isOwner
   const showWalletsTab = isOwner
@@ -55,31 +51,12 @@ export function DashboardSidebar() {
       label: t("home"),
       href: "/dashboard/home",
     },
-    ...(showPayTab
+    ...(showActivityTab
       ? [{
-        icon: <MoneyIcon size={18} weight="regular" />,
-        label: t("pay"),
-        href: "/dashboard/pay",
+        icon: <ClockCounterClockwise size={18} weight="regular" />,
+        label: t("activity"),
+        href: "/dashboard/activity",
       }]
-      : []),
-    ...(showWalletTabs
-      ? [
-        {
-          icon: <PaperPlaneTilt size={18} weight="regular" />,
-          label: t("transfer"),
-          href: "/dashboard/send",
-        },
-        {
-          icon: <ClockCounterClockwise size={18} weight="regular" />,
-          label: t("activity"),
-          href: "/dashboard/activity",
-        },
-        {
-          icon: <AddressBook size={18} weight="regular" />,
-          label: t("contacts"),
-          href: "/dashboard/contacts",
-        },
-      ]
       : []),
     ...(showTeamTab
       ? [{
@@ -156,21 +133,18 @@ export function DashboardSidebar() {
               <SidebarMenu>
                 {appSidebarItems.map((item) => {
                   const isHome = item.href === "/dashboard/home"
-                  const isPay = item.href === "/dashboard/pay"
                   const isTeam = item.href === "/dashboard/business/team"
                   const isRefunds = item.href === "/dashboard/business/refunds/manage"
                   const isWallets = item.href === "/dashboard/business/wallets"
                   const isActive = isHome
                     ? pathname === "/dashboard/home" || pathname === "/dashboard/business/home"
-                    : isPay
-                      ? pathname === "/dashboard/pay" || pathname.startsWith("/dashboard/pay/")
-                      : isTeam
-                        ? pathname === "/dashboard/business/team"
-                        : isRefunds
-                          ? pathname.startsWith("/dashboard/business/refunds/manage")
-                          : isWallets
-                            ? pathname.startsWith("/dashboard/business/wallets")
-                            : pathname === item.href
+                    : isTeam
+                      ? pathname === "/dashboard/business/team"
+                      : isRefunds
+                        ? pathname.startsWith("/dashboard/business/refunds/manage")
+                        : isWallets
+                          ? pathname.startsWith("/dashboard/business/wallets")
+                          : pathname === item.href
                   return (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton

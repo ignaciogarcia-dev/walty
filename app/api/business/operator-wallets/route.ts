@@ -2,7 +2,7 @@ import { NextRequest } from "next/server"
 import { and, eq, isNotNull } from "drizzle-orm"
 import { formatUnits } from "viem"
 import { db } from "@/server/db"
-import { businessMembers, userProfiles, users } from "@/server/db/schema"
+import { businessMembers, users } from "@/server/db/schema"
 import { getOperatorTokenBalances } from "@/lib/business/operatorBalance"
 import { withBusinessAuth, ok } from "@/lib/api"
 import { Permission } from "@/lib/permissions"
@@ -17,11 +17,9 @@ export const GET = withBusinessAuth(Permission.MEMBER_LIST, async (_req: NextReq
       userId: businessMembers.userId,
       inviteEmail: businessMembers.inviteEmail,
       userEmail: users.email,
-      username: userProfiles.username,
     })
     .from(businessMembers)
     .leftJoin(users, eq(businessMembers.userId, users.id))
-    .leftJoin(userProfiles, eq(businessMembers.userId, userProfiles.userId))
     .where(
       and(
         eq(businessMembers.businessId, business.businessId),
@@ -33,7 +31,7 @@ export const GET = withBusinessAuth(Permission.MEMBER_LIST, async (_req: NextReq
   const wallets = await Promise.all(
     rows.map(async (row) => {
       const displayName =
-        row.username ?? row.userEmail ?? row.inviteEmail ?? `Cajero #${row.derivationIndex}`
+        row.userEmail ?? row.inviteEmail ?? `Cajero #${row.derivationIndex}`
 
       let balances = { USDC: "0.00", USDT: "0.00" }
 

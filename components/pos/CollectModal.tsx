@@ -104,7 +104,7 @@ export function CollectModal({
   const { data: polledRequest } = useQuery({
     queryKey: ["payment-request-detail", requestId],
     queryFn: async () => {
-      const res = await fetch(`/api/payment-requests/${requestId}`)
+      const res = await fetch(`/api/business/payment-requests/${requestId}`)
       if (!res.ok) return null
       const { data: next } = await res.json() as { data: PaymentRequestView }
       return next

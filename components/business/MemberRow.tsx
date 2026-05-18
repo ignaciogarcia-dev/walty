@@ -22,7 +22,6 @@ export type Member = {
   inviteToken: string
   userId: number | null
   email: string | null
-  username: string | null
   walletAddress: string | null
   expiresAt: string
   createdAt: string
@@ -48,7 +47,7 @@ export function MemberRow({ member, onUpdate }: Props) {
   const [loading, setLoading] = useState(false)
   const [revokeBlocked, setRevokeBlocked] = useState(false)
 
-  const displayName = member.username ?? member.email ?? member.inviteEmail ?? "—"
+  const displayName = member.email ?? member.inviteEmail ?? "—"
   const lastActive = member.lastActivityAt
     ? new Date(member.lastActivityAt).toLocaleDateString(locale)
     : "—"

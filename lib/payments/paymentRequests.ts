@@ -47,6 +47,36 @@ export function normalizePaymentRequest(record: PaymentRequestRecord): Normalize
   }
 }
 
+/**
+ * Strips fields that could leak payer identity or charge history from a
+ * publicly-pollable payment request. Used by the unauthenticated /pay endpoint
+ * and reconcile-via-polling APIs.
+ */
+export function toPublicPaymentRequestView(record: PaymentRequestRecord) {
+  const normalized = normalizePaymentRequest(record)
+  const totalPaidUsd = normalized.totalPaidUsd ?? "0"
+  const amountUsdNum = parseFloat(normalized.amountUsd)
+  const totalPaidUsdNum = parseFloat(totalPaidUsd)
+  const remainingAmountUsd = Math.max(0, amountUsdNum - totalPaidUsdNum).toFixed(2)
+
+  return {
+    id: normalized.id,
+    status: normalized.status,
+    chainId: normalized.chainId,
+    amountUsd: normalized.amountUsd,
+    amountToken: normalized.amountToken,
+    tokenSymbol: normalized.tokenSymbol,
+    tokenAddress: normalized.tokenAddress,
+    tokenDecimals: normalized.tokenDecimals,
+    merchantWalletAddress: normalized.merchantWalletAddress,
+    expiresAt: normalized.expiresAt.toISOString(),
+    requiredConfirmations: normalized.requiredConfirmations,
+    isSplitPayment: normalized.isSplitPayment ?? false,
+    totalPaidUsd,
+    remainingAmountUsd,
+  }
+}
+
 export function toPaymentRequestView(record: PaymentRequestRecord): PaymentRequestView {
   const normalized = normalizePaymentRequest(record)
 

@@ -36,7 +36,6 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     .select({
       id: users.id,
       passwordHash: users.passwordHash,
-      userType: users.userType,
     })
     .from(users)
     .where(sql`lower(${users.email}) = ${normalizedEmail}`)
@@ -49,10 +48,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     throw new AuthError()
   }
 
-  const token = signSessionToken({
-    userId: user.id,
-    userType: (user.userType as "person" | "business" | undefined) ?? "person",
-  })
+  const token = signSessionToken({ userId: user.id })
 
   return new Response(JSON.stringify({ ok: true }), {
     headers: {

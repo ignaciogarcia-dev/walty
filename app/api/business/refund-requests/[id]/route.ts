@@ -146,7 +146,12 @@ export const PATCH = withBusinessAuth<RouteCtx>(
         business.businessId,
         auth.userId,
         AUDIT_ACTIONS.REFUND_REQUEST_APPROVED,
-        { refundId: id, txIntentId: intent.id },
+        {
+          refundId: id,
+          txIntentId: intent.id,
+          requestedBy: refund.requestedBy,
+          requestedAt: refund.createdAt.toISOString(),
+        },
         ip,
       );
       return ok({ ok: true, txIntentId: intent.id });
@@ -174,7 +179,11 @@ export const PATCH = withBusinessAuth<RouteCtx>(
         business.businessId,
         auth.userId,
         AUDIT_ACTIONS.REFUND_REQUEST_REJECTED,
-        { refundId: id },
+        {
+          refundId: id,
+          requestedBy: refund.requestedBy,
+          requestedAt: refund.createdAt.toISOString(),
+        },
         ip,
       );
       return ok({ ok: true });
@@ -274,7 +283,14 @@ export const PATCH = withBusinessAuth<RouteCtx>(
         business.businessId,
         auth.userId,
         AUDIT_ACTIONS.REFUND_REQUEST_EXECUTED,
-        { refundId: id, txHash },
+        {
+          refundId: id,
+          txHash,
+          requestedBy: refund.requestedBy,
+          requestedAt: refund.createdAt.toISOString(),
+          approvedBy: refund.approvedBy,
+          approvedAt: refund.approvedAt?.toISOString() ?? null,
+        },
         ip,
       );
       return ok({ ok: true });

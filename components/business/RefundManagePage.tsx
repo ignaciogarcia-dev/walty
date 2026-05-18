@@ -16,7 +16,7 @@ import { canTransition, type RefundStatus } from "@/lib/business/RefundStateMach
 type RefundRequest = {
   id: string
   paymentRequestId: string
-  requestedBy: { id: number; email: string | null; username: string | null }
+  requestedBy: { id: number; email: string | null }
   amountToken: string
   amountUsd: string
   tokenSymbol: string
@@ -245,7 +245,7 @@ export function RefundManagePage() {
       {!loading && refunds.length > 0 && (
         <div className="flex flex-col gap-4">
           {refunds.map((refund) => {
-            const requester = refund.requestedBy.username ?? refund.requestedBy.email ?? t("operator")
+            const requester = refund.requestedBy.email ?? t("operator")
             const date = new Date(refund.createdAt).toLocaleDateString("es-AR")
 
             return (

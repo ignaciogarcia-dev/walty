@@ -6,13 +6,12 @@ export type BusinessStatus = "active" | "suspended" | "revoked" | null
 export interface UserData {
   id: number
   email: string
-  displayName: string | null
-  username: string | null
-  userType: "person" | "business" | null
+  isOwner: boolean
   hasWallet: boolean
-  hasProfile: boolean
   hasActiveBusiness: boolean
+  hasBusinessSettings: boolean
   businessStatus: BusinessStatus
+  businessName: string | null
 }
 
 export type UserState = {
@@ -26,18 +25,16 @@ export async function fetchSession(): Promise<UserData | null> {
   const res = await fetch("/api/session")
   if (!res.ok) throw new Error("Failed to fetch session")
   const { data } = await res.json()
-  const { user: userData, profile } = data
-  const displayName = profile.displayName ?? null
+  const { user: userData, business } = data
   return {
     id: userData.id,
     email: userData.email,
-    displayName,
-    username: profile.username ?? null,
-    userType: userData.userType ?? null,
-    hasWallet: userData.hasWallet ?? false,
-    hasProfile: !!displayName,
-    hasActiveBusiness: userData.hasActiveBusiness ?? false,
+    isOwner: !!userData.isOwner,
+    hasWallet: !!userData.hasWallet,
+    hasActiveBusiness: !!userData.hasActiveBusiness,
+    hasBusinessSettings: !!userData.hasBusinessSettings,
     businessStatus: userData.businessStatus ?? null,
+    businessName: business?.name ?? null,
   }
 }
 
@@ -57,8 +54,6 @@ export function useUser(): UserState {
   }
 }
 
-// Kept for backward compat — no longer wraps a context.
-// TanStack Query deduplicates useUser() automatically.
 export function UserProvider({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }

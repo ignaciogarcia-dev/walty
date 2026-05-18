@@ -22,8 +22,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 	const wallet = useWallet()
 	const { status, unlock } = wallet
 
-	// Single orchestrator: determines the next required onboarding step based on
-	// user state (hasActiveBusiness, userType) and wallet state. Returns null when done.
 	const pathname = usePathname()
 
 	// Hygiene: strip legacy onboarding entries from tab storage if present.
@@ -41,10 +39,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 	// Deterministic routing using pure decision function
 	const route = getDashboardRoute({
 		user: {
-			hasProfile: user?.hasProfile ?? false,
+			isOwner: user?.isOwner ?? false,
 			hasActiveBusiness: user?.hasActiveBusiness ?? false,
+			hasBusinessSettings: user?.hasBusinessSettings ?? false,
 			businessStatus: user?.businessStatus ?? null,
-			userType: user?.userType ?? null,
 		},
 		walletStatus: status,
 		pathname,
@@ -99,10 +97,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 		)
 	}
 
-	// Locked wallet — skip for revoked/suspended; operators (hasActiveBusiness, non-owner) skip — owners still unlock their wallet
+	// Locked wallet — skip for revoked/suspended; operators have no personal wallet to unlock.
 	if (
 		status === "locked" &&
-		!(user?.hasActiveBusiness && user?.userType !== "business") &&
+		user?.isOwner &&
 		user?.businessStatus !== "revoked" &&
 		user?.businessStatus !== "suspended"
 	) {

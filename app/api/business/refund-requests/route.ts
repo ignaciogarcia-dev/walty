@@ -5,7 +5,7 @@ import { rateLimitByUser } from "@/lib/rate-limit"
 import { canRequestRefund } from "@/lib/policies/payment.policy"
 import { logSecurityEvent } from "@/lib/security/logSecurityEvent"
 import { db } from "@/server/db"
-import { paymentRequests, refundRequests, users, userProfiles } from "@/server/db/schema"
+import { paymentRequests, refundRequests, users } from "@/server/db/schema"
 import { writeAuditLog, AUDIT_ACTIONS } from "@/lib/business/auditLog"
 import { withBusinessAuth, ok, ValidationError, NotFoundError, ConflictError } from "@/lib/api"
 import { Permission } from "@/lib/permissions"
@@ -52,12 +52,10 @@ export const GET = withBusinessAuth(Permission.REFUND_REQUEST_LIST, async (req: 
       reviewedAt: refundRequests.reviewedAt,
       tokenSymbol: paymentRequests.tokenSymbol,
       requestedByEmail: users.email,
-      requestedByUsername: userProfiles.username,
     })
     .from(refundRequests)
     .innerJoin(paymentRequests, eq(refundRequests.paymentRequestId, paymentRequests.id))
     .leftJoin(users, eq(refundRequests.requestedBy, users.id))
-    .leftJoin(userProfiles, eq(refundRequests.requestedBy, userProfiles.userId))
     .where(and(...refundWhereParts))
     .orderBy(desc(refundRequests.createdAt))
 
@@ -68,7 +66,6 @@ export const GET = withBusinessAuth(Permission.REFUND_REQUEST_LIST, async (req: 
       requestedBy: {
         id: r.requestedBy,
         email: r.requestedByEmail,
-        username: r.requestedByUsername ?? null,
       },
       amountToken: r.amountToken,
       amountUsd: r.amountUsd,
@@ -129,10 +126,13 @@ export const POST = withBusinessAuth(Permission.REFUND_REQUEST_CREATE, async (re
     if (overrideBigInt <= 0n) {
       throw new ValidationError("invalid refund amount")
     }
-    // Cap to receivedAmountToken when available (surplus refunds)
-    const receivedBigInt = payment.receivedAmountToken ? BigInt(payment.receivedAmountToken) : null
-    if (receivedBigInt !== null && overrideBigInt > receivedBigInt) {
-      throw new ValidationError("refund amount exceeds received amount")
+    // Cap to receivedAmountToken when set (post-confirmation refunds), otherwise
+    // fall back to the requested amount so refunds never exceed what was charged.
+    const capBigInt = payment.receivedAmountToken
+      ? BigInt(payment.receivedAmountToken)
+      : BigInt(payment.amountToken)
+    if (overrideBigInt > capBigInt) {
+      throw new ValidationError("refund amount exceeds collected amount")
     }
     finalAmountToken = String(overrideToken)
     finalAmountUsd = String(overrideUsd)

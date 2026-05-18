@@ -1,6 +1,6 @@
 # Walty Documentation
 
-Walty is an on-chain crypto payment platform for individuals and businesses. Users create a self-custodial wallet, send and receive tokens across EVM chains, and businesses can generate QR payment requests, manage cashier teams, and handle refunds — all without the server ever touching private keys.
+Walty is an on-chain crypto payment platform for businesses. Merchants create a self-custodial wallet, generate QR payment requests, manage cashier teams, and handle refunds — all without the server ever touching private keys.
 
 ## Who Is This For
 
@@ -20,18 +20,12 @@ Walty is an on-chain crypto payment platform for individuals and businesses. Use
 
 ## What Walty Does
 
-### For individuals (person accounts)
+Walty is business-only. Every registered user is the owner of their own business; team members (cashiers) join via invite link and share the owner's merchant wallet through HD-derived operator wallets.
 
 - Self-custodial HD wallet (BIP-39, 24 words) created and encrypted in the browser
-- Multi-chain portfolio view (ETH, MATIC, USDC, USDT, and more across 5 EVM chains)
-- Send tokens via a review-and-confirm flow backed by signed transaction intents
-- Contact book, transaction history, and encrypted seed backup
-
-### For businesses (business accounts)
-
-- Generate QR-code payment requests (Polygon, USDC)
-- Share a public `/pay/[requestId]` link — no account required for payers
+- Generate QR-code payment requests (Polygon, USDC / USDT)
+- Public `/pay/[requestId]` link — payers do not need a Walty account
 - Split payment support (multiple payers, one request)
 - Cashier invitation system with role-based access (owner / cashier)
-- Refund request and owner-execution flow
+- Refund request flow (cashier requests → owner approves → owner signs and broadcasts via a transaction intent)
 - Audit log for all business actions

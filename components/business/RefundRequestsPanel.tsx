@@ -9,7 +9,7 @@ import { useTranslation } from "@/hooks/useTranslation"
 type RefundRequest = {
   id: string
   paymentRequestId: string
-  requestedBy: { id: number; email: string | null; username: string | null }
+  requestedBy: { id: number; email: string | null }
   amountToken: string
   amountUsd: string
   tokenSymbol: string
@@ -159,7 +159,7 @@ export function RefundRequestsPanel() {
       {error && <p className="text-xs text-destructive">{error}</p>}
       <div className="flex flex-col gap-4">
         {refunds.map((refund) => {
-          const requester = refund.requestedBy.username ?? refund.requestedBy.email ?? t("operator")
+          const requester = refund.requestedBy.email ?? t("operator")
           const isApproved = refund.status === "approved_pending_signature"
           const date = new Date(refund.createdAt).toLocaleDateString("es-AR")
 

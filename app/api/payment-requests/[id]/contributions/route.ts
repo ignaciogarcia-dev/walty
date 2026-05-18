@@ -1,8 +1,7 @@
 import { NextRequest } from "next/server"
 import { db } from "@/server/db"
 import { paymentRequests, splitPaymentContributions } from "@/server/db/schema"
-import { eq, asc } from "drizzle-orm"
-import type { SplitPaymentContribution } from "@/lib/payments/types"
+import { and, eq } from "drizzle-orm"
 import { withErrorHandling, ok, NotFoundError, getIp } from "@/lib/api"
 import { rateLimitByIp } from "@/lib/rate-limit"
 
@@ -18,33 +17,34 @@ export const GET = withErrorHandling(async (
 
   const request = await db.query.paymentRequests.findFirst({
     where: eq(paymentRequests.id, id),
+    columns: { id: true, totalPaidUsd: true, amountUsd: true, status: true },
   })
 
   if (!request) {
     throw new NotFoundError("not found")
   }
 
-  const contributions = await db
-    .select()
+  const all = await db
+    .select({ id: splitPaymentContributions.id, status: splitPaymentContributions.status })
     .from(splitPaymentContributions)
     .where(eq(splitPaymentContributions.paymentRequestId, id))
-    .orderBy(asc(splitPaymentContributions.createdAt))
 
-  const contributionViews: SplitPaymentContribution[] = contributions.map((c) => ({
-    id: c.id,
-    paymentRequestId: c.paymentRequestId,
-    txHash: c.txHash,
-    payerAddress: c.payerAddress,
-    amountToken: c.amountToken,
-    amountUsd: c.amountUsd,
-    tokenSymbol: c.tokenSymbol,
-    confirmations: c.confirmations,
-    status: c.status as SplitPaymentContribution["status"],
-    blockNumber: c.blockNumber ?? null,
-    detectedAt: c.detectedAt?.toISOString() ?? null,
-    confirmedAt: c.confirmedAt?.toISOString() ?? null,
-    createdAt: c.createdAt.toISOString(),
-  }))
+  const confirmed = await db
+    .select({ id: splitPaymentContributions.id })
+    .from(splitPaymentContributions)
+    .where(and(
+      eq(splitPaymentContributions.paymentRequestId, id),
+      eq(splitPaymentContributions.status, "confirmed"),
+    ))
 
-  return ok({ contributions: contributionViews })
+  const amountUsd = parseFloat(request.amountUsd)
+  const paidUsd = parseFloat(request.totalPaidUsd ?? "0")
+
+  return ok({
+    count: all.length,
+    confirmedCount: confirmed.length,
+    totalPaidUsd: request.totalPaidUsd ?? "0",
+    fullyPaid: paidUsd >= amountUsd,
+    status: request.status,
+  })
 })

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server"
+import { createHash } from "crypto"
 import { eq, and, desc } from "drizzle-orm"
 import { db } from "@/server/db"
 import { txIntents } from "@/server/db/schema"
@@ -8,6 +9,25 @@ import { isUniqueViolation } from "@/lib/db/errors"
 import { validateAndNormalizePayload } from "@/lib/tx-intents/validate"
 import { expireIfStale } from "@/lib/tx-intents/expire"
 import type { TxIntentPayload, TxIntentType } from "@/lib/tx-intents/types"
+
+function canonicalStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value)
+  if (Array.isArray(value)) {
+    return "[" + value.map(canonicalStringify).join(",") + "]"
+  }
+  const keys = Object.keys(value as Record<string, unknown>).sort()
+  return (
+    "{" +
+    keys.map((k) => JSON.stringify(k) + ":" + canonicalStringify((value as Record<string, unknown>)[k])).join(",") +
+    "}"
+  )
+}
+
+function hashPayload(payload: TxIntentPayload, type: TxIntentType): string {
+  return createHash("sha256")
+    .update(type + "|" + canonicalStringify(payload))
+    .digest("hex")
+}
 
 const VALID_TYPES: TxIntentType[] = [
   "transfer",
@@ -39,7 +59,11 @@ export const POST = withErrorHandling(withAuth(async (req: NextRequest, { auth }
     throw new ValidationError(err instanceof Error ? err.message : "Invalid payload")
   }
 
-  // Idempotency: if key already exists for this user, return existing intent
+  const payloadHash = hashPayload(payload, intentType)
+
+  // Idempotency: same key + same payload returns the existing intent. A
+  // mismatched payload with a reused key is a programming error and must
+  // never silently sign a different transaction.
   if (idempotencyKey) {
     const [existing] = await db
       .select()
@@ -54,9 +78,11 @@ export const POST = withErrorHandling(withAuth(async (req: NextRequest, { auth }
 
     if (existing) {
       if (!(await expireIfStale(existing))) {
+        if (existing.payloadHash && existing.payloadHash !== payloadHash) {
+          throw new ConflictError("idempotency-key-payload-mismatch")
+        }
         return ok(existing)
       }
-      // Intent was expired; fall through to create a new one
     }
   }
 
@@ -69,6 +95,7 @@ export const POST = withErrorHandling(withAuth(async (req: NextRequest, { auth }
         userId: auth.userId,
         type: intentType,
         payload,
+        payloadHash,
         status: "pending",
         idempotencyKey: idempotencyKey ?? null,
         expiresAt,
@@ -77,10 +104,6 @@ export const POST = withErrorHandling(withAuth(async (req: NextRequest, { auth }
 
     return ok(intent)
   } catch (err) {
-    // Two concurrent requests with the same idempotencyKey can both pass the
-    // existence check above and then race to insert.  The second insert hits the
-    // unique constraint; treat it as an idempotent success by returning the row
-    // that the first request created.
     if (idempotencyKey && isUniqueViolation(err)) {
       const [existing] = await db
         .select()
@@ -93,7 +116,12 @@ export const POST = withErrorHandling(withAuth(async (req: NextRequest, { auth }
         )
         .limit(1)
 
-      if (existing) return ok(existing)
+      if (existing) {
+        if (existing.payloadHash && existing.payloadHash !== payloadHash) {
+          throw new ConflictError("idempotency-key-payload-mismatch")
+        }
+        return ok(existing)
+      }
 
       throw new ConflictError("idempotency-key-conflict")
     }
