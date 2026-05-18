@@ -10,6 +10,7 @@ import {
   transactions,
 } from "@walty/db"
 import { normalizePaymentRequest } from "@walty/shared/payments/paymentRequests"
+import type { PaymentRequestEventSink } from "./events"
 
 /**
  * Lower-cased set of every address that the merchant controls and could
@@ -53,6 +54,15 @@ const TRANSFER_EVENT = parseAbiItem(
 type ReconcileOptions = {
   limit?: number
   id?: string
+  /**
+   * Called on every meaningful state transition (detected, confirming, paid,
+   * expired). The shared module emits typed events; the worker / route
+   * decides how to fan them out (today: socket.io rooms in apps/api).
+   * Sink is invoked synchronously after the DB write succeeds and must not
+   * throw — errors are swallowed so reconciler progress never stalls on a
+   * downstream WS hiccup.
+   */
+  onEvent?: PaymentRequestEventSink
 }
 
 type ReconcileResult = {
@@ -73,6 +83,15 @@ export async function reconcilePendingPaymentRequests(
     detected: 0,
     paid: 0,
     expired: 0,
+  }
+
+  const emit: PaymentRequestEventSink = (event) => {
+    if (!options.onEvent) return
+    try {
+      options.onEvent(event)
+    } catch {
+      // sink must never disrupt the reconciler loop
+    }
   }
 
   const statusFilter = inArray(paymentRequests.status, ["pending", "confirming"])
@@ -122,8 +141,20 @@ export async function reconcilePendingPaymentRequests(
 
       if (nextStatus === "paid") {
         result.paid += 1
+        emit({
+          type: "paid",
+          requestId: request.id,
+          txHash: request.txHash,
+          amount: request.amountToken,
+        })
       } else {
         result.confirming += 1
+        emit({
+          type: "confirming",
+          requestId: request.id,
+          confirmations,
+          requiredConfirmations: request.requiredConfirmations,
+        })
       }
 
       continue
@@ -268,8 +299,19 @@ export async function reconcilePendingPaymentRequests(
 
             matched = true
             result.detected += 1
+            emit({
+              type: "detected",
+              requestId: request.id,
+              txHash: log.transactionHash,
+            })
             if (isFullyPaid) {
               result.paid += 1
+              emit({
+                type: "paid",
+                requestId: request.id,
+                txHash: log.transactionHash,
+                amount: transferAmountToken,
+              })
             }
           } catch (error) {
             if (
@@ -425,10 +467,27 @@ export async function reconcilePendingPaymentRequests(
 
           matched = true
           result.detected += 1
+          emit({
+            type: "detected",
+            requestId: request.id,
+            txHash: log.transactionHash,
+          })
           if (nextStatus === "paid") {
             result.paid += 1
+            emit({
+              type: "paid",
+              requestId: request.id,
+              txHash: log.transactionHash,
+              amount: receivedAmountToken,
+            })
           } else {
             result.confirming += 1
+            emit({
+              type: "confirming",
+              requestId: request.id,
+              confirmations,
+              requiredConfirmations: request.requiredConfirmations,
+            })
           }
           break
         }
@@ -448,6 +507,7 @@ export async function reconcilePendingPaymentRequests(
         .where(eq(paymentRequests.id, request.id))
 
       result.expired += 1
+      emit({ type: "expired", requestId: request.id })
       continue
     }
 

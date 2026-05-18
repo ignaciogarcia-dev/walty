@@ -303,4 +303,61 @@ describe("reconciler — wash payment rejection (real db)", () => {
     expect(after.status).toBe("paid")
     expect(after.txHash).toBe("0x22")
   })
+
+  it("emits detected + paid events on a non-split happy path", async () => {
+    const { pr } = await seedMerchantAndRequest({
+      isSplitPayment: false,
+      amountToken: "10000000",
+      amountUsd: "10",
+    })
+    fakeRpc.logs = [
+      transferLog({ from: STRANGER_A, value: 10_000_000n, txHash: "0x55" }),
+    ]
+    const events: Array<{ type: string; requestId: string }> = []
+    await reconcilePendingPaymentRequests({
+      id: pr.id,
+      onEvent: (e) => events.push(e),
+    })
+    const types = events.map((e) => e.type)
+    expect(types).toContain("detected")
+    expect(types).toContain("paid")
+    expect(events.every((e) => e.requestId === pr.id)).toBe(true)
+  })
+
+  it("emits expired event when the request passes its expiresAt", async () => {
+    const { user, pr } = await seedMerchantAndRequest({
+      isSplitPayment: false,
+      amountToken: "10000000",
+      amountUsd: "10",
+    })
+    // Force the request into the past.
+    await db
+      .update(paymentRequests)
+      .set({ expiresAt: new Date(Date.now() - 60_000) })
+      .where(eq(paymentRequests.id, pr.id))
+    void user
+
+    fakeRpc.logs = []
+    const events: Array<{ type: string }> = []
+    await reconcilePendingPaymentRequests({
+      id: pr.id,
+      onEvent: (e) => events.push(e),
+    })
+    expect(events.map((e) => e.type)).toContain("expired")
+  })
+
+  it("does not emit anything when the request is unchanged", async () => {
+    const { pr } = await seedMerchantAndRequest({
+      isSplitPayment: false,
+      amountToken: "10000000",
+      amountUsd: "10",
+    })
+    fakeRpc.logs = []
+    const events: unknown[] = []
+    await reconcilePendingPaymentRequests({
+      id: pr.id,
+      onEvent: (e) => events.push(e),
+    })
+    expect(events).toHaveLength(0)
+  })
 })

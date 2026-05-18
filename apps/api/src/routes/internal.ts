@@ -7,6 +7,7 @@ import { cleanupExpiredEntries } from "@walty/shared/rate-limit"
 import { reconcileIncomingTransfers } from "@walty/shared/tx/reconcileIncomingTransfers"
 import { asyncHandler } from "../middleware/asyncHandler.js"
 import { runSweep } from "../workers/sweep.js"
+import { emitPaymentRequestEvent } from "../ws/io.js"
 
 export const internalRouter: Router = Router()
 
@@ -31,7 +32,7 @@ internalRouter.post(
   asyncHandler(async (req, res) => {
     assertSecret(req)
     const [result, incomingResult] = await Promise.all([
-      reconcilePendingPaymentRequests(),
+      reconcilePendingPaymentRequests({ onEvent: emitPaymentRequestEvent }),
       reconcileIncomingTransfers(),
     ])
     await cleanupExpiredEntries()
