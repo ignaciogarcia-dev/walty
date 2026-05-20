@@ -126,6 +126,10 @@ export const en = {
   "wrong-pin": "Wrong PIN",
   "error-creating-backup": "Error creating backup",
   "error-recovering-wallet": "Error recovering wallet",
+  "pairing-waiting":
+    "Waiting for one of your trusted devices to approve this one… Don't have another device handy? Import your recovery phrase instead.",
+  "pairing-not-approved":
+    "The pairing was not approved. Try again or import your recovery phrase.",
   "recovery-with-pin": "Recover with PIN",
   "recovery-with-seed": "Import phrase",
   "recovery-phrase": "Recovery phrase",
