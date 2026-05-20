@@ -45,6 +45,23 @@ export const deviceSessions = pgTable("device_sessions", {
   byUser: index("device_sessions_user_id_idx").on(t.userId),
 }))
 
+// A pending device (one with no seed) asks an already-trusted device to
+// approve releasing the encrypted backup to it. The request is bound to the
+// requesting session; only a trusted session can approve, and the gate on
+// GET /wallet/backup checks for an approved, unexpired row.
+export const devicePairingRequests = pgTable("device_pairing_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sessionId: uuid("session_id").notNull().references(() => deviceSessions.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("pending"),
+  requestIp: text("request_ip"),
+  approvedBySessionId: uuid("approved_by_session_id").references(() => deviceSessions.id, { onDelete: "set null" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  bySession: index("device_pairing_requests_session_id_idx").on(t.sessionId),
+}))
+
 export const businessSettings = pgTable("business_settings", {
   userId: integer("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
