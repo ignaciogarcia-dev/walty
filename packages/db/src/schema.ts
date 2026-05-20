@@ -29,6 +29,22 @@ export const walletNonces = pgTable("wallet_nonces", {
   expiresAt: timestamp("expires_at").notNull(),
 })
 
+// One row per logged-in device session. The id is the `sid` embedded in the
+// JWT; auth is stateful so revoking a row invalidates that device on its next
+// request. `trustedAt` is set once the device proves it holds the wallet key
+// (signs an attestation challenge); until then the session is "pending".
+export const deviceSessions = pgTable("device_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  trustedAt: timestamp("trusted_at"),
+  lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  revokedAt: timestamp("revoked_at"),
+}, (t) => ({
+  byUser: index("device_sessions_user_id_idx").on(t.userId),
+}))
+
 export const businessSettings = pgTable("business_settings", {
   userId: integer("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
