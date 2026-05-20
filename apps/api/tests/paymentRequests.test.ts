@@ -56,6 +56,14 @@ vi.mock("@walty/db", () => ({
   db: {
     query: {
       paymentRequests: { findFirst: vi.fn(async () => samplePr) },
+      deviceSessions: {
+        findFirst: vi.fn(async () => ({
+          id: "test-sid",
+          trustedAt: new Date(),
+          lastSeenAt: new Date(),
+          revokedAt: null,
+        })),
+      },
     },
     select: () => ({
       from: () => ({
@@ -70,6 +78,7 @@ vi.mock("@walty/db", () => ({
     }),
   },
   addresses: {},
+  deviceSessions: {},
   paymentRequests: {
     id: "id",
     merchantId: "merchantId",
@@ -96,7 +105,7 @@ beforeAll(async () => {
 afterAll(() => vi.restoreAllMocks())
 
 function authed() {
-  return `token=${signSessionToken({ userId: 1 })}`
+  return `token=${signSessionToken({ userId: 1, sid: "test-sid" })}`
 }
 
 describe("payment request routes", () => {

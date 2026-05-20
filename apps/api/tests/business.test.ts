@@ -31,6 +31,14 @@ vi.mock("@walty/db", () => ({
       businessSettings: { findFirst: vi.fn(async () => ({ name: "Acme" })) },
       users: { findFirst: vi.fn(async () => ({ email: "owner@example.com" })) },
       businessMembers: { findFirst: vi.fn(async () => null) },
+      deviceSessions: {
+        findFirst: vi.fn(async () => ({
+          id: "test-sid",
+          trustedAt: new Date(),
+          lastSeenAt: new Date(),
+          revokedAt: null,
+        })),
+      },
     },
     select: () => ({
       from: () => ({
@@ -55,6 +63,7 @@ vi.mock("@walty/db", () => ({
   addresses: {},
   businessMembers: { businessId: "businessId", derivationIndex: "derivationIndex" },
   businessSettings: { userId: "userId" },
+  deviceSessions: {},
   users: {},
 }))
 
@@ -69,7 +78,7 @@ beforeAll(async () => {
 afterAll(() => vi.restoreAllMocks())
 
 function authedCookie(userId = 1) {
-  return `token=${signSessionToken({ userId })}`
+  return `token=${signSessionToken({ userId, sid: "test-sid" })}`
 }
 
 describe("business routes", () => {
