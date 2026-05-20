@@ -13,7 +13,18 @@ vi.mock("@walty/shared/rate-limit", () => ({
 
 vi.mock("@walty/db", () => ({
   db: {
-    query: { walletNonces: { findFirst: vi.fn() }, walletBackups: { findFirst: vi.fn() } },
+    query: {
+      walletNonces: { findFirst: vi.fn() },
+      walletBackups: { findFirst: vi.fn() },
+      deviceSessions: {
+        findFirst: vi.fn(async () => ({
+          id: "test-sid",
+          trustedAt: new Date(),
+          lastSeenAt: new Date(),
+          revokedAt: null,
+        })),
+      },
+    },
     insert: vi.fn(() => ({
       values: () => ({
         onConflictDoUpdate: async () => undefined,
@@ -24,6 +35,7 @@ vi.mock("@walty/db", () => ({
     select: () => ({ from: () => ({ where: async () => [] }) }),
   },
   addresses: {},
+  deviceSessions: {},
   walletBackups: { userId: "userId" },
   walletNonces: {},
 }))
@@ -39,7 +51,7 @@ beforeAll(async () => {
 afterAll(() => vi.restoreAllMocks())
 
 function authedCookie() {
-  const token = signSessionToken({ userId: 1 })
+  const token = signSessionToken({ userId: 1, sid: "test-sid" })
   return `token=${token}`
 }
 

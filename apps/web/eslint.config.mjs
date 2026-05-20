@@ -28,6 +28,7 @@ const eslintConfig = defineConfig([
     "playwright-report/**",
     "test-results/**",
     "blob-report/**",
+    "coverage/**",
   ]),
 ]);
 

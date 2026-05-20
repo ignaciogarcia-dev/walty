@@ -29,7 +29,7 @@ import {
 } from "@walty/shared/policies/business.policy"
 import { rateLimitByUser } from "@walty/shared/rate-limit"
 import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent"
-import { asyncHandler } from "../middleware/asyncHandler.js"
+import { authed, businessed } from "../middleware/typedHandlers.js"
 import { withAuth } from "../middleware/withAuth.js"
 import { withBusinessAuth } from "../middleware/withBusiness.js"
 
@@ -51,8 +51,8 @@ function pgDatabaseError(err: unknown): DatabaseError | null {
 businessRouter.get(
   "/business/context",
   ...withBusinessAuth(Permission.BUSINESS_CONTEXT_READ),
-  asyncHandler(async (req, res) => {
-    const business = req.business!
+  businessed(async (req, res) => {
+    const { business } = req
     let merchantWalletAddress: string | null = null
 
     if (business.isOwner) {
@@ -92,8 +92,8 @@ businessRouter.get(
 businessRouter.get(
   "/business/settings",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     const [settings] = await db
       .select()
       .from(businessSettings)
@@ -106,8 +106,8 @@ businessRouter.get(
 businessRouter.post(
   "/business/settings",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     await rateLimitByUser(auth.userId, 10, 60_000)
 
     const body = req.body ?? {}
@@ -142,8 +142,8 @@ businessRouter.post(
 businessRouter.get(
   "/business/members",
   ...withBusinessAuth(Permission.MEMBER_LIST),
-  asyncHandler(async (req, res) => {
-    const business = req.business!
+  businessed(async (req, res) => {
+    const { business } = req
     const rows = await db
       .select({
         id: businessMembers.id,
@@ -185,8 +185,8 @@ businessRouter.get(
 businessRouter.get(
   "/business/members/next-index",
   ...withBusinessAuth(Permission.MEMBER_INVITE),
-  asyncHandler(async (req, res) => {
-    const business = req.business!
+  businessed(async (req, res) => {
+    const { business } = req
     const [result] = await db
       .select({
         maxIndex: sql<number>`COALESCE(MAX(${businessMembers.derivationIndex}), 0)`,
@@ -203,10 +203,9 @@ businessRouter.get(
 businessRouter.post(
   "/business/members/invite",
   ...withBusinessAuth(Permission.MEMBER_INVITE),
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
-    const ip = req.clientIp ?? "unknown"
+  businessed(async (req, res) => {
+    const { auth, business } = req
+    const ip = req.clientIp
 
     const { role, inviteEmail, expiresInDays, walletAddress, derivationIndex } =
       req.body ?? {}
@@ -298,11 +297,9 @@ businessRouter.post(
 businessRouter.patch(
   "/business/members/:id",
   ...withBusinessAuth(Permission.MEMBER_MANAGE),
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
-    const actor = req.actor!
-    const ip = req.clientIp ?? "unknown"
+  businessed(async (req, res) => {
+    const { auth, business, actor } = req
+    const ip = req.clientIp
 
     const memberId = Number(req.params.id)
     if (isNaN(memberId)) throw new ValidationError("invalid member id")
@@ -417,10 +414,9 @@ businessRouter.patch(
 businessRouter.delete(
   "/business/members/:id",
   ...withBusinessAuth(Permission.MEMBER_MANAGE),
-  asyncHandler(async (req, res) => {
-    const business = req.business!
-    const actor = req.actor!
-    const ip = req.clientIp ?? "unknown"
+  businessed(async (req, res) => {
+    const { business, actor } = req
+    const ip = req.clientIp
 
     const memberId = Number(req.params.id)
     if (isNaN(memberId)) throw new ValidationError("invalid member id")
@@ -459,8 +455,8 @@ businessRouter.delete(
 businessRouter.get(
   "/business/operator-wallets",
   ...withBusinessAuth(Permission.MEMBER_LIST),
-  asyncHandler(async (req, res) => {
-    const business = req.business!
+  businessed(async (req, res) => {
+    const { business } = req
     const rows = await db
       .select({
         id: businessMembers.id,

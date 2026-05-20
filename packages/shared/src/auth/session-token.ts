@@ -19,7 +19,9 @@ function getJwtSecret(): string {
 
 export function signSessionToken(payload: AuthPayload): string {
   return jwt.sign(
-    { userId: payload.userId },
+    payload.sid
+      ? { userId: payload.userId, sid: payload.sid }
+      : { userId: payload.userId },
     getJwtSecret(),
     {
       algorithm: ALGORITHM,
@@ -31,11 +33,12 @@ export function signSessionToken(payload: AuthPayload): string {
 export function verifySessionToken(token: string): AuthPayload {
   const decoded = jwt.verify(token, getJwtSecret(), {
     algorithms: [ALGORITHM],
-  }) as jwt.JwtPayload & { userId?: unknown }
+  }) as jwt.JwtPayload & { userId?: unknown; sid?: unknown }
 
   if (typeof decoded.userId !== "number" || !Number.isFinite(decoded.userId)) {
     throw new Error("Invalid token payload")
   }
 
-  return { userId: decoded.userId }
+  const sid = typeof decoded.sid === "string" ? decoded.sid : undefined
+  return sid ? { userId: decoded.userId, sid } : { userId: decoded.userId }
 }

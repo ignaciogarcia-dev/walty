@@ -20,6 +20,7 @@ import {
 import {
   PAYMENT_CHAIN_ID,
   PAYMENT_EXPIRY_MINUTES,
+  PAYMENT_MAX_AMOUNT_USD,
   PAYMENT_REQUIRED_CONFIRMATIONS,
   getPaymentTokenDefinition,
   isPaymentTokenSymbol,
@@ -36,8 +37,13 @@ import { rateLimitByIp, rateLimitByUser } from "@walty/shared/rate-limit"
 import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent"
 import { asyncHandler } from "../middleware/asyncHandler.js"
+import { businessed } from "../middleware/typedHandlers.js"
 import { withBusinessAuth } from "../middleware/withBusiness.js"
-import { emitPaymentRequestEvent } from "../ws/io.js"
+import {
+  emitBusinessActiveChanged,
+  emitPaymentRequestEvent,
+} from "../ws/io.js"
+import { reconcilerSink } from "../ws/reconcilerSink.js"
 
 export const paymentRequestsRouter: Router = Router()
 
@@ -45,9 +51,8 @@ export const paymentRequestsRouter: Router = Router()
 paymentRequestsRouter.get(
   "/payment-requests",
   ...withBusinessAuth(Permission.PAYMENT_REQUEST_READ),
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
+  businessed(async (req, res) => {
+    const { auth, business } = req
 
     const baseWhere = and(
       eq(paymentRequests.merchantId, business.businessId),
@@ -71,11 +76,9 @@ paymentRequestsRouter.get(
 paymentRequestsRouter.patch(
   "/payment-requests",
   ...withBusinessAuth(Permission.PAYMENT_REQUEST_CANCEL),
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
-    const actor = req.actor!
-    const ip = req.clientIp ?? "unknown"
+  businessed(async (req, res) => {
+    const { auth, business, actor } = req
+    const ip = req.clientIp
 
     const { id } = req.body ?? {}
     if (!id || typeof id !== "string") throw new ValidationError("invalid id")
@@ -123,7 +126,12 @@ paymentRequestsRouter.patch(
       ip,
     )
 
-    emitPaymentRequestEvent({ type: "cancelled", requestId: id })
+    emitPaymentRequestEvent({
+      type: "cancelled",
+      requestId: id,
+      merchantId: business.businessId,
+    })
+    emitBusinessActiveChanged(business.businessId)
 
     res.json(toPaymentRequestView(updated))
   }),
@@ -132,10 +140,9 @@ paymentRequestsRouter.patch(
 paymentRequestsRouter.post(
   "/payment-requests",
   ...withBusinessAuth(Permission.PAYMENT_REQUEST_CREATE),
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
-    const ip = req.clientIp ?? "unknown"
+  businessed(async (req, res) => {
+    const { auth, business } = req
+    const ip = req.clientIp
 
     await rateLimitByUser(auth.userId, 10)
 
@@ -148,6 +155,9 @@ paymentRequestsRouter.post(
     const amount = parseFloat(amountUsd)
     if (!amountUsd || isNaN(amount) || amount <= 0) {
       throw new ValidationError("invalid amount")
+    }
+    if (amount > PAYMENT_MAX_AMOUNT_USD) {
+      throw new ValidationError("amount exceeds maximum allowed")
     }
     if (!merchantWalletAddress || !isAddress(merchantWalletAddress)) {
       throw new ValidationError("invalid merchant wallet address")
@@ -180,7 +190,14 @@ paymentRequestsRouter.post(
     const tokenDef = getPaymentTokenDefinition(token)
     if (!tokenDef?.address) throw new ValidationError("token must be USDC or USDT")
 
-    const amountToken = parseUnits(amountUsd, tokenDef.decimals).toString()
+    let amountToken: string
+    try {
+      amountToken = parseUnits(amountUsd, tokenDef.decimals).toString()
+    } catch {
+      // parseUnits rejects scientific notation, > decimals precision, etc.
+      // Surface as 400 instead of letting the throw bubble to a 500.
+      throw new ValidationError("amount format is invalid")
+    }
 
     const client = getPublicClient(PAYMENT_CHAIN_ID)
     const startBlock = (await client.getBlockNumber()).toString()
@@ -229,6 +246,8 @@ paymentRequestsRouter.post(
       ip,
     )
 
+    emitBusinessActiveChanged(business.businessId)
+
     res.json(toPaymentRequestView(request))
   }),
 )
@@ -237,9 +256,8 @@ paymentRequestsRouter.post(
 paymentRequestsRouter.get(
   "/payment-requests/history",
   ...withBusinessAuth(Permission.PAYMENT_HISTORY_READ),
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
+  businessed(async (req, res) => {
+    const { auth, business } = req
 
     const statusParam = (req.query.status as string) || "all"
     const limit = Math.min(Number(req.query.limit ?? 50), 100)
@@ -310,7 +328,7 @@ paymentRequestsRouter.get(
 
     const { id } = req.params
 
-    await reconcilePendingPaymentRequests({ id, onEvent: emitPaymentRequestEvent }).catch((err) => {
+    await reconcilePendingPaymentRequests({ id, onEvent: reconcilerSink }).catch((err) => {
       // eslint-disable-next-line no-console
       console.error("[payment-requests/:id] reconcile error:", err)
     })
@@ -406,11 +424,11 @@ paymentRequestsRouter.get(
 paymentRequestsRouter.get(
   "/business/payment-requests/:id",
   ...withBusinessAuth(Permission.PAYMENT_REQUEST_READ),
-  asyncHandler(async (req, res) => {
-    const business = req.business!
+  businessed(async (req, res) => {
+    const { business } = req
     const { id } = req.params
 
-    await reconcilePendingPaymentRequests({ id, onEvent: emitPaymentRequestEvent }).catch((err) => {
+    await reconcilePendingPaymentRequests({ id, onEvent: reconcilerSink }).catch((err) => {
       // eslint-disable-next-line no-console
       console.error("[business/payment-requests/:id] reconcile error:", err)
     })

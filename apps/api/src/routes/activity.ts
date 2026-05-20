@@ -3,10 +3,8 @@ import { Router } from "express"
 import { db, paymentRequests } from "@walty/db"
 import type { BusinessActivityStats } from "@walty/shared/activity/types"
 import { rateLimitByUser } from "@walty/shared/rate-limit"
-import { asyncHandler } from "../middleware/asyncHandler.js"
-import {
-  withBusinessContext,
-} from "../middleware/withBusiness.js"
+import { withBusinessHandler } from "../middleware/typedHandlers.js"
+import { withBusinessContext } from "../middleware/withBusiness.js"
 import { withAuth } from "../middleware/withAuth.js"
 
 export const activityRouter: Router = Router()
@@ -33,9 +31,8 @@ activityRouter.get(
   "/activity/stats",
   withAuth,
   withBusinessContext,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const business = req.business!
+  withBusinessHandler(async (req, res) => {
+    const { auth, business } = req
     await rateLimitByUser(auth.userId, 10, 60_000)
 
     const currentMonth = getMonthRange(0)

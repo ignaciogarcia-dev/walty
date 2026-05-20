@@ -7,7 +7,7 @@ import type { TransactionActivityItem } from "@walty/shared/activity/types"
 import { rateLimitByUser } from "@walty/shared/rate-limit"
 import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import { verifyTransaction } from "@walty/shared/transactions/verify"
-import { asyncHandler } from "../middleware/asyncHandler.js"
+import { authed } from "../middleware/typedHandlers.js"
 import { withAuth } from "../middleware/withAuth.js"
 
 export const txRouter: Router = Router()
@@ -18,8 +18,8 @@ const BROADCASTING_TIMEOUT_MS = 5 * 60 * 1000
 txRouter.post(
   "/tx",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     await rateLimitByUser(auth.userId, 20, 60_000)
 
     const {
@@ -62,8 +62,8 @@ txRouter.post(
 txRouter.get(
   "/tx",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     const limit = Math.min(Number(req.query.limit ?? 20), 100)
     const offset = Number(req.query.offset ?? 0)
 
@@ -83,8 +83,8 @@ txRouter.get(
 txRouter.patch(
   "/tx",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     await rateLimitByUser(auth.userId, 20, 60_000)
 
     const { hash } = req.body ?? {}
@@ -127,8 +127,8 @@ txRouter.patch(
 txRouter.get(
   "/tx/activity",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     await rateLimitByUser(auth.userId, 20, 60_000)
 
     const userAddresses = await db
@@ -229,8 +229,8 @@ txRouter.get(
 txRouter.post(
   "/tx/sync",
   withAuth,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
+  authed(async (req, res) => {
+    const { auth } = req
     await rateLimitByUser(auth.userId, 5, 60_000)
 
     const txs = await db

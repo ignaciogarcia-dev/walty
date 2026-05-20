@@ -25,6 +25,16 @@ function thenableEmpty() {
 
 vi.mock("@walty/db", () => ({
   db: {
+    query: {
+      deviceSessions: {
+        findFirst: vi.fn(async () => ({
+          id: "test-sid",
+          trustedAt: new Date(),
+          lastSeenAt: new Date(),
+          revokedAt: null,
+        })),
+      },
+    },
     select: () => ({
       from: () => ({
         where: () => thenableEmpty(),
@@ -33,6 +43,7 @@ vi.mock("@walty/db", () => ({
     insert: vi.fn(() => ({ values: async () => undefined })),
     update: vi.fn(() => ({ set: () => ({ where: async () => undefined }) })),
   },
+  deviceSessions: {},
   addresses: { userId: "userId", address: "address" },
   transactions: {
     userId: "userId",
@@ -55,7 +66,7 @@ beforeAll(async () => {
 afterAll(() => vi.restoreAllMocks())
 
 function authed() {
-  return `token=${signSessionToken({ userId: 1 })}`
+  return `token=${signSessionToken({ userId: 1, sid: "test-sid" })}`
 }
 
 describe("tx routes", () => {

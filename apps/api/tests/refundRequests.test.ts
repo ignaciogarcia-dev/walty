@@ -31,7 +31,17 @@ function thenableEmpty() {
 
 vi.mock("@walty/db", () => ({
   db: {
-    query: { businessMembers: { findFirst: vi.fn(async () => null) } },
+    query: {
+      businessMembers: { findFirst: vi.fn(async () => null) },
+      deviceSessions: {
+        findFirst: vi.fn(async () => ({
+          id: "test-sid",
+          trustedAt: new Date(),
+          lastSeenAt: new Date(),
+          revokedAt: null,
+        })),
+      },
+    },
     select: () => ({
       from: () => ({
         where: () => thenableEmpty(),
@@ -48,6 +58,7 @@ vi.mock("@walty/db", () => ({
     update: vi.fn(() => ({ set: () => ({ where: async () => undefined }) })),
   },
   businessMembers: {},
+  deviceSessions: {},
   paymentRequests: {
     id: "id",
     merchantId: "merchantId",
@@ -76,7 +87,7 @@ beforeAll(async () => {
 afterAll(() => vi.restoreAllMocks())
 
 function authed() {
-  return `token=${signSessionToken({ userId: 1 })}`
+  return `token=${signSessionToken({ userId: 1, sid: "test-sid" })}`
 }
 
 describe("refund-requests routes", () => {

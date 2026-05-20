@@ -9,6 +9,7 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js"
 import { activityRouter } from "./routes/activity.js"
 import { authRouter } from "./routes/auth.js"
 import { businessRouter } from "./routes/business.js"
+import { devicesRouter } from "./routes/devices.js"
 import { healthRouter } from "./routes/health.js"
 import { internalRouter } from "./routes/internal.js"
 import { joinRouter } from "./routes/join.js"
@@ -45,6 +46,7 @@ export function createApp(): Express {
   app.use(authRouter)
   app.use(sessionRouter)
   app.use(walletRouter)
+  app.use(devicesRouter)
   app.use(businessRouter)
   app.use(paymentRequestsRouter)
   app.use(txIntentsRouter)

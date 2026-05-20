@@ -11,6 +11,7 @@ import {
 } from "@walty/db"
 import { normalizePaymentRequest } from "@walty/shared/payments/paymentRequests"
 import type { PaymentRequestEventSink } from "./events"
+import { SPLIT_MIN_CONTRIBUTION_TOKEN } from "./config"
 
 /**
  * Lower-cased set of every address that the merchant controls and could
@@ -142,11 +143,12 @@ export async function reconcilePendingPaymentRequests(
       if (nextStatus === "paid") {
         result.paid += 1
         emit({
-          type: "paid",
-          requestId: request.id,
-          txHash: request.txHash,
-          amount: request.amountToken,
-        })
+                type: "paid",
+                requestId: request.id,
+                txHash: request.txHash,
+                amount: request.amountToken,
+                merchantId: request.merchantId,
+              })
       } else {
         result.confirming += 1
         emit({
@@ -221,6 +223,10 @@ export async function reconcilePendingPaymentRequests(
           })
 
           if (claimedRequest) continue
+
+          // Drop dust contributions — without this an attacker can flood a
+          // split request with 1-wei transfers and inflate the counter.
+          if (log.args.value < SPLIT_MIN_CONTRIBUTION_TOKEN) continue
 
           const transferAmountToken = log.args.value.toString()
           const transferAmountUsd = formatUnits(BigInt(transferAmountToken), request.tokenDecimals)
@@ -326,6 +332,7 @@ export async function reconcilePendingPaymentRequests(
                 requestId: request.id,
                 txHash: log.transactionHash,
                 amount: cumulativeTotalToken,
+                merchantId: request.merchantId,
               })
             }
           } catch (error) {
@@ -490,11 +497,12 @@ export async function reconcilePendingPaymentRequests(
           if (nextStatus === "paid") {
             result.paid += 1
             emit({
-              type: "paid",
-              requestId: request.id,
-              txHash: log.transactionHash,
-              amount: receivedAmountToken,
-            })
+                type: "paid",
+                requestId: request.id,
+                txHash: log.transactionHash,
+                amount: receivedAmountToken,
+                merchantId: request.merchantId,
+              })
           } else {
             result.confirming += 1
             emit({
@@ -533,7 +541,7 @@ export async function reconcilePendingPaymentRequests(
 
       if (flipped.length > 0) {
         result.expired += 1
-        emit({ type: "expired", requestId: request.id })
+        emit({ type: "expired", requestId: request.id, merchantId: request.merchantId })
       }
       continue
     }

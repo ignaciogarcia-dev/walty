@@ -15,6 +15,16 @@ const inserted: Array<Record<string, unknown>> = []
 
 vi.mock("@walty/db", () => ({
   db: {
+    query: {
+      deviceSessions: {
+        findFirst: vi.fn(async () => ({
+          id: "test-sid",
+          trustedAt: new Date(),
+          lastSeenAt: new Date(),
+          revokedAt: null,
+        })),
+      },
+    },
     select: () => ({
       from: () => ({
         where: () => ({
@@ -43,6 +53,7 @@ vi.mock("@walty/db", () => ({
     idempotencyKey: "idempotencyKey",
     createdAt: "createdAt",
   },
+  deviceSessions: {},
 }))
 
 vi.mock("@walty/shared/tx-intents/validate", () => ({
@@ -65,7 +76,7 @@ beforeAll(async () => {
 afterAll(() => vi.restoreAllMocks())
 
 function authed() {
-  return `token=${signSessionToken({ userId: 1 })}`
+  return `token=${signSessionToken({ userId: 1, sid: "test-sid" })}`
 }
 
 describe("tx-intents routes", () => {
