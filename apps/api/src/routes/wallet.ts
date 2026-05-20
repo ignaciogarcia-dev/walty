@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto"
-import { and, eq, lt } from "drizzle-orm"
+import { and, eq, gt, lt } from "drizzle-orm"
 import { Router } from "express"
 import {
   decodeFunctionResult,
@@ -10,6 +10,7 @@ import {
 import {
   db,
   addresses,
+  devicePairingRequests,
   walletBackups,
   walletNonces,
 } from "@walty/db"
@@ -105,6 +106,24 @@ walletRouter.get(
   authed(async (req, res) => {
     const { auth } = req
     await rateLimitByUser(auth.userId, 5, 60_000)
+
+    // Releasing the encrypted backup to a device that has no seed is the one
+    // gated step of multi-device. A trusted device (it proved it holds the
+    // wallet key) is always allowed; an untrusted one needs a live approved
+    // pairing from a trusted device.
+    if (!req.deviceTrusted) {
+      const sid = auth.sid
+      const approved = sid
+        ? await db.query.devicePairingRequests.findFirst({
+            where: and(
+              eq(devicePairingRequests.sessionId, sid),
+              eq(devicePairingRequests.status, "approved"),
+              gt(devicePairingRequests.expiresAt, new Date()),
+            ),
+          })
+        : null
+      if (!approved) throw new ForbiddenError("pairing-required")
+    }
 
     const backup = await db.query.walletBackups.findFirst({
       where: eq(walletBackups.userId, auth.userId),
