@@ -26,8 +26,20 @@ import {
 import { isUniqueViolation } from "@walty/shared/db-errors"
 import { rateLimitByIp } from "@walty/shared/rate-limit"
 import { asyncHandler } from "../middleware/asyncHandler.js"
+import {
+  createDeviceSession,
+  deviceLabelFromUserAgent,
+} from "../services/deviceSessions.js"
 
 export const authRouter: Router = Router()
+
+async function issueToken(req: { get(name: string): string | undefined }, userId: number): Promise<string> {
+  const sid = await createDeviceSession(
+    userId,
+    deviceLabelFromUserAgent(req.get("user-agent")),
+  )
+  return signSessionToken({ userId, sid })
+}
 
 const LOGIN_ATTEMPTS_PER_IP_PER_MIN = 5
 
@@ -59,7 +71,7 @@ authRouter.post(
 
     if (!user || !valid) throw new AuthError()
 
-    const token = signSessionToken({ userId: user.id })
+    const token = await issueToken(req, user.id)
     res.setHeader("Set-Cookie", setTokenCookie(token))
     res.json({ ok: true })
   }),
@@ -134,7 +146,7 @@ authRouter.post(
         ip,
       )
 
-      const token = signSessionToken({ userId: newUserId })
+      const token = await issueToken(req, newUserId)
       res.setHeader("Set-Cookie", setTokenCookie(token))
       res.json({ ok: true, hasActiveBusiness: true })
       return
@@ -151,7 +163,7 @@ authRouter.post(
       throw err
     }
 
-    const token = signSessionToken({ userId: inserted[0].id })
+    const token = await issueToken(req, inserted[0].id)
     res.setHeader("Set-Cookie", setTokenCookie(token))
     res.json({ ok: true })
   }),

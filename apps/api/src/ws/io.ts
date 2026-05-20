@@ -6,8 +6,9 @@ import { verifySessionToken } from "@walty/shared/auth/session-token"
 import { getBusinessContext } from "@walty/shared/business/getBusinessContext"
 import { env } from "../config/env.js"
 import { logger } from "../config/logger.js"
+import { findSession } from "../services/deviceSessions.js"
 
-function authMiddleware(
+async function authMiddleware(
   socket: import("socket.io").Socket,
   next: (err?: Error) => void,
 ) {
@@ -25,7 +26,17 @@ function authMiddleware(
   }
   try {
     const auth = verifySessionToken(token)
+    if (!auth.sid) {
+      next(new Error("unauthorized"))
+      return
+    }
+    const session = await findSession(auth.sid)
+    if (!session || session.userId !== auth.userId || session.revokedAt) {
+      next(new Error("unauthorized"))
+      return
+    }
     socket.data.userId = auth.userId
+    socket.data.sid = auth.sid
     next()
   } catch {
     next(new Error("unauthorized"))
@@ -116,6 +127,20 @@ export function initWebSocket(httpServer: HttpServer): Server {
 
 export function getIo(): Server | null {
   return ioInstance
+}
+
+const AUTHED_NAMESPACES = ["/tx-intents", "/business", "/devices"] as const
+
+/** Drops any open authed sockets for a revoked session id (best-effort). */
+export async function disconnectSession(sid: string): Promise<void> {
+  const io = ioInstance
+  if (!io) return
+  for (const ns of AUTHED_NAMESPACES) {
+    const sockets = await io.of(ns).fetchSockets()
+    for (const s of sockets) {
+      if (s.data.sid === sid) s.disconnect(true)
+    }
+  }
 }
 
 export function closeWebSocket(): Promise<void> {
