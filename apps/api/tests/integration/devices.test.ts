@@ -1,8 +1,21 @@
 import request from "supertest"
+import { eq } from "drizzle-orm"
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts"
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { db, devicePairingRequests } from "@walty/db"
 import { signSessionToken } from "@walty/shared/auth/session-token"
 import { createApp } from "../../src/app.js"
+import { expireStalePairings } from "../../src/services/deviceSessions.js"
+
+// Rate limiting is not under test here (auth.test covers it) and its per-user
+// counter is shared across endpoints, so the multi-step pairing flow would
+// trip it. No-op it so these tests exercise only the device/pairing logic.
+vi.mock("@walty/shared/rate-limit", () => ({
+  rateLimitByIp: vi.fn(async () => {}),
+  rateLimitByUser: vi.fn(async () => {}),
+  RateLimitError: class RateLimitError extends Error {},
+  cleanupExpiredEntries: vi.fn(async () => {}),
+}))
 
 type App = ReturnType<typeof createApp>
 
@@ -44,6 +57,47 @@ async function currentDevice(app: App, cookie: string) {
   return res.body.devices.find(
     (d: { current: boolean }) => d.current,
   ) as { id: string; trusted: boolean }
+}
+
+async function attest(
+  app: App,
+  cookie: string,
+  account: ReturnType<typeof privateKeyToAccount>,
+): Promise<void> {
+  const { id: sid } = await currentDevice(app, cookie)
+  const n = await nonce(app, cookie)
+  const signature = await account.signMessage({
+    message: `Attest device ${sid} nonce ${n}`,
+  })
+  const res = await request(app)
+    .post("/devices/attest")
+    .set("Cookie", cookie)
+    .send({ nonce: n, signature })
+  expect(res.status).toBe(200)
+}
+
+// Registers a user, links + attests a wallet → returns a trusted device cookie
+// plus the wallet account and that user's email (for a second login).
+async function trustedOwner(app: App): Promise<{
+  cookie: string
+  account: ReturnType<typeof privateKeyToAccount>
+  email: string
+}> {
+  const cookie = await registerUser(app)
+  const email = (await request(app).get("/session").set("Cookie", cookie)).body
+    .user.email
+  const account = privateKeyToAccount(generatePrivateKey())
+  await linkWallet(app, cookie, account)
+  await attest(app, cookie, account)
+  return { cookie, account, email }
+}
+
+async function loginCookie(app: App, email: string): Promise<string> {
+  const res = await request(app)
+    .post("/auth/login")
+    .send({ email, password: PASSWORD })
+  expect(res.status).toBe(200)
+  return (res.headers["set-cookie"] as unknown as string[])[0]
 }
 
 describe("device sessions (real db)", () => {
@@ -249,5 +303,138 @@ describe("device sessions (real db)", () => {
       .set("Cookie", cookie)
       .send({ nonce: n, signature: await sign() })
     expect(second.status).toBe(400)
+  })
+})
+
+describe("device pairing gate (real db)", () => {
+  let app: App
+  beforeEach(() => {
+    app = createApp()
+  })
+
+  async function approve(
+    cookie: string,
+    account: ReturnType<typeof privateKeyToAccount>,
+    pairingId: string,
+  ) {
+    const n = await nonce(app, cookie)
+    const signature = await account.signMessage({
+      message: `Approve device pairing ${pairingId} nonce ${n}`,
+    })
+    return request(app)
+      .post(`/devices/pairing-requests/${pairingId}/approve`)
+      .set("Cookie", cookie)
+      .send({ nonce: n, signature })
+  }
+
+  it("a trusted device pulls the backup without any pairing", async () => {
+    const { cookie } = await trustedOwner(app)
+    const res = await request(app).get("/wallet/backup").set("Cookie", cookie)
+    expect(res.status).toBe(200)
+  })
+
+  it("an untrusted device is blocked from the backup until approved", async () => {
+    const { cookie: owner, account, email } = await trustedOwner(app)
+    const newDevice = await loginCookie(app, email)
+
+    const blocked = await request(app)
+      .get("/wallet/backup")
+      .set("Cookie", newDevice)
+    expect(blocked.status).toBe(403)
+    expect(blocked.body.error).toBe("forbidden")
+
+    const req = await request(app)
+      .post("/devices/pairing-requests")
+      .set("Cookie", newDevice)
+    expect(req.status).toBe(200)
+
+    const ok = await approve(owner, account, req.body.pairingId)
+    expect(ok.status).toBe(200)
+
+    const released = await request(app)
+      .get("/wallet/backup")
+      .set("Cookie", newDevice)
+    expect(released.status).toBe(200)
+  })
+
+  it("an already-trusted device cannot open a pairing request", async () => {
+    const { cookie } = await trustedOwner(app)
+    const res = await request(app)
+      .post("/devices/pairing-requests")
+      .set("Cookie", cookie)
+    expect(res.status).toBe(400)
+  })
+
+  it("an untrusted device cannot approve a pairing", async () => {
+    const { email } = await trustedOwner(app)
+    const newDevice = await loginCookie(app, email)
+    const req = await request(app)
+      .post("/devices/pairing-requests")
+      .set("Cookie", newDevice)
+    // The new (untrusted) device tries to approve its own pairing.
+    const res = await request(app)
+      .post(`/devices/pairing-requests/${req.body.pairingId}/approve`)
+      .set("Cookie", newDevice)
+      .send({ nonce: "x", signature: "0xdead" })
+    expect(res.status).toBe(403)
+  })
+
+  it("approval needs a fresh wallet signature, not just a trusted session", async () => {
+    const { cookie: owner, email } = await trustedOwner(app)
+    const newDevice = await loginCookie(app, email)
+    const req = await request(app)
+      .post("/devices/pairing-requests")
+      .set("Cookie", newDevice)
+
+    // Owner is trusted but signs the approval with the wrong key.
+    const attacker = privateKeyToAccount(generatePrivateKey())
+    const bad = await approve(owner, attacker, req.body.pairingId)
+    expect(bad.status).toBe(403)
+
+    const stillBlocked = await request(app)
+      .get("/wallet/backup")
+      .set("Cookie", newDevice)
+    expect(stillBlocked.status).toBe(403)
+  })
+
+  it("a rejected pairing leaves the backup blocked", async () => {
+    const { cookie: owner, email } = await trustedOwner(app)
+    const newDevice = await loginCookie(app, email)
+    const req = await request(app)
+      .post("/devices/pairing-requests")
+      .set("Cookie", newDevice)
+
+    const reject = await request(app)
+      .post(`/devices/pairing-requests/${req.body.pairingId}/reject`)
+      .set("Cookie", owner)
+    expect(reject.status).toBe(200)
+
+    const blocked = await request(app)
+      .get("/wallet/backup")
+      .set("Cookie", newDevice)
+    expect(blocked.status).toBe(403)
+  })
+
+  it("expireStalePairings flips overdue pending requests to expired", async () => {
+    const { email } = await trustedOwner(app)
+    const newDevice = await loginCookie(app, email)
+    const req = await request(app)
+      .post("/devices/pairing-requests")
+      .set("Cookie", newDevice)
+    const pairingId = req.body.pairingId as string
+
+    // Backdate the request so it is overdue.
+    await db
+      .update(devicePairingRequests)
+      .set({ expiresAt: new Date(Date.now() - 1000) })
+      .where(eq(devicePairingRequests.id, pairingId))
+
+    const expired = await expireStalePairings()
+    expect(expired).toBeGreaterThanOrEqual(1)
+
+    const row = await db.query.devicePairingRequests.findFirst({
+      where: eq(devicePairingRequests.id, pairingId),
+    })
+    expect(row?.status).toBe("expired")
   })
 })

@@ -30,6 +30,7 @@ vi.mock("@walty/db", () => ({
     })),
   },
   txIntents: { status: "status", updatedAt: "updatedAt", id: "id" },
+  devicePairingRequests: { status: "status", expiresAt: "expiresAt", id: "id" },
 }))
 
 let createApp: typeof import("../src/app.js").createApp
