@@ -32,6 +32,7 @@ import {
   type WalletSecurityManager,
 } from "@/lib/wallet/WalletSecurityManager";
 import { createWalletSessionManager } from "@/lib/wallet/WalletSessionManager";
+import { attestDevice } from "@/lib/wallet/attestDevice";
 
 export type WalletStatus = "loading" | "unlocked" | InitialWalletStatus;
 
@@ -149,8 +150,9 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
       pinRef.current = pin;
       lastUnlockRef.current = Date.now();
       setStatus("unlocked");
+      void attestDevice(security).catch(() => {});
     },
-    [linkWallet],
+    [linkWallet, security],
   );
 
   // ── Unlock ──────────────────────────────────────────────────────────────
@@ -170,7 +172,8 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
     pinRef.current = pin;
     lastUnlockRef.current = Date.now();
     setStatus("unlocked");
-  }, []);
+    void attestDevice(security).catch(() => {});
+  }, [security]);
 
   // ── Export ──────────────────────────────────────────────────────────────
   const exportWallet = useCallback(() => {
@@ -245,8 +248,9 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
       pinRef.current = newPin;
       lastUnlockRef.current = Date.now();
       setStatus("unlocked");
+      void attestDevice(security).catch(() => {});
     },
-    [],
+    [security],
   );
 
   return {
