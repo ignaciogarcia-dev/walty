@@ -2,16 +2,18 @@ import { reconcilePendingPaymentRequests } from "@walty/shared/payments/reconcil
 import { cleanupExpiredEntries } from "@walty/shared/rate-limit"
 import { reconcileIncomingTransfers } from "@walty/shared/tx/reconcileIncomingTransfers"
 import { logger } from "../config/logger.js"
+import { expireStalePairings } from "../services/deviceSessions.js"
 import { reconcilerSink } from "../ws/reconcilerSink.js"
 
 export async function runReconciler(): Promise<void> {
   try {
-    const [pending, incoming] = await Promise.all([
+    const [pending, incoming, expiredPairings] = await Promise.all([
       reconcilePendingPaymentRequests({ onEvent: reconcilerSink }),
       reconcileIncomingTransfers(),
+      expireStalePairings(),
     ])
     await cleanupExpiredEntries()
-    logger.info({ pending, incoming }, "reconciler tick")
+    logger.info({ pending, incoming, expiredPairings }, "reconciler tick")
   } catch (err) {
     logger.error({ err }, "reconciler failed")
   }

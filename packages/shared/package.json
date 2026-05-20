@@ -18,6 +18,7 @@
     "./networks/*": "./src/networks/*.ts",
     "./auth/*": "./src/auth/*.ts",
     "./business/*": "./src/business/*.ts",
+    "./devices/*": "./src/devices/*.ts",
     "./db-errors": "./src/db-errors.ts",
     "./rate-limit": "./src/rate-limit.ts",
     "./providers/pricing/*": "./src/providers/pricing/*.ts",
