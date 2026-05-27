@@ -5,6 +5,7 @@ import { useWallet } from "@/hooks/useWallet"
 import { LockScreen } from "@/components/wallet/LockScreen"
 import { WalletContext } from "@/components/wallet/context"
 import { PairingApprovalModal } from "@/components/wallet/PairingApprovalModal"
+import { SelfRevokeWatcher } from "@/components/devices/SelfRevokeWatcher"
 import { Toaster } from "@/components/ui/toaster"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
@@ -112,6 +113,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 	return (
 		<WalletContext.Provider value={wallet}>
 			<Toaster />
+			<SelfRevokeWatcher />
 			<PairingApprovalModal />
 			<SidebarProvider className="bg-dashboard-shell">
 				<DashboardSidebar />
