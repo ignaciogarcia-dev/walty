@@ -180,9 +180,18 @@ export default function RecoverPage() {
               </div>
 
               {pairingState === "waiting" && (
-                <p className="text-xs text-muted-foreground">
-                  {t("pairing-waiting")}
-                </p>
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    {t("pairing-waiting")}
+                  </p>
+                  <button
+                    type="button"
+                    className="text-xs text-primary underline-offset-2 hover:underline w-fit"
+                    onClick={() => { setMode("seed"); setError(null) }}
+                  >
+                    {t("recovery-with-seed")}
+                  </button>
+                </div>
               )}
 
               <Button
