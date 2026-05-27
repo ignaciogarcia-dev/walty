@@ -524,4 +524,31 @@ export const en = {
   "amount-you-send": "Amount you send",
   "amount-recipient-gets": "Amount recipient gets",
   "insufficient-balance": "Insufficient balance",
+
+  // Devices
+  devices: "Devices",
+  "devices-title": "Your devices",
+  "devices-description":
+    "Every device that has access to your wallet. Revoke any you don't recognise.",
+  "devices-loading": "Loading devices…",
+  "devices-empty": "No devices yet.",
+  "devices-this-device": "This device",
+  "devices-trusted": "Trusted",
+  "devices-pending": "Pending pairing",
+  "devices-last-seen": "Last seen {time}",
+  "devices-rename": "Rename",
+  "devices-revoke": "Revoke",
+  "devices-rename-title": "Rename device",
+  "devices-rename-description":
+    "Pick a label you'll recognise. Only you can see it.",
+  "devices-rename-placeholder": "e.g. iPhone, Office laptop",
+  "devices-rename-error": "Couldn't rename. Try again.",
+  "devices-revoke-title": "Revoke this device?",
+  "devices-revoke-description":
+    "It will be signed out and need a new approval to come back in.",
+  "devices-revoke-self-warning":
+    "This is the device you're using. You'll be signed out and your local wallet copy will be cleared. To return you'll need your password and the approval of another trusted device, or your recovery phrase.",
+  "devices-revoke-confirm": "Revoke",
+  "devices-revoke-error": "Couldn't revoke. Try again.",
+  "devices-revoked-banner": "Your access on this device was revoked.",
 } as const;

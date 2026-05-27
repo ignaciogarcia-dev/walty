@@ -524,4 +524,31 @@ export const es = {
   "amount-you-send": "Monto que enviás",
   "amount-recipient-gets": "Monto que recibe el destinatario",
   "insufficient-balance": "Saldo insuficiente",
+
+  // Dispositivos
+  devices: "Dispositivos",
+  "devices-title": "Tus dispositivos",
+  "devices-description":
+    "Cada dispositivo con acceso a tu wallet. Revocá los que no reconozcas.",
+  "devices-loading": "Cargando dispositivos…",
+  "devices-empty": "Todavía no hay dispositivos.",
+  "devices-this-device": "Este dispositivo",
+  "devices-trusted": "Confiable",
+  "devices-pending": "Pareo pendiente",
+  "devices-last-seen": "Visto por última vez {time}",
+  "devices-rename": "Renombrar",
+  "devices-revoke": "Revocar",
+  "devices-rename-title": "Renombrar dispositivo",
+  "devices-rename-description":
+    "Elegí una etiqueta que reconozcas. Solo vos la ves.",
+  "devices-rename-placeholder": "Ej. iPhone, Notebook oficina",
+  "devices-rename-error": "No se pudo renombrar. Intentá de nuevo.",
+  "devices-revoke-title": "¿Revocar este dispositivo?",
+  "devices-revoke-description":
+    "Va a cerrar sesión y va a necesitar una nueva aprobación para volver.",
+  "devices-revoke-self-warning":
+    "Es el dispositivo que estás usando. Vas a cerrar sesión y se va a borrar la copia local de tu wallet. Para volver vas a necesitar tu contraseña y la aprobación de otro dispositivo confiable, o tu frase semilla.",
+  "devices-revoke-confirm": "Revocar",
+  "devices-revoke-error": "No se pudo revocar. Intentá de nuevo.",
+  "devices-revoked-banner": "Tu acceso desde este dispositivo fue revocado.",
 } as const;

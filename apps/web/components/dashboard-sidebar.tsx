@@ -1,5 +1,5 @@
 "use client"
-import { ClockCounterClockwise, House, Receipt, SidebarSimpleIcon, Users, Wallet } from "@phosphor-icons/react"
+import { ClockCounterClockwise, DeviceMobile, House, Receipt, SidebarSimpleIcon, Users, Wallet } from "@phosphor-icons/react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -79,6 +79,11 @@ export function DashboardSidebar() {
         href: "/dashboard/business/wallets",
       }]
       : []),
+    {
+      icon: <DeviceMobile size={18} weight="regular" />,
+      label: t("devices"),
+      href: "/dashboard/devices",
+    },
   ]
 
   return (
@@ -136,6 +141,7 @@ export function DashboardSidebar() {
                   const isTeam = item.href === "/dashboard/business/team"
                   const isRefunds = item.href === "/dashboard/business/refunds/manage"
                   const isWallets = item.href === "/dashboard/business/wallets"
+                  const isDevices = item.href === "/dashboard/devices"
                   const isActive = isHome
                     ? pathname === "/dashboard/home" || pathname === "/dashboard/business/home"
                     : isTeam
@@ -144,7 +150,9 @@ export function DashboardSidebar() {
                         ? pathname.startsWith("/dashboard/business/refunds/manage")
                         : isWallets
                           ? pathname.startsWith("/dashboard/business/wallets")
-                          : pathname === item.href
+                          : isDevices
+                            ? pathname.startsWith("/dashboard/devices")
+                            : pathname === item.href
                   return (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
