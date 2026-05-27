@@ -282,6 +282,74 @@ describe("device sessions (real db)", () => {
     expect(res.status).toBe(400)
   })
 
+  it("a trusted device renames its own label", async () => {
+    const { cookie } = await trustedOwner(app)
+    const { id: sid } = await currentDevice(app, cookie)
+    const res = await request(app)
+      .patch(`/devices/${sid}`)
+      .set("Cookie", cookie)
+      .send({ label: "Office laptop" })
+    expect(res.status).toBe(200)
+    const after = await request(app).get("/devices").set("Cookie", cookie)
+    expect(after.body.devices[0].label).toBe("Office laptop")
+  })
+
+  it("a trusted device can rename a sibling session of the same user", async () => {
+    const { cookie: owner, email } = await trustedOwner(app)
+    const second = await loginCookie(app, email)
+    const { id: secondSid } = await currentDevice(app, second)
+
+    const res = await request(app)
+      .patch(`/devices/${secondSid}`)
+      .set("Cookie", owner)
+      .send({ label: "  Old phone  " })
+    expect(res.status).toBe(200)
+
+    const list = await request(app).get("/devices").set("Cookie", owner)
+    const target = list.body.devices.find(
+      (d: { id: string }) => d.id === secondSid,
+    )
+    expect(target.label).toBe("Old phone")
+  })
+
+  it("an untrusted device cannot rename anything", async () => {
+    const { email } = await trustedOwner(app)
+    const second = await loginCookie(app, email)
+    const { id: secondSid } = await currentDevice(app, second)
+    const res = await request(app)
+      .patch(`/devices/${secondSid}`)
+      .set("Cookie", second)
+      .send({ label: "Hacked" })
+    expect(res.status).toBe(403)
+  })
+
+  it("cannot rename a device of another user (404)", async () => {
+    const { cookie: a } = await trustedOwner(app)
+    const { cookie: b } = await trustedOwner(app)
+    const { id: bSid } = await currentDevice(app, b)
+    const res = await request(app)
+      .patch(`/devices/${bSid}`)
+      .set("Cookie", a)
+      .send({ label: "Stolen" })
+    expect(res.status).toBe(404)
+  })
+
+  it("rejects an empty label or one longer than 80 chars", async () => {
+    const { cookie } = await trustedOwner(app)
+    const { id: sid } = await currentDevice(app, cookie)
+    const empty = await request(app)
+      .patch(`/devices/${sid}`)
+      .set("Cookie", cookie)
+      .send({ label: "   " })
+    expect(empty.status).toBe(400)
+
+    const tooLong = await request(app)
+      .patch(`/devices/${sid}`)
+      .set("Cookie", cookie)
+      .send({ label: "x".repeat(81) })
+    expect(tooLong.status).toBe(400)
+  })
+
   it("a nonce is single-use across attest", async () => {
     const cookie = await registerUser(app)
     const account = privateKeyToAccount(generatePrivateKey())

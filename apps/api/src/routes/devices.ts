@@ -23,11 +23,14 @@ import {
 } from "../services/deviceSessions.js"
 import {
   disconnectSession,
+  emitDeviceListChanged,
   emitDevicePairingApproved,
   emitDevicePairingRejected,
   emitDevicePairingRequested,
   emitDeviceRevoked,
 } from "../ws/io.js"
+
+const LABEL_MAX = 80
 
 export const devicesRouter: Router = Router()
 
@@ -254,6 +257,41 @@ devicesRouter.post(
 
     emitDevicePairingRejected(auth.userId, { pairingId: pairing.id })
 
+    res.json({ ok: true })
+  }),
+)
+
+// Rename a device label. Trusted-only (mismo bar que revoke): the default
+// label is the User-Agent string and is unreadable without rename. The owner
+// can rename any of their own sessions (including others), which makes the
+// list usable on a phone where you can't see the UA otherwise.
+devicesRouter.patch(
+  "/devices/:sid",
+  withAuth,
+  authed(async (req, res) => {
+    const { auth } = req
+    if (!req.deviceTrusted) throw new ForbiddenError("device.not_trusted")
+
+    const raw = (req.body ?? {}).label
+    if (typeof raw !== "string") throw new ValidationError("device.invalid_label")
+    const label = raw.trim()
+    if (label.length === 0 || label.length > LABEL_MAX) {
+      throw new ValidationError("device.invalid_label")
+    }
+
+    const target = await db.query.deviceSessions.findFirst({
+      where: eq(deviceSessions.id, req.params.sid),
+    })
+    if (!target || target.userId !== auth.userId) {
+      throw new NotFoundError("device.not_found")
+    }
+
+    await db
+      .update(deviceSessions)
+      .set({ label })
+      .where(eq(deviceSessions.id, target.id))
+
+    emitDeviceListChanged(auth.userId)
     res.json({ ok: true })
   }),
 )

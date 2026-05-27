@@ -255,3 +255,7 @@ export function emitDeviceRevoked(userId: number, sid: string): void {
   emitToUser(userId, DEVICE_EVENTS.revoked, { sid })
   emitToUser(userId, DEVICE_EVENTS.listChanged, {})
 }
+
+export function emitDeviceListChanged(userId: number): void {
+  emitToUser(userId, DEVICE_EVENTS.listChanged, {})
+}
