@@ -10,6 +10,8 @@ export const env = {
   port: Number(process.env.API_PORT ?? 4000),
   webOrigin: required("WEB_ORIGIN", "http://localhost:3000"),
   logLevel: process.env.LOG_LEVEL ?? "info",
+  safeChainId: Number(process.env.SAFE_CHAIN_ID ?? 80002),
+  safeDeployerPrivateKey: process.env.SAFE_DEPLOYER_PRIVATE_KEY ?? "",
 }
 
 export const isProduction = env.appEnv === "production"
