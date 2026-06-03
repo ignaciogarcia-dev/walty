@@ -87,9 +87,17 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 		}
 	}, [route, userLoading, pathname, router])
 
-	// Show spinner while loading user/wallet data or while redirecting
+	// The revoke watcher is rendered once, as a stable sibling of whatever body
+	// shows below (spinner / lock screen / dashboard). Mounting it inside those
+	// branches made it unmount on every loading↔locked↔unlocked swap, leaving
+	// windows where a `device:revoked` was missed — exactly when a lost/idle
+	// device most needs to shred its local seed. As long as the user is
+	// authenticated it stays mounted and listening regardless of wallet state.
+	let body: React.ReactNode
+
 	if (status === "loading" || userLoading || route.type !== "allow") {
-		return (
+		// Show spinner while loading user/wallet data or while redirecting
+		body = (
 			<div className="min-h-screen flex items-center justify-center">
 				<div className="fixed inset-0 z-[9999] bg-[#22c55e] text-white flex flex-col items-center justify-center gap-4">
 					<h1 className="text-white text-4xl font-bold">WALTY</h1>
@@ -97,36 +105,40 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 				</div>
 			</div>
 		)
-	}
-
-	// Locked wallet — skip for revoked/suspended; operators have no personal wallet to unlock.
-	if (
+	} else if (
+		// Locked wallet — skip for revoked/suspended; operators have no personal wallet to unlock.
 		status === "locked" &&
 		user?.isOwner &&
 		user?.businessStatus !== "revoked" &&
 		user?.businessStatus !== "suspended"
 	) {
-		return <LockScreen onUnlock={unlock} />
+		body = <LockScreen onUnlock={unlock} />
+	} else {
+		// status === "unlocked" (wallet users and business owners), or locked operator (no personal wallet to unlock)
+		body = (
+			<WalletContext.Provider value={wallet}>
+				<Toaster />
+				<PairingApprovalModal />
+				<SidebarProvider className="bg-dashboard-shell">
+					<DashboardSidebar />
+					<SidebarInset className="bg-dashboard-shell">
+						<div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-dashboard-shell/95 px-4 backdrop-blur md:hidden">
+							<SidebarTrigger className="size-9 rounded-xl border bg-background shadow-xs hover:bg-accent" />
+							<span className="text-sm font-semibold text-foreground">WALTY</span>
+						</div>
+						<div className="flex-1 overflow-auto">
+							{children}
+						</div>
+					</SidebarInset>
+				</SidebarProvider>
+			</WalletContext.Provider>
+		)
 	}
 
-	// status === "unlocked" (wallet users and business owners), or locked operator (no personal wallet to unlock)
 	return (
-		<WalletContext.Provider value={wallet}>
-			<Toaster />
-			<SelfRevokeWatcher />
-			<PairingApprovalModal />
-			<SidebarProvider className="bg-dashboard-shell">
-				<DashboardSidebar />
-				<SidebarInset className="bg-dashboard-shell">
-					<div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-dashboard-shell/95 px-4 backdrop-blur md:hidden">
-						<SidebarTrigger className="size-9 rounded-xl border bg-background shadow-xs hover:bg-accent" />
-						<span className="text-sm font-semibold text-foreground">WALTY</span>
-					</div>
-					<div className="flex-1 overflow-auto">
-						{children}
-					</div>
-				</SidebarInset>
-			</SidebarProvider>
-		</WalletContext.Provider>
+		<>
+			{user && <SelfRevokeWatcher />}
+			{body}
+		</>
 	)
 }
