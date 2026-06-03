@@ -1,5 +1,5 @@
 import { type Chain } from "viem"
-import { mainnet, arbitrum, base, optimism, polygon } from "viem/chains"
+import { mainnet, arbitrum, base, optimism, polygon, polygonAmoy } from "viem/chains"
 
 export const VIEM_CHAINS: Record<number, Chain> = {
   1: mainnet,
@@ -7,6 +7,7 @@ export const VIEM_CHAINS: Record<number, Chain> = {
   8453: base,
   10: optimism,
   137: polygon,
+  80002: polygonAmoy,
 }
 
 export function getViemChain(chainId: number): Chain {
