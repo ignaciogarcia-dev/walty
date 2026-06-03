@@ -30,7 +30,9 @@ vi.mock("@/lib/wallet-store", () => ({
   clearStoredWallet: clearStoredWalletMock,
 }))
 
-const { useSelfRevokeWatcher } = await import("./useSelfRevokeWatcher")
+const { useSelfRevokeWatcher, __resetSelfRevokeGuardForTest } = await import(
+  "./useSelfRevokeWatcher"
+)
 
 const fetchMock = vi.fn()
 const assignMock = vi.fn()
@@ -39,6 +41,8 @@ beforeEach(() => {
   fetchMock.mockReset()
   clearStoredWalletMock.mockClear()
   assignMock.mockClear()
+  socket.reset()
+  __resetSelfRevokeGuardForTest()
   vi.stubGlobal("fetch", fetchMock)
   Object.defineProperty(window, "location", {
     value: { assign: assignMock },
@@ -47,7 +51,6 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  socket.reset()
   vi.unstubAllGlobals()
 })
 
@@ -88,5 +91,26 @@ describe("useSelfRevokeWatcher", () => {
 
     expect(clearStoredWalletMock).not.toHaveBeenCalled()
     expect(assignMock).not.toHaveBeenCalled()
+  })
+
+  it("keeps listening after the component unmounts (survives layout churn)", async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ user: { sid: "mine" } }) })
+      .mockResolvedValueOnce({ ok: true })
+
+    const { unmount } = renderHook(() => useSelfRevokeWatcher())
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/session"))
+
+    // The dashboard layout remounts on routing/lock churn — the guard must not
+    // stop listening when its host component goes away.
+    unmount()
+
+    await act(async () => {
+      socket.push("device:revoked", { sid: "mine" })
+      await Promise.resolve()
+    })
+
+    await waitFor(() => expect(clearStoredWalletMock).toHaveBeenCalled())
+    expect(assignMock).toHaveBeenCalledWith("/onboarding/login?revoked=1")
   })
 })
