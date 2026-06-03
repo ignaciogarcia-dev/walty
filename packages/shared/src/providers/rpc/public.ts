@@ -5,6 +5,7 @@ const PUBLIC_RPC_URLS: Record<number, string> = {
   10: "https://mainnet.optimism.io",
   // polygon-rpc.com often returns 401; publicnode is a stable public fallback
   137: "https://polygon-bor.publicnode.com",
+  80002: "https://rpc-amoy.polygon.technology",
 };
 
 export function getPublicUrls(chainId: number): string[] {
