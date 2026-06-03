@@ -144,7 +144,7 @@ paymentRequestsRouter.post(
     const { auth, business } = req
     const ip = req.clientIp
 
-    await rateLimitByUser(auth.userId, 10)
+    await rateLimitByUser(auth.userId, "payment-request-create", 10)
 
     const { amountUsd, token, merchantWalletAddress, isSplitPayment } =
       req.body ?? {}

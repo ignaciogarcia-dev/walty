@@ -41,7 +41,7 @@ walletRouter.post(
   withAuth,
   authed(async (req, res) => {
     const { auth } = req
-    await rateLimitByUser(auth.userId, 5, 60_000)
+    await rateLimitByUser(auth.userId, "wallet-nonce", 5, 60_000)
 
     await db.delete(walletNonces).where(lt(walletNonces.expiresAt, new Date()))
 
@@ -61,7 +61,7 @@ walletRouter.post(
   withAuth,
   authed(async (req, res) => {
     const { auth } = req
-    await rateLimitByUser(auth.userId, 3, 60_000)
+    await rateLimitByUser(auth.userId, "wallet-link", 3, 60_000)
 
     const { address, signature, nonce } = req.body ?? {}
 
@@ -105,7 +105,7 @@ walletRouter.get(
   withAuth,
   authed(async (req, res) => {
     const { auth } = req
-    await rateLimitByUser(auth.userId, 5, 60_000)
+    await rateLimitByUser(auth.userId, "wallet-backup-read", 5, 60_000)
 
     // Releasing the encrypted backup to a device that has no seed is the one
     // gated step of multi-device. A trusted device (it proved it holds the
@@ -138,7 +138,7 @@ walletRouter.post(
   withAuth,
   authed(async (req, res) => {
     const { auth } = req
-    await rateLimitByUser(auth.userId, 5, 60_000)
+    await rateLimitByUser(auth.userId, "wallet-backup-write", 5, 60_000)
 
     const body = req.body
     try {
@@ -164,7 +164,7 @@ walletRouter.get(
   withAuth,
   authed(async (req, res) => {
     const { auth } = req
-    await rateLimitByUser(auth.userId, 20, 60_000)
+    await rateLimitByUser(auth.userId, "wallet-balance", 20, 60_000)
 
     const address = typeof req.query.address === "string" ? req.query.address : null
     const tokenAddress =

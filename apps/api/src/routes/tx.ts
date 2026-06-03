@@ -20,7 +20,7 @@ txRouter.post(
   withAuth,
   authed(async (req, res) => {
     const { auth } = req
-    await rateLimitByUser(auth.userId, 20, 60_000)
+    await rateLimitByUser(auth.userId, "tx-record", 20, 60_000)
 
     const {
       hash,
@@ -85,7 +85,7 @@ txRouter.patch(
   withAuth,
   authed(async (req, res) => {
     const { auth } = req
-    await rateLimitByUser(auth.userId, 20, 60_000)
+    await rateLimitByUser(auth.userId, "tx-update", 20, 60_000)
 
     const { hash } = req.body ?? {}
     if (!hash || !isHex(hash)) throw new ValidationError("Invalid transaction hash")
@@ -129,7 +129,7 @@ txRouter.get(
   withAuth,
   authed(async (req, res) => {
     const { auth } = req
-    await rateLimitByUser(auth.userId, 20, 60_000)
+    await rateLimitByUser(auth.userId, "tx-activity", 20, 60_000)
 
     const userAddresses = await db
       .select({ address: addresses.address })
@@ -231,7 +231,7 @@ txRouter.post(
   withAuth,
   authed(async (req, res) => {
     const { auth } = req
-    await rateLimitByUser(auth.userId, 5, 60_000)
+    await rateLimitByUser(auth.userId, "tx-sync", 5, 60_000)
 
     const txs = await db
       .select()

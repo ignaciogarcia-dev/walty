@@ -7,9 +7,8 @@ import { signSessionToken } from "@walty/shared/auth/session-token"
 import { createApp } from "../../src/app.js"
 import { expireStalePairings } from "../../src/services/deviceSessions.js"
 
-// Rate limiting is not under test here (auth.test covers it) and its per-user
-// counter is shared across endpoints, so the multi-step pairing flow would
-// trip it. No-op it so these tests exercise only the device/pairing logic.
+// Rate limiting is not under test here (rateLimit.test covers it); no-op it so
+// these tests exercise only the device/pairing logic.
 vi.mock("@walty/shared/rate-limit", () => ({
   rateLimitByIp: vi.fn(async () => {}),
   rateLimitByUser: vi.fn(async () => {}),
