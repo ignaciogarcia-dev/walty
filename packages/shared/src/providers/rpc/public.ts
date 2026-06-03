@@ -12,3 +12,9 @@ export function getPublicUrls(chainId: number): string[] {
   const url = PUBLIC_RPC_URLS[chainId];
   return url ? [url] : [];
 }
+
+export function getPublicRpcUrl(chainId: number): string {
+  const url = PUBLIC_RPC_URLS[chainId];
+  if (!url) throw new Error(`No public RPC URL for chainId: ${chainId}`);
+  return url;
+}
