@@ -26,6 +26,7 @@ import {
   type EncryptedSeedV3,
 } from "@/lib/crypto";
 import { getWalletClient } from "@/lib/rpc/getWalletClient";
+import { unwrap } from "@/lib/api/unwrap";
 import { zeroize } from "@/lib/zeroize";
 import {
   createWalletSecurityManager,
@@ -112,9 +113,7 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
         if (nonceRes.status === 429) throw new Error("too-many-requests");
         throw new Error("Failed to obtain nonce");
       }
-      const {
-        data: { nonce },
-      } = await nonceRes.json();
+      const { nonce } = unwrap<{ nonce: string }>(await nonceRes.json());
 
       const message = `Link wallet ${addr} nonce ${nonce}`;
       const signature = await walletClient.signMessage({ message });
@@ -230,10 +229,10 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
 
       const res = await fetch("/api/wallet/backup");
       if (!res.ok) throw new Error("Failed to retrieve backup");
-      const { data: backup } = await res.json();
+      const backup = unwrap<EncryptedSeedV3 | null>(await res.json());
       if (!backup) throw new Error("No backup found on server");
 
-      const backupData = backup as EncryptedSeedV3;
+      const backupData = backup;
       const mnemonic = await decryptSeedV3(backupData, pin);
 
       const { mnemonicToAccount } = await import("viem/accounts");

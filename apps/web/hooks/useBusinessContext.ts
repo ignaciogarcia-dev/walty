@@ -1,5 +1,6 @@
 "use client"
 import { useQuery } from "@tanstack/react-query"
+import { unwrap } from "@/lib/api/unwrap"
 
 export type BusinessRole = "owner" | "cashier"
 
@@ -17,8 +18,7 @@ async function fetchBusinessContext(): Promise<BusinessContextData | null> {
   const res = await fetch("/api/business/context")
   if (res.status === 404) return null
   if (!res.ok) throw new Error("Failed to load business context")
-  const { data } = await res.json()
-  return data as BusinessContextData
+  return unwrap<BusinessContextData>(await res.json())
 }
 
 export function useBusinessContext() {

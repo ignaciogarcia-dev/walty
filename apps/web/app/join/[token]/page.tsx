@@ -6,6 +6,7 @@ import { Buildings, CheckCircle, ProhibitInset, Warning } from "@phosphor-icons/
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useTranslation } from "@/hooks/useTranslation"
+import { unwrap } from "@/lib/api/unwrap"
 
 type InviteStatus = "loading" | "valid" | "expired" | "revoked" | "already_accepted" | "error"
 
@@ -46,8 +47,7 @@ export default function JoinPage() {
           setInvite({ status: "error" })
           return
         }
-        const { data } = await inviteRes.json()
-        setInvite(data)
+        setInvite(unwrap<InviteData>(await inviteRes.json()))
       } catch {
         setInvite({ status: "error" })
       }

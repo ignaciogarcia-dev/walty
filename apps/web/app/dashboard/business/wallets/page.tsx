@@ -10,6 +10,7 @@ import { getTokensByChain } from "@walty/shared/tokens/tokenRegistry"
 import { PAYMENT_CHAIN_ID } from "@walty/shared/payments/config"
 import { getTxUrl } from "@/lib/explorer/getTxUrl"
 import { useTranslation } from "@/hooks/useTranslation"
+import { unwrap } from "@/lib/api/unwrap"
 import { cn } from "@/utils/style"
 
 type OperatorWallet = {
@@ -41,8 +42,8 @@ export default function OperatorWalletsPage() {
     queryFn: async () => {
       const res = await fetch("/api/business/operator-wallets")
       if (!res.ok) throw new Error("Failed to load operator wallets")
-      const { data } = await res.json()
-      return data.wallets as OperatorWallet[]
+      const data = unwrap<{ wallets: OperatorWallet[] }>(await res.json())
+      return data.wallets
     },
     refetchInterval: 30_000,
     staleTime: 15_000,

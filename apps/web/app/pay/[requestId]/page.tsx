@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useUser } from "@/hooks/useUser"
 import type { PaymentRequestView } from "@walty/shared/payments/types"
+import { unwrap } from "@/lib/api/unwrap"
 import {
   getPaymentRequestCountdown,
   getPaymentRequestStatus,
@@ -36,8 +37,7 @@ export default function PayLandingPage() {
     queryFn: async () => {
       const res = await fetch(`/api/payment-requests/${requestId}`)
       if (!res.ok) return null
-      const { data } = await res.json()
-      return data as PaymentRequestView
+      return unwrap<PaymentRequestView>(await res.json())
     },
     staleTime: 0,
   })

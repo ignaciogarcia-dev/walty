@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { TrendUp, TrendDown, CurrencyDollar, ChartLineUp } from "@phosphor-icons/react"
 import type { BusinessActivityStats } from "@walty/shared/activity/types"
 import { formatCurrency, formatChangePercent } from "@/lib/activity/utils"
+import { unwrap } from "@/lib/api/unwrap"
 export const ACTIVITY_STATS_QUERY_KEY = ["activity-stats"] as const
 
 export function BusinessStatsWidget() {
@@ -11,8 +12,8 @@ export function BusinessStatsWidget() {
 		queryFn: async () => {
 			const res = await fetch("/api/activity/stats")
 			if (!res.ok) throw new Error("Failed to fetch stats")
-			const { data } = await res.json()
-			return data.business as BusinessActivityStats | undefined
+			const data = unwrap<{ business?: BusinessActivityStats }>(await res.json())
+			return data.business
 		},
 		staleTime: 5 * 60_000,
 	})

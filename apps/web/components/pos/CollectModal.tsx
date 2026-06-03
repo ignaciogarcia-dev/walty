@@ -29,6 +29,7 @@ import { PAYMENT_CHAIN_ID } from "@walty/shared/payments/config"
 import { usePaymentRequestStatus } from "@/hooks/usePaymentRequestStatus"
 import { getAbsolutePaymentUrl } from "@/lib/payments/paymentLinks"
 import type { PaymentRequestView } from "@walty/shared/payments/types"
+import { unwrap } from "@/lib/api/unwrap"
 import {
   getPaymentRequestCountdown,
   getPaymentRequestStatus,
@@ -116,8 +117,7 @@ export function CollectModal({
     queryFn: async () => {
       const res = await fetch(`/api/business/payment-requests/${requestId}`)
       if (!res.ok) return null
-      const { data: next } = (await res.json()) as { data: PaymentRequestView }
-      return next
+      return unwrap<PaymentRequestView>(await res.json())
     },
     enabled: !!requestId && pollableStatus,
     staleTime: 0,

@@ -1,4 +1,5 @@
 import { getStoredWallet, clearStoredWallet } from "./wallet-store";
+import { unwrap } from "./api/unwrap";
 
 export type LinkedAddress = {
   id: number;
@@ -39,9 +40,9 @@ export async function fetchLinkedAddresses(): Promise<LinkedAddressesResult | nu
     return null;
   }
 
-  const {
-    data: { addresses },
-  } = await res.json();
+  const { addresses } = unwrap<{ addresses: LinkedAddress[] }>(
+    await res.json(),
+  );
   if (!Array.isArray(addresses)) {
     return null;
   }
