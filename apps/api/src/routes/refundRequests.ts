@@ -132,7 +132,7 @@ refundRequestsRouter.post(
     const { auth, business, actor } = req
     const ip = req.clientIp
 
-    await rateLimitByUser(auth.userId, 5)
+    await rateLimitByUser(auth.userId, "refund-request-create", 5)
 
     const {
       paymentRequestId,

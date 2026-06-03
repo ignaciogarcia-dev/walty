@@ -124,7 +124,7 @@ joinRouter.post(
       throw new ForbiddenError(Permission.JOIN_BUSINESS)
     }
 
-    await rateLimitByUser(auth.userId, 5)
+    await rateLimitByUser(auth.userId, "join-accept", 5)
 
     const ownerSettings = await db.query.businessSettings.findFirst({
       where: eq(businessSettings.userId, auth.userId),

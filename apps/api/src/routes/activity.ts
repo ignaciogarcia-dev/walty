@@ -33,7 +33,7 @@ activityRouter.get(
   withBusinessContext,
   withBusinessHandler(async (req, res) => {
     const { auth, business } = req
-    await rateLimitByUser(auth.userId, 10, 60_000)
+    await rateLimitByUser(auth.userId, "activity-stats", 10, 60_000)
 
     const currentMonth = getMonthRange(0)
     const previousMonth = getMonthRange(1)

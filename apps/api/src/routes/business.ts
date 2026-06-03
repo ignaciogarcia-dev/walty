@@ -108,7 +108,7 @@ businessRouter.post(
   withAuth,
   authed(async (req, res) => {
     const { auth } = req
-    await rateLimitByUser(auth.userId, 10, 60_000)
+    await rateLimitByUser(auth.userId, "business-settings", 10, 60_000)
 
     const body = req.body ?? {}
     const name = typeof body?.name === "string" ? body.name.trim() : ""

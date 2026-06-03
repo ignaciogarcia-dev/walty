@@ -51,9 +51,20 @@ export async function rateLimitByIp(key: string, limit: number, windowMs = 60_00
   await rateLimit(key, limit, windowMs)
 }
 
-/** Rate limit by authenticated user id. */
-export async function rateLimitByUser(userId: number, limit = 10, windowMs = 60_000) {
-  await rateLimit(`user:${userId}`, limit, windowMs)
+/**
+ * Rate limit by authenticated user id, scoped to a named `bucket` (usually the
+ * endpoint). The bucket is part of the key so each endpoint gets its own
+ * independent counter — otherwise every rate-limited endpoint shares one
+ * `user:<id>` bucket and the lowest per-endpoint limit ends up throttling the
+ * whole API for that user (a normal multi-step flow trips a spurious 429).
+ */
+export async function rateLimitByUser(
+  userId: number,
+  bucket: string,
+  limit = 10,
+  windowMs = 60_000,
+) {
+  await rateLimit(`user:${userId}:${bucket}`, limit, windowMs)
 }
 
 /**

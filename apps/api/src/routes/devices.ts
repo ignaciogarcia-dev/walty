@@ -123,7 +123,7 @@ devicesRouter.post(
   withAuth,
   authed(async (req, res) => {
     const { auth } = req
-    await rateLimitByUser(auth.userId, 10, 60_000)
+    await rateLimitByUser(auth.userId, "device-attest", 10, 60_000)
 
     const sid = auth.sid
     if (!sid) throw new ForbiddenError("device.no_session")
@@ -151,7 +151,7 @@ devicesRouter.post(
     const { auth } = req
     if (!auth.sid) throw new ForbiddenError("device.no_session")
     if (req.deviceTrusted) throw new ValidationError("device.already_trusted")
-    await rateLimitByUser(auth.userId, 10, 60_000)
+    await rateLimitByUser(auth.userId, "device-pairing-request", 10, 60_000)
 
     const now = new Date()
     const existing = await db.query.devicePairingRequests.findFirst({
@@ -200,7 +200,7 @@ devicesRouter.post(
     if (!auth.sid || !req.deviceTrusted) {
       throw new ForbiddenError("device.not_trusted")
     }
-    await rateLimitByUser(auth.userId, 10, 60_000)
+    await rateLimitByUser(auth.userId, "device-pairing-approve", 10, 60_000)
 
     const pairing = await db.query.devicePairingRequests.findFirst({
       where: eq(devicePairingRequests.id, req.params.id),
