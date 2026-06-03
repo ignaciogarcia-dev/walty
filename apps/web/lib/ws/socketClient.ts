@@ -10,9 +10,10 @@ const sockets = new Map<string, Socket>()
  * connection across hooks that subscribe to different ids in the same
  * namespace so we don't open one TCP connection per QR scan.
  *
- * The api host is whatever NEXT_PUBLIC_API_BASE_URL points at — same as
- * the Next.js rewrite destination for HTTP. WS cannot proxy through Next
- * rewrites, so this URL must be reachable from the browser directly.
+ * WS cannot proxy through Next rewrites, so the socket connects straight to
+ * NEXT_PUBLIC_API_BASE_URL, which must be reachable from the browser directly
+ * (the public API origin — NOT the in-cluster API_INTERNAL_URL the HTTP
+ * rewrite uses).
  */
 export function getNamespaceSocket(namespace: string): Socket {
   const existing = sockets.get(namespace)

@@ -40,7 +40,15 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://api:4000}
+        # Browser-facing API origin, baked into the client bundle for the
+        # WebSocket connection. Must be reachable from the user's browser — NOT
+        # the Docker network name. For a real deploy rebuild with the public URL
+        # (e.g. https://api.walty.app).
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:4000}
+        # Server-side target for the /api/* rewrite, resolved inside the Docker
+        # network (the web container reaches the api by service name). Baked into
+        # the routes-manifest at build time, hence a build arg.
+        API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:4000}
     restart: unless-stopped
     env_file: .env
     environment:
