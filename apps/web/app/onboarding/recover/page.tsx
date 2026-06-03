@@ -13,6 +13,8 @@ import { useTranslation } from "@/hooks/useTranslation"
 import { decryptSeedV3, encryptSeedV3, type EncryptedSeedV3 } from "@/lib/crypto"
 import { saveWallet, type StoredWalletV3 } from "@/lib/wallet-store"
 import { fetchLinkedAddresses, isAddressLinked } from "@/lib/wallet-status"
+import { unwrap } from "@/lib/api/unwrap"
+import { usePairing } from "@/hooks/usePairing"
 
 type RecoveryMode = "pin" | "seed"
 
@@ -25,13 +27,16 @@ export default function RecoverPage() {
   const [mnemonic, setMnemonic] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const { state: pairingState, requestPairing } = usePairing()
   const { data: backupData, isLoading: checkingBackup } = useQuery({
     queryKey: ["wallet-backup-check"],
     queryFn: async () => {
       const res = await fetch("/api/wallet/backup")
+      // 403 = a backup exists but this device must be paired first; still
+      // offer PIN recovery (it drives the pairing flow).
+      if (res.status === 403) return "gated"
       if (!res.ok) return null
-      const { data } = await res.json()
-      return data ?? null
+      return unwrap<unknown>(await res.json()) ?? null
     },
     staleTime: Infinity,
     retry: false,
@@ -51,22 +56,37 @@ export default function RecoverPage() {
     window.location.assign("/dashboard")
   }
 
+  // Pulls the encrypted backup and persists it locally. Returns "gated" if the
+  // server requires this device to be paired first (HTTP 403).
+  async function pullBackupAndPersist(): Promise<"done" | "gated"> {
+    const backupRes = await fetch("/api/wallet/backup")
+    if (backupRes.status === 403) return "gated"
+    if (!backupRes.ok) throw new Error(t("error-recovering-wallet"))
+
+    const backup = unwrap<EncryptedSeedV3 | null>(await backupRes.json())
+    if (!backup) throw new Error(t("error-recovering-wallet"))
+
+    const recoveredMnemonic = await decryptSeedV3(backup, pin)
+    const addr = mnemonicToAccount(recoveredMnemonic).address
+    await persistRecoveredWallet(recoveredMnemonic, addr)
+    return "done"
+  }
+
   const handleRecoverWithPin = async () => {
     setError(null)
     setLoading(true)
     try {
-      const backupRes = await fetch("/api/wallet/backup")
-      if (!backupRes.ok) throw new Error(t("error-recovering-wallet"))
-
-      const { data: backup } = await backupRes.json()
-      if (!backup) throw new Error(t("error-recovering-wallet"))
-
-      const backupData = backup as EncryptedSeedV3
-      const recoveredMnemonic = await decryptSeedV3(backupData, pin)
-
-      // Derive address from mnemonic
-      const addr = mnemonicToAccount(recoveredMnemonic).address
-      await persistRecoveredWallet(recoveredMnemonic, addr)
+      if ((await pullBackupAndPersist()) === "gated") {
+        // New device: ask a trusted device to approve, then retry.
+        const approved = await requestPairing()
+        if (!approved) {
+          setError(t("pairing-not-approved"))
+          return
+        }
+        if ((await pullBackupAndPersist()) === "gated") {
+          throw new Error(t("error-recovering-wallet"))
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t("error-recovering-wallet"))
     } finally {
@@ -158,6 +178,21 @@ export default function RecoverPage() {
                   className="rounded-xl"
                 />
               </div>
+
+              {pairingState === "waiting" && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    {t("pairing-waiting")}
+                  </p>
+                  <button
+                    type="button"
+                    className="text-xs text-primary underline-offset-2 hover:underline w-fit"
+                    onClick={() => { setMode("seed"); setError(null) }}
+                  >
+                    {t("recovery-with-seed")}
+                  </button>
+                </div>
+              )}
 
               <Button
                 type="submit"

@@ -67,6 +67,7 @@ sessionRouter.get(
         hasBusinessSettings: !!settings,
         isOwner,
         businessStatus,
+        sid: auth.sid ?? null,
       },
       business: {
         name: settings?.name ?? null,

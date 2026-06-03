@@ -43,6 +43,7 @@ export function useWallet() {
     // Lifecycle
     status: lifecycle.status,
     address: lifecycle.address,
+    security: lifecycle.security,
     create: lifecycle.create,
     unlock: lifecycle.unlock,
     lock: lifecycle.lock,

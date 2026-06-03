@@ -6,6 +6,7 @@ import { reconcilePendingPaymentRequests } from "@walty/shared/payments/reconcil
 import { cleanupExpiredEntries } from "@walty/shared/rate-limit"
 import { reconcileIncomingTransfers } from "@walty/shared/tx/reconcileIncomingTransfers"
 import { asyncHandler } from "../middleware/asyncHandler.js"
+import { expireStalePairings } from "../services/deviceSessions.js"
 import { runSweep } from "../workers/sweep.js"
 import { emitPaymentRequestEvent } from "../ws/io.js"
 import { reconcilerSink } from "../ws/reconcilerSink.js"
@@ -36,6 +37,7 @@ internalRouter.post(
       reconcilePendingPaymentRequests({ onEvent: reconcilerSink }),
       reconcileIncomingTransfers(),
     ])
+    await expireStalePairings()
     await cleanupExpiredEntries()
     res.json({ ok: true, ...result, incoming: incomingResult })
   }),

@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm"
-import { db, deviceSessions } from "@walty/db"
+import { and, eq, lt } from "drizzle-orm"
+import { db, deviceSessions, devicePairingRequests } from "@walty/db"
 
 export type DeviceSession = typeof deviceSessions.$inferSelect
 
@@ -44,6 +44,21 @@ export async function revokeSession(sid: string): Promise<void> {
     .update(deviceSessions)
     .set({ revokedAt: new Date() })
     .where(eq(deviceSessions.id, sid))
+}
+
+/** Flips pending pairing requests past their TTL to "expired". Returns count. */
+export async function expireStalePairings(): Promise<number> {
+  const rows = await db
+    .update(devicePairingRequests)
+    .set({ status: "expired" })
+    .where(
+      and(
+        eq(devicePairingRequests.status, "pending"),
+        lt(devicePairingRequests.expiresAt, new Date()),
+      ),
+    )
+    .returning({ id: devicePairingRequests.id })
+  return rows.length
 }
 
 const LAST_SEEN_THROTTLE_MS = 60_000

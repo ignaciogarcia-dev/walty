@@ -4,6 +4,12 @@ import { Server } from "socket.io"
 import { db, txIntents } from "@walty/db"
 import { verifySessionToken } from "@walty/shared/auth/session-token"
 import { getBusinessContext } from "@walty/shared/business/getBusinessContext"
+import {
+  DEVICE_EVENTS,
+  DEVICES_NAMESPACE,
+  type DevicePairingRequestedEvent,
+  type DevicePairingResolvedEvent,
+} from "@walty/shared/devices/events"
 import { env } from "../config/env.js"
 import { logger } from "../config/logger.js"
 import { findSession } from "../services/deviceSessions.js"
@@ -106,6 +112,20 @@ export function initWebSocket(httpServer: HttpServer): Server {
     }
   })
 
+  // /devices namespace — authenticated, one room per user. Carries pairing
+  // and revocation events so every open device of an account reacts live.
+  // The room is resolved from the session; clients supply nothing.
+  const devicesNs = io.of(DEVICES_NAMESPACE)
+  devicesNs.use(authMiddleware)
+  devicesNs.on("connection", (socket) => {
+    const userId = socket.data.userId as number | undefined
+    if (typeof userId !== "number") {
+      socket.disconnect(true)
+      return
+    }
+    socket.join(`user:${userId}`)
+  })
+
   // /payment-requests namespace — public, room per request id.
   // Anyone with the requestId (which lives in the QR) can subscribe.
   const paymentNs = io.of("/payment-requests")
@@ -199,4 +219,43 @@ export function emitTxIntentStatus(intent: {
       status: intent.status,
       txHash: intent.txHash ?? null,
     })
+}
+
+function emitToUser(userId: number, event: string, payload: unknown): void {
+  const io = ioInstance
+  if (!io) return
+  io.of(DEVICES_NAMESPACE).to(`user:${userId}`).emit(event, payload)
+}
+
+export function emitDevicePairingRequested(
+  userId: number,
+  payload: DevicePairingRequestedEvent,
+): void {
+  emitToUser(userId, DEVICE_EVENTS.pairingRequested, payload)
+  emitToUser(userId, DEVICE_EVENTS.listChanged, {})
+}
+
+export function emitDevicePairingApproved(
+  userId: number,
+  payload: DevicePairingResolvedEvent,
+): void {
+  emitToUser(userId, DEVICE_EVENTS.pairingApproved, payload)
+  emitToUser(userId, DEVICE_EVENTS.listChanged, {})
+}
+
+export function emitDevicePairingRejected(
+  userId: number,
+  payload: DevicePairingResolvedEvent,
+): void {
+  emitToUser(userId, DEVICE_EVENTS.pairingRejected, payload)
+  emitToUser(userId, DEVICE_EVENTS.listChanged, {})
+}
+
+export function emitDeviceRevoked(userId: number, sid: string): void {
+  emitToUser(userId, DEVICE_EVENTS.revoked, { sid })
+  emitToUser(userId, DEVICE_EVENTS.listChanged, {})
+}
+
+export function emitDeviceListChanged(userId: number): void {
+  emitToUser(userId, DEVICE_EVENTS.listChanged, {})
 }
