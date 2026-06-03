@@ -18,6 +18,7 @@ import { refundRequestsRouter } from "./routes/refundRequests.js"
 import { pricesRouter } from "./routes/prices.js"
 import { sessionRouter } from "./routes/session.js"
 import { txRouter } from "./routes/tx.js"
+import { treasuryRouter } from "./routes/treasury.js"
 import { txIntentsRouter } from "./routes/txIntents.js"
 import { versionRouter } from "./routes/version.js"
 import { walletRouter } from "./routes/wallet.js"
@@ -47,6 +48,7 @@ export function createApp(): Express {
   app.use(sessionRouter)
   app.use(walletRouter)
   app.use(devicesRouter)
+  app.use(treasuryRouter)
   app.use(businessRouter)
   app.use(paymentRequestsRouter)
   app.use(txIntentsRouter)
