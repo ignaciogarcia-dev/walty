@@ -50,7 +50,10 @@ export async function deploySafe(
     chain,
   })
 
-  await waitForTransactionReceipt(client, { hash: txHash })
+  const receipt = await waitForTransactionReceipt(client, { hash: txHash })
+  if (receipt.status === "reverted") {
+    throw new Error(`Safe deployment tx reverted: ${txHash}`)
+  }
 
   return { safeAddress, txHash }
 }

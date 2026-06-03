@@ -1,6 +1,7 @@
 import request from "supertest"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { createApp } from "../../src/app.js"
+import { deploySafe } from "../../src/lib/safe.js"
 
 vi.mock("../../src/lib/safe.js", () => ({
   predictSafeAddress: vi.fn(async () => "0x000000000000000000000000000000000000dEaD"),
@@ -89,5 +90,24 @@ describe("treasury routes (real db, mocked Safe SDK)", () => {
     expect(second.status).toBe(200)
 
     expect(first.body.treasury.id).toBe(second.body.treasury.id)
+  })
+
+  it("re-attempts deploy after a prior deploy failure (no stuck pending row)", async () => {
+    const cookie = await registerUser(app)
+
+    vi.mocked(deploySafe).mockRejectedValueOnce(new Error("RPC failure"))
+
+    const first = await request(app)
+      .post("/treasury/deploy")
+      .set("Cookie", cookie)
+      .send({ ownerAddress: VALID_OWNER })
+    expect(first.status).toBe(500)
+
+    const second = await request(app)
+      .post("/treasury/deploy")
+      .set("Cookie", cookie)
+      .send({ ownerAddress: VALID_OWNER })
+    expect(second.status).toBe(200)
+    expect(second.body.treasury.status).toBe("deployed")
   })
 })
