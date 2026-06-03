@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, pgEnum, integer, unique, uuid, boolean, index, jsonb, bigint } from "drizzle-orm/pg-core"
+import { pgTable, serial, text, timestamp, pgEnum, integer, unique, uuid, boolean, index, jsonb, bigint, uniqueIndex } from "drizzle-orm/pg-core"
 
 export const txStatusEnum = pgEnum("tx_status", ["pending", "confirmed", "failed"])
 export const txIntentStatusEnum = pgEnum("tx_intent_status", ["pending", "signed", "broadcasting", "broadcasted", "confirmed", "failed", "expired"])
@@ -232,5 +232,21 @@ export const tokenScanCursors = pgTable("token_scan_cursors", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   pk: unique("token_scan_cursors_pkey").on(t.tokenAddress, t.chainId),
+}))
+
+// One Safe treasury per (user, chain). Stores the on-chain Safe address for
+// the business owner's treasury wallet. Status transitions: pending → deployed.
+export const businessTreasuries = pgTable("business_treasuries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  chainId: integer("chain_id").notNull(),
+  safeAddress: text("safe_address").notNull(),
+  status: text("status").notNull().default("pending"), // pending | deployed
+  deployTxHash: text("deploy_tx_hash"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  byUser: uniqueIndex("business_treasuries_user_chain_idx").on(t.userId, t.chainId),
 }))
 
