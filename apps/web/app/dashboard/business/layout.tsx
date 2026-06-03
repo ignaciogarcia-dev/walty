@@ -9,7 +9,7 @@ export default async function BusinessLayout({ children }: { children: React.Rea
   const actor = { type: "user" as const, user }
 
   if (!hasPermission(actor, Permission.BUSINESS_CONTEXT_READ, { businessContext })) {
-    redirect("/dashboard/home")
+    redirect("/onboarding")
   }
 
   return <>{children}</>
