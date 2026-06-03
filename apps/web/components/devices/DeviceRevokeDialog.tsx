@@ -46,7 +46,7 @@ export function DeviceRevokeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-md rounded-4xl border bg-card p-6 shadow-sm sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t("devices-revoke-title")}</DialogTitle>
           <DialogDescription>
@@ -55,13 +55,14 @@ export function DeviceRevokeDialog({
               : t("devices-revoke-description")}
           </DialogDescription>
         </DialogHeader>
-        <div className="rounded-lg border bg-muted/40 p-3 text-sm font-medium">
+        <div className="rounded-2xl border bg-muted/40 p-3 text-sm font-medium">
           {label}
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
           <Button
             variant="outline"
+            className="rounded-xl"
             onClick={() => onOpenChange(false)}
             disabled={busy}
           >
@@ -69,6 +70,7 @@ export function DeviceRevokeDialog({
           </Button>
           <Button
             variant="destructive"
+            className="rounded-xl"
             onClick={handleConfirm}
             disabled={busy}
           >
