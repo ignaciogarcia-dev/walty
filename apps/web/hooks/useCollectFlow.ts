@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PaymentRequestView } from "@walty/shared/payments/types";
 import { isPaymentRequestActive } from "@walty/shared/payments/types";
 import { getNamespaceSocket } from "@/lib/ws/socketClient";
+import { unwrap } from "@/lib/api/unwrap";
 
 const QUERY_KEY = ["payment-requests-active"] as const;
 
@@ -26,9 +27,9 @@ export function useCollectFlow() {
     queryFn: async () => {
       const res = await fetch("/api/payment-requests");
       if (!res.ok) return null;
-      const { data } = (await res.json()) as {
-        data: { request: PaymentRequestView | null };
-      };
+      const data = unwrap<{ request: PaymentRequestView | null }>(
+        await res.json(),
+      );
       return data.request && isPaymentRequestActive(data.request)
         ? data.request
         : null;

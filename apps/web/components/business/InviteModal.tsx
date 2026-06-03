@@ -14,6 +14,7 @@ import { useTranslation } from "@/hooks/useTranslation"
 import { useWalletContext } from "@/components/wallet/context"
 import { useUnlockFlow } from "@/hooks/useUnlockFlow"
 import { truncateLink } from "@/utils/url"
+import { unwrap } from "@/lib/api/unwrap"
 
 type Props = {
   open: boolean
@@ -57,7 +58,7 @@ export function InviteModal({ open, onOpenChange, onInviteCreated }: Props) {
       // Step 1: get next available derivation index
       const indexRes = await fetch("/api/business/members/next-index")
       if (!indexRes.ok) throw new Error(t("error-creating-invite"))
-      const { data: { nextIndex } } = await indexRes.json()
+      const { nextIndex } = unwrap<{ nextIndex: number }>(await indexRes.json())
 
       // Step 2: derive operator address client-side from owner's seed
       const walletAddress = await deriveOperatorAddress(nextIndex)
@@ -78,7 +79,7 @@ export function InviteModal({ open, onOpenChange, onInviteCreated }: Props) {
         throw new Error(data.error ?? t("error-creating-invite"))
       }
 
-      const { data } = await inviteRes.json()
+      const data = unwrap<{ inviteUrl: string }>(await inviteRes.json())
       const fullUrl = `${window.location.origin}${data.inviteUrl}`
       setInviteUrl(fullUrl)
       setGenerated(true)

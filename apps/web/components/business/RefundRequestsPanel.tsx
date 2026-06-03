@@ -5,6 +5,7 @@ import { useWalletContext } from "@/components/wallet/context"
 import { useUnlockFlow } from "@/hooks/useUnlockFlow"
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "@/hooks/useTranslation"
+import { unwrap } from "@/lib/api/unwrap"
 
 type RefundRequest = {
   id: string
@@ -36,7 +37,7 @@ export function RefundRequestsPanel() {
     try {
       const res = await fetch("/api/business/refund-requests?status=pending")
       if (!res.ok) return
-      const { data: { refundRequests } } = await res.json()
+      const { refundRequests } = unwrap<{ refundRequests: RefundRequest[] }>(await res.json())
       setRefunds(refundRequests)
     } finally {
       setLoading(false)
@@ -129,7 +130,7 @@ export function RefundRequestsPanel() {
     try {
       const intentRes = await fetch(`/api/tx-intents/${refund.txIntentId}`)
       if (intentRes.ok) {
-        const { data: intent } = await intentRes.json()
+        const intent = unwrap<{ status: string; txHash: string | null }>(await intentRes.json())
         if ((intent.status === "confirmed" || intent.status === "broadcasted") && intent.txHash) {
           await markExecuted(refund.id, intent.txHash)
           return

@@ -1,6 +1,7 @@
 "use client"
 
 import type { TxIntentPayload, TxIntent, TxIntentType } from "@walty/shared/tx-intents/types"
+import { unwrap } from "@/lib/api/unwrap"
 
 /**
  * Client-side helpers for the tx-intent flow.
@@ -21,8 +22,7 @@ export async function createTxIntent(
     const err = await res.json().catch(() => ({}))
     throw new Error(err.message ?? err.error ?? "Failed to create tx intent")
   }
-  const { data } = await res.json()
-  return data
+  return unwrap<TxIntent>(await res.json())
 }
 
 export async function signTxIntent(
@@ -38,8 +38,7 @@ export async function signTxIntent(
     const err = await res.json().catch(() => ({}))
     throw new Error(err.message ?? err.error ?? "Failed to sign tx intent")
   }
-  const { data } = await res.json()
-  return data
+  return unwrap<TxIntent>(await res.json())
 }
 
 export async function broadcastTxIntent(
@@ -52,8 +51,7 @@ export async function broadcastTxIntent(
     const err = await res.json().catch(() => ({}))
     throw new Error(err.message ?? err.error ?? "Failed to broadcast tx intent")
   }
-  const { data } = await res.json()
-  return data
+  return unwrap<TxIntent>(await res.json())
 }
 
 export async function confirmTxIntent(
@@ -69,8 +67,7 @@ export async function confirmTxIntent(
     const err = await res.json().catch(() => ({}))
     throw new Error(err.message ?? err.error ?? "Failed to confirm tx intent")
   }
-  const { data } = await res.json()
-  return data
+  return unwrap<TxIntent>(await res.json())
 }
 
 export async function getTxIntent(intentId: string): Promise<TxIntent> {
@@ -79,8 +76,7 @@ export async function getTxIntent(intentId: string): Promise<TxIntent> {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.message ?? err.error ?? "Failed to fetch tx intent")
   }
-  const { data } = await res.json()
-  return data
+  return unwrap<TxIntent>(await res.json())
 }
 
 /** After a failed broadcast, resets intent to pending so the user can sign again. */
@@ -92,6 +88,5 @@ export async function retryFailedTxIntent(intentId: string): Promise<TxIntent> {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.message ?? err.error ?? "Failed to reset tx intent")
   }
-  const { data } = await res.json()
-  return data
+  return unwrap<TxIntent>(await res.json())
 }

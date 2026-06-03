@@ -11,6 +11,7 @@ import { useTranslation } from "@/hooks/useTranslation"
 import { encryptSeedV3 } from "@/lib/crypto"
 import { saveWallet, type StoredWalletV3 } from "@/lib/wallet-store"
 import { getWalletClient } from "@/lib/rpc/getWalletClient"
+import { unwrap } from "@/lib/api/unwrap"
 
 export default function CreatePinPage() {
   const { t } = useTranslation()
@@ -53,7 +54,7 @@ export default function CreatePinPage() {
         if (nonceRes.status === 429) throw new Error(t("too-many-requests"))
         throw new Error("Nonce error")
       }
-      const { data: { nonce } } = await nonceRes.json()
+      const { nonce } = unwrap<{ nonce: string }>(await nonceRes.json())
 
       const walletClient = getWalletClient(mnemonic, 1)
       const message = `Link wallet ${address} nonce ${nonce}`

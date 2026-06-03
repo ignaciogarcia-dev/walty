@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { unwrap } from "@/lib/api/unwrap";
 
 export type TxRecord = {
   id: number;
@@ -40,8 +41,7 @@ export function useWalletHistory(
   const loadTxHistory = useCallback(async () => {
     const res = await fetch("/api/tx");
     if (res.ok) {
-      const { data } = await res.json();
-      setTxHistory(data);
+      setTxHistory(unwrap<TxRecord[]>(await res.json()));
     }
   }, []);
 

@@ -17,6 +17,7 @@ import { useTranslation } from "@/hooks/useTranslation"
 import type { PaymentRequestHistoryItem } from "@walty/shared/activity/types"
 import { PAYMENT_CHAIN_ID } from "@walty/shared/payments/config"
 import { getTxUrl } from "@/lib/explorer/getTxUrl"
+import { unwrap } from "@/lib/api/unwrap"
 
 type RefundExecutedRow = {
   id: string
@@ -132,7 +133,7 @@ export function CashierMovementsFeed() {
         queryFn: async () => {
           const res = await fetch("/api/payment-requests/history?status=paid&limit=50")
           if (!res.ok) throw new Error("Failed to fetch collections")
-          const { data } = await res.json() as { data: { items: PaymentRequestHistoryItem[] } }
+          const data = unwrap<{ items: PaymentRequestHistoryItem[] }>(await res.json())
           return data.items ?? []
         },
         staleTime: 60_000,
@@ -142,7 +143,7 @@ export function CashierMovementsFeed() {
         queryFn: async () => {
           const res = await fetch("/api/business/refund-requests?status=executed")
           if (!res.ok) throw new Error("Failed to fetch refunds")
-          const { data } = await res.json() as { data: { refundRequests: RefundExecutedRow[] } }
+          const data = unwrap<{ refundRequests: RefundExecutedRow[] }>(await res.json())
           return data.refundRequests ?? []
         },
         staleTime: 60_000,

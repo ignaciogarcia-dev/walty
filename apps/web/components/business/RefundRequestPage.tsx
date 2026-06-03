@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { useRouter } from "next/navigation"
 import { useTranslation } from "@/hooks/useTranslation"
+import { unwrap } from "@/lib/api/unwrap"
 import type { PaymentRequestHistoryItem } from "@walty/shared/activity/types"
 
 type Step = "select" | "form" | "success"
@@ -29,8 +30,8 @@ export function RefundRequestPage() {
 		queryFn: async () => {
 			const res = await fetch("/api/payment-requests/history?status=paid&limit=50")
 			if (!res.ok) throw new Error("Failed to load")
-			const { data } = await res.json()
-			return data.items as PaymentRequestHistoryItem[]
+			const data = unwrap<{ items: PaymentRequestHistoryItem[] }>(await res.json())
+			return data.items
 		},
 		staleTime: 60_000,
 	})

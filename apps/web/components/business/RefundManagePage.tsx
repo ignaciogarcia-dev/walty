@@ -11,6 +11,7 @@ import { useTranslation } from "@/hooks/useTranslation"
 import { cn } from "@/utils/style"
 import { ExplorerLink } from "../wallet/ExplorerLink"
 import { markRefundExecuted } from "@/lib/business/refundRequests"
+import { unwrap } from "@/lib/api/unwrap"
 import { canTransition, type RefundStatus } from "@walty/shared/policies/RefundStateMachine"
 
 type RefundRequest = {
@@ -52,10 +53,10 @@ export function RefundManagePage() {
     queryFn: async () => {
       const res = await fetch(`/api/business/refund-requests?status=${filter}`)
       if (!res.ok) throw new Error("Failed to load refunds")
-      const {
-        data: { refundRequests },
-      } = await res.json()
-      return refundRequests as RefundRequest[]
+      const { refundRequests } = unwrap<{ refundRequests: RefundRequest[] }>(
+        await res.json(),
+      )
+      return refundRequests
     },
     staleTime: 30_000,
   })
@@ -161,7 +162,7 @@ export function RefundManagePage() {
     try {
       const intentRes = await fetch(`/api/tx-intents/${refund.txIntentId}`)
       if (intentRes.ok) {
-        const { data: intent } = await intentRes.json()
+        const intent = unwrap<{ status: string; txHash: string | null }>(await intentRes.json())
         if ((intent.status === "confirmed" || intent.status === "broadcasted") && intent.txHash) {
           await markExecuted(refund.id, intent.txHash)
           return

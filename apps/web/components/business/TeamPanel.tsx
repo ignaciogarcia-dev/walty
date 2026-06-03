@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { InviteModal } from "@/components/business/InviteModal"
 import { MemberRow, type Member } from "@/components/business/MemberRow"
 import { useTranslation } from "@/hooks/useTranslation"
+import { unwrap } from "@/lib/api/unwrap"
 
 export const TEAM_MEMBERS_QUERY_KEY = ["team-members"] as const
 
@@ -20,8 +21,8 @@ export function TeamPanel() {
     queryFn: async () => {
       const res = await fetch("/api/business/members")
       if (!res.ok) throw new Error("Failed to load members")
-      const { data } = await res.json()
-      return data.members as Member[]
+      const data = unwrap<{ members: Member[] }>(await res.json())
+      return data.members
     },
     staleTime: 30_000,
   })

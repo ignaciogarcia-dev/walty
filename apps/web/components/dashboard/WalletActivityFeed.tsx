@@ -29,6 +29,7 @@ import {
 } from "@/lib/activity/utils"
 import { getNetwork } from "@walty/shared/networks/networks"
 import { getTxUrl } from "@/lib/explorer/getTxUrl"
+import { unwrap } from "@/lib/api/unwrap"
 
 // Poll interval: backend reconciler runs every 30s, match it
 const ACTIVITY_REFETCH_INTERVAL_MS = 30_000
@@ -74,8 +75,8 @@ export function WalletActivityFeed() {
     queryFn: async () => {
       const res = await fetch("/api/tx/activity?type=all&limit=10")
       if (!res.ok) throw new Error("Failed to fetch activity")
-      const { data } = await res.json()
-      return (data.items ?? []) as TransactionActivityItem[]
+      const data = unwrap<{ items?: TransactionActivityItem[] }>(await res.json())
+      return data.items ?? []
     },
     staleTime: 60_000,
     refetchInterval: ACTIVITY_REFETCH_INTERVAL_MS,

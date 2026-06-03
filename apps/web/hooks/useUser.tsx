@@ -1,7 +1,21 @@
 "use client"
 import { useQuery } from "@tanstack/react-query"
+import { unwrap } from "@/lib/api/unwrap"
 
 export type BusinessStatus = "active" | "suspended" | "revoked" | null
+
+type SessionResponse = {
+  user: {
+    id: number
+    email: string
+    isOwner?: boolean
+    hasWallet?: boolean
+    hasActiveBusiness?: boolean
+    hasBusinessSettings?: boolean
+    businessStatus?: BusinessStatus
+  }
+  business?: { name: string | null } | null
+}
 
 export interface UserData {
   id: number
@@ -24,8 +38,7 @@ export type UserState = {
 export async function fetchSession(): Promise<UserData | null> {
   const res = await fetch("/api/session")
   if (!res.ok) throw new Error("Failed to fetch session")
-  const { data } = await res.json()
-  const { user: userData, business } = data
+  const { user: userData, business } = unwrap<SessionResponse>(await res.json())
   return {
     id: userData.id,
     email: userData.email,
