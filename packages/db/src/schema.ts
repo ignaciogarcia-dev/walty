@@ -236,6 +236,8 @@ export const tokenScanCursors = pgTable("token_scan_cursors", {
 
 // One Safe treasury per (user, chain). Stores the on-chain Safe address for
 // the business owner's treasury wallet. Status transitions: pending → deployed.
+// rolesStatus lifecycle: none → enabled (modifier deployed + enabled on Safe)
+//   → scoped (manager role scoped + allowance set).
 export const businessTreasuries = pgTable("business_treasuries", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: integer("user_id")
@@ -246,6 +248,9 @@ export const businessTreasuries = pgTable("business_treasuries", {
   status: text("status").notNull().default("pending"), // pending | deployed
   deployTxHash: text("deploy_tx_hash"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  rolesModifierAddress: text("roles_modifier_address"),
+  rolesStatus: text("roles_status").notNull().default("none"), // none | enabled | scoped
+  managerCap: text("manager_cap"), // USDC base-units cap for the manager role; null until scoped
 }, (t) => ({
   byUser: uniqueIndex("business_treasuries_user_chain_idx").on(t.userId, t.chainId),
 }))

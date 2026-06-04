@@ -43,6 +43,13 @@
       "when": 1748908800000,
       "tag": "0005_business_treasuries",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1748995200000,
+      "tag": "0006_treasury_roles",
+      "breakpoints": true
     }
   ]
 }
