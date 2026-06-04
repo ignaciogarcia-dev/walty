@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MPC live e2e (browser ↔ real /mpc server)</title>
+  </head>
+  <body>
+    <pre id="status">connecting to /mpc…</pre>
+    <!-- The driver injects window.__MPC_E2E_CONFIG__ before this loads. -->
+    <script type="module" src="./page.bundle.js"></script>
+    <script type="module">
+      const status = document.getElementById("status");
+      const poll = setInterval(() => {
+        const r = window.__MPC_E2E_RESULT__;
+        if (r != null) {
+          clearInterval(poll);
+          status.textContent = r.error
+            ? "ERROR:\n" + r.error
+            : "DONE pass=" + r.pass;
+        }
+      }, 100);
+    </script>
+  </body>
+</html>

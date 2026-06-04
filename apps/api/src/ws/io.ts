@@ -24,9 +24,15 @@ async function authMiddleware(
   const bearer = /^Bearer\s+(.+)$/i.exec(
     socket.handshake.headers.authorization ?? "",
   )?.[1]
+  // Browsers can't set custom headers on the WebSocket upgrade, so the
+  // socket.io-client `auth: { token }` handshake field is the cross-origin
+  // path. It is still fully verified below (JWT + live session lookup).
+  const authObj = socket.handshake.auth as { token?: unknown } | undefined
+  const authToken =
+    typeof authObj?.token === "string" ? authObj.token : null
   const token = cookieToken
     ? decodeURIComponent(cookieToken)
-    : (bearer ?? null)
+    : (bearer ?? authToken)
   if (!token) {
     next(new Error("unauthorized"))
     return

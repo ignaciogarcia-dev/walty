@@ -378,14 +378,21 @@ class LocalKeygenDriver {
         this.deviceCommitment = this.device.calculateChainCodeCommitment()
         this.backupCommitment = this.backup.calculateChainCodeCommitment()
         this.round = 2
-        return this.routeOutbound([...devR2, ...bakR2], /*withCommitments*/ true)
+        // Commitments are NOT appended here: the real server consumes the
+        // device/backup chain-code commitments in the SAME round it consumes
+        // their r3 P2P messages (see ceremony.ts stepDkg round 3 +
+        // apps/api/tests/integration/mpc-ceremony.test.ts `r3ForSrv`). They are
+        // therefore appended in the round===2 branch below.
+        return this.routeOutbound([...devR2, ...bakR2], /*withCommitments*/ false)
       } finally {
         freeMessages(messages)
       }
     }
 
     if (this.round === 2) {
-      // r2 → r3: P2P, select messages addressed to each local party.
+      // r2 → r3: P2P, select messages addressed to each local party. The
+      // device/backup chain-code commitments (computed last round) ride along
+      // here so they reach the server in the round it consumes r3.
       const { messages } = splitInbound(inbound)
       try {
         const devR3 = this.device.handleMessages(
@@ -395,7 +402,7 @@ class LocalKeygenDriver {
           selectMessages(messages, BACKUP_PARTY_ID),
         )
         this.round = 3
-        return this.routeOutbound([...devR3, ...bakR3], false)
+        return this.routeOutbound([...devR3, ...bakR3], /*withCommitments*/ true)
       } finally {
         freeMessages(messages)
       }
