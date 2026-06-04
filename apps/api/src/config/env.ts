@@ -12,6 +12,7 @@ export const env = {
   logLevel: process.env.LOG_LEVEL ?? "info",
   safeChainId: Number(process.env.SAFE_CHAIN_ID ?? 80002),
   safeDeployerPrivateKey: process.env.SAFE_DEPLOYER_PRIVATE_KEY ?? "",
+  safeRpcUrl: process.env.SAFE_RPC_URL ?? "",
 }
 
 export const isProduction = env.appEnv === "production"
