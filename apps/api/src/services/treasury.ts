@@ -30,7 +30,9 @@ export async function ensureTreasury(
   }
 
   const chainId = env.safeChainId
-  const saltNonce = `walty-${userId}`
+  // saltNonce must be a numeric string: the Safe Protocol Kit runs BigInt(saltNonce)
+  // internally, so a non-numeric salt (e.g. `walty-${userId}`) throws at deploy time.
+  const saltNonce = String(userId)
   const predicted = await predictSafeAddress({ ownerAddress, chainId, saltNonce })
 
   // Claim the (userId, chainId) slot. If a concurrent request already created
