@@ -56,7 +56,7 @@ export function DeviceRenameDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-md rounded-4xl border bg-card p-6 shadow-sm sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t("devices-rename-title")}</DialogTitle>
           <DialogDescription>{t("devices-rename-description")}</DialogDescription>
@@ -70,6 +70,7 @@ export function DeviceRenameDialog({
             placeholder={t("devices-rename-placeholder")}
             maxLength={80}
             autoFocus
+            className="rounded-xl"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -82,12 +83,14 @@ export function DeviceRenameDialog({
         <DialogFooter>
           <Button
             variant="outline"
+            className="rounded-xl"
             onClick={() => onOpenChange(false)}
             disabled={busy}
           >
             {t("cancel")}
           </Button>
           <Button
+            className="rounded-xl"
             onClick={handleSubmit}
             disabled={busy || label.trim().length === 0}
           >

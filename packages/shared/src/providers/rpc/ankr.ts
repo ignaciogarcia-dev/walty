@@ -4,6 +4,7 @@ const ANKR_SLUGS: Record<number, string> = {
   8453: "base",
   10: "optimism",
   137: "polygon",
+  80002: "polygon_amoy",
 }
 
 export function getAnkrUrls(chainId: number): string[] {

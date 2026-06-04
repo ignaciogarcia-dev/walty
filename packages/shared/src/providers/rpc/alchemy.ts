@@ -4,6 +4,7 @@ const ALCHEMY_CHAIN_SLUGS: Record<number, string> = {
   8453: "base-mainnet",
   10: "opt-mainnet",
   137: "polygon-mainnet",
+  80002: "polygon-amoy",
 }
 
 export function getAlchemyUrls(chainId: number): string[] {

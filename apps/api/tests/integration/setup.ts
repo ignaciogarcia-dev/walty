@@ -22,6 +22,10 @@ process.env.JWT_SECRET = process.env.JWT_SECRET ?? "test-secret"
 process.env.NODE_ENV = "test"
 process.env.WORKERS_ENABLED = "false"
 process.env.LOG_LEVEL = process.env.LOG_LEVEL ?? "silent"
+// Safe SDK is mocked in treasury tests; a non-empty value satisfies the
+// deployer-key guard in ensureTreasury without using a real key.
+process.env.SAFE_DEPLOYER_PRIVATE_KEY =
+  process.env.SAFE_DEPLOYER_PRIVATE_KEY ?? "0xtest"
 
 // db is imported lazily so the env vars above are in place before the pool boots.
 const dbModule = await import("@walty/db")

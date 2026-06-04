@@ -141,6 +141,18 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
       const walletClient = getWalletClient(mnemonic, 1);
       await linkWallet(addr, walletClient);
 
+      // Best-effort: deploy the treasury Safe for this owner.
+      // A failed deploy must not block wallet creation — ensureTreasury is idempotent and retryable.
+      try {
+        await fetch("/api/treasury/deploy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ownerAddress: addr }),
+        });
+      } catch {
+        // intentionally swallowed — treasury deploy is best-effort
+      }
+
       const buf = new TextEncoder().encode(mnemonic);
       zeroize(buf);
 
