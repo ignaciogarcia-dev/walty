@@ -1,3 +1,8 @@
+-- NOTE: this repo syncs its schema via `drizzle-kit push` (pnpm db:migrate) from
+-- packages/db/src/schema.ts. This SQL file is ILLUSTRATIVE / FOR-AUDIT ONLY and
+-- is NOT applied by the migrate pipeline. The drizzle snapshot in meta/ is stale
+-- (only 0000 was generated) and should be regenerated as a separate cleanup task.
+
 -- MPC key records and server-side encrypted share envelopes.
 -- mpc_keys: one row per user key (keyId); status: dkg_pending | active.
 -- mpc_server_shares: AES-GCM envelope for the server share; keyId is both PK and FK.

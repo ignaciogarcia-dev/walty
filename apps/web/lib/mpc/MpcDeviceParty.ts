@@ -100,9 +100,35 @@ function serializeMessage(msg: Message): Uint8Array {
   return result
 }
 
+/** Valid real party ids in the 2-of-3 topology: device(0), server(1), backup(2). */
+const VALID_PARTY_IDS = new Set([0, 1, 2])
+
+/**
+ * Validate from_id / to_id in an inbound wire frame, mirroring the server's
+ * assertValidFrame guard. Throws a clean error rather than constructing a
+ * Message with garbage party ids.
+ *   from_id : must be a real party id (0,1,2).
+ *   to_id   : a real party id (0,1,2), broadcast sentinel (0xff), or commitment
+ *             sentinel (0xfe).
+ */
+function assertValidFrame(from: number, to: number): void {
+  if (!VALID_PARTY_IDS.has(from)) {
+    throw new Error(`MpcDeviceParty: invalid from_id ${from} in wire frame`)
+  }
+  if (
+    to !== BROADCAST_SENTINEL &&
+    to !== COMMITMENT_SENTINEL &&
+    !VALID_PARTY_IDS.has(to)
+  ) {
+    throw new Error(`MpcDeviceParty: invalid to_id ${to} in wire frame`)
+  }
+}
+
 function deserializeMessage(raw: Uint8Array): Message {
+  if (raw.length < 2) throw new Error("invalid mpc frame: too short")
   const from = raw[0]
   const toRaw = raw[1]
+  assertValidFrame(from, toRaw)
   const payload = raw.slice(2)
   const to = toRaw === BROADCAST_SENTINEL ? undefined : toRaw
   return new Message(payload, from, to)
@@ -136,7 +162,10 @@ function splitInbound(inbound: Uint8Array[]): SplitInbound {
   const messages: Message[] = []
   const commitments = new Map<number, Uint8Array>()
   for (const raw of inbound) {
+    if (raw.length < 2) throw new Error("invalid mpc frame: too short")
     if (raw[1] === COMMITMENT_SENTINEL) {
+      // Validate from_id even for commitment frames.
+      assertValidFrame(raw[0], raw[1])
       commitments.set(raw[0], raw.slice(2))
     } else {
       messages.push(deserializeMessage(raw))

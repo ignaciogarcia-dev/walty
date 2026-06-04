@@ -93,6 +93,7 @@ export type CeremonyErrorReason =
   | "invalid_payload"
   | "replay"
   | "expired"
+  | "expiry_too_far"
   | "out_of_order"
   | "ownership"
   | "aborted"
@@ -100,6 +101,7 @@ export type CeremonyErrorReason =
   | "timeout"
   | "ceremony_type_mismatch"
   | "key_required"
+  | "party_mismatch"
   | "internal"
 
 export class CeremonyError extends Error {
@@ -162,6 +164,12 @@ export class Ceremony {
 
   /** Highest accepted client sequence; the next must be strictly greater. */
   private lastSequence = -1
+  /**
+   * partyId bound from the FIRST accepted round message; subsequent messages
+   * must carry the same value. For the single-client driver this will always
+   * be 0, but binding it enforces the field rather than treating it as dead weight.
+   */
+  private boundPartyId: number | null = null
   /** Current protocol round the orchestrator expects next (0-based step index). */
   private step = 0
   private status: "init" | "running" | "completed" | "aborted" = "init"
@@ -208,8 +216,13 @@ export class Ceremony {
    * TEST-ONLY: force the next-step deadline and re-arm the reaper so a test can
    * trigger the active-reap path without waiting the full round timeout. Not
    * used in production code.
+   *
+   * Throws in production so this method is a no-op risk in prod environments.
    */
   forceDeadlineForTest(deadline: number): void {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("forceDeadlineForTest must not be called in production")
+    }
     this.deadline = deadline
     if (!this.isTerminal) this.armReaper()
   }
@@ -342,6 +355,7 @@ export class Ceremony {
   private guard(meta: {
     ceremonyType: MpcCeremonyType
     keyId: string
+    partyId: number
     round: number
     sequence: number
     expiresAt: number
@@ -361,6 +375,12 @@ export class Ceremony {
     if (Date.now() > meta.expiresAt) {
       throw new CeremonyError("expired", "message expired")
     }
+    // Expiry upper bound: defense-in-depth — reject an unreasonably far expiry
+    // so a client cannot stamp a huge expiry to defeat the per-message expiry intent.
+    const SKEW = 5_000
+    if (meta.expiresAt > Date.now() + roundTimeoutMs() + SKEW) {
+      throw new CeremonyError("expiry_too_far", "expiresAt is unreasonably far in the future")
+    }
     // Ceremony-type must match what this ceremony was created for.
     if (meta.ceremonyType !== this.ceremonyType) {
       throw new CeremonyError("ceremony_type_mismatch", "ceremonyType mismatch")
@@ -375,6 +395,13 @@ export class Ceremony {
       // First DKG message fixes the placeholder keyId so subsequent messages
       // must keep using the same correlation id.
       this.keyId = meta.keyId
+    }
+    // partyId binding: bind from the FIRST accepted message; subsequent messages
+    // must carry the same partyId so the field is enforced rather than dead weight.
+    if (this.boundPartyId === null) {
+      this.boundPartyId = meta.partyId
+    } else if (meta.partyId !== this.boundPartyId) {
+      throw new CeremonyError("party_mismatch", "partyId changed mid-ceremony")
     }
     // Replay / old sequence: must be strictly greater than the last accepted.
     if (meta.sequence <= this.lastSequence) {
@@ -397,6 +424,7 @@ export class Ceremony {
   async submitRound(meta: {
     ceremonyType: MpcCeremonyType
     keyId: string
+    partyId: number
     round: number
     sequence: number
     expiresAt: number

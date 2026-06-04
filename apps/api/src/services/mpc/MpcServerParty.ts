@@ -92,6 +92,7 @@ function serializeMessage(msg: Message): Uint8Array {
 
 /** Deserialize a wire envelope to a WASM Message. */
 function deserializeMessage(raw: Uint8Array): Message {
+  if (raw.length < 2) throw new Error("invalid mpc frame: too short")
   const from = raw[0]
   const toRaw = raw[1]
   assertValidFrame(from, toRaw)
@@ -121,6 +122,7 @@ function splitInbound(
   const messages: Message[] = []
   const commitments = new Map<number, Uint8Array>()
   for (const raw of inbound) {
+    if (raw.length < 2) throw new Error("invalid mpc frame: too short")
     if (raw[1] === COMMITMENT_SENTINEL) {
       // Commitment frame: from_id must still be a real party id.
       assertValidFrame(raw[0], raw[1])

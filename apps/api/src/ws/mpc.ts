@@ -242,6 +242,7 @@ export function registerMpcNamespace(
         const result = await ceremony.submitRound({
           ceremonyType: msg.ceremonyType,
           keyId: msg.keyId,
+          partyId: msg.partyId,
           round: msg.round,
           sequence: msg.sequence,
           expiresAt: msg.expiresAt,

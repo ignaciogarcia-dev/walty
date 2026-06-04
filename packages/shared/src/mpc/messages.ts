@@ -60,9 +60,10 @@ export const mpcRoundMessage = z.object({
   round: z.number().int().min(0),
 
   /**
-   * Monotonically increasing counter per (ceremonyId, partyId) pair.
-   * Receivers must reject a message whose sequence is not strictly greater
-   * than the last accepted sequence for that sender to prevent replay.
+   * Monotonically increasing counter per ceremony. A ceremony has a single
+   * remote client party (partyId is bound on the first message and must stay
+   * constant), so the server tracks one last-accepted sequence per ceremony and
+   * rejects any message whose sequence is not strictly greater, to prevent replay.
    */
   sequence: z.number().int().min(0),
 

@@ -167,6 +167,7 @@ async function runDkgCeremony(userId: number): Promise<DkgOutcome> {
     .map((m) => wireMsg(m.clone()))
   const step1 = await ceremony.submitRound({
     ceremonyType: "dkg",
+    partyId: 0,
     keyId: ceremonyKeyId,
     round: 1,
     sequence: 1,
@@ -187,6 +188,7 @@ async function runDkgCeremony(userId: number): Promise<DkgOutcome> {
     .map((m) => wireMsg(m.clone()))
   const step2 = await ceremony.submitRound({
     ceremonyType: "dkg",
+    partyId: 0,
     keyId: ceremonyKeyId,
     round: 2,
     sequence: 2,
@@ -207,6 +209,7 @@ async function runDkgCeremony(userId: number): Promise<DkgOutcome> {
   ]
   const step3 = await ceremony.submitRound({
     ceremonyType: "dkg",
+    partyId: 0,
     keyId: ceremonyKeyId,
     round: 3,
     sequence: 3,
@@ -224,6 +227,7 @@ async function runDkgCeremony(userId: number): Promise<DkgOutcome> {
     .map((m) => wireMsg(m.clone()))
   const step4 = await ceremony.submitRound({
     ceremonyType: "dkg",
+    partyId: 0,
     keyId: ceremonyKeyId,
     round: 4,
     sequence: 4,
@@ -290,6 +294,7 @@ async function runSignCeremony(
     .map((m) => wireMsg(m.clone()))
   const step1 = await ceremony.submitRound({
     ceremonyType: "sign",
+    partyId: 0,
     keyId,
     round: 1,
     sequence: 1,
@@ -306,6 +311,7 @@ async function runSignCeremony(
     .map((m) => wireMsg(m.clone()))
   const step2 = await ceremony.submitRound({
     ceremonyType: "sign",
+    partyId: 0,
     keyId,
     round: 2,
     sequence: 2,
@@ -322,6 +328,7 @@ async function runSignCeremony(
     .map((m) => wireMsg(m.clone()))
   const step3 = await ceremony.submitRound({
     ceremonyType: "sign",
+    partyId: 0,
     keyId,
     round: 3,
     sequence: 3,
@@ -344,6 +351,7 @@ async function runSignCeremony(
     .map((m) => wireMsg(m.clone()))
   const step4 = await ceremony.submitRound({
     ceremonyType: "sign",
+    partyId: 0,
     keyId,
     round: 4,
     sequence: 4,
@@ -448,6 +456,7 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
       .map((m) => wireMsg(m.clone()))
     const step1 = await ceremony.submitRound({
       ceremonyType: "refresh",
+      partyId: 0,
       keyId: dkg.keyId,
       round: 1,
       sequence: 1,
@@ -465,6 +474,7 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
       .map((m) => wireMsg(m.clone()))
     const step2 = await ceremony.submitRound({
       ceremonyType: "refresh",
+      partyId: 0,
       keyId: dkg.keyId,
       round: 2,
       sequence: 2,
@@ -484,6 +494,7 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
     ]
     const step3 = await ceremony.submitRound({
       ceremonyType: "refresh",
+      partyId: 0,
       keyId: dkg.keyId,
       round: 3,
       sequence: 3,
@@ -500,6 +511,7 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
       .map((m) => wireMsg(m.clone()))
     const step4 = await ceremony.submitRound({
       ceremonyType: "refresh",
+      partyId: 0,
       keyId: dkg.keyId,
       round: 4,
       sequence: 4,
@@ -552,6 +564,7 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
 
     await ceremony.submitRound({
       ceremonyType: "dkg",
+      partyId: 0,
       keyId,
       round: 1,
       sequence: 5,
@@ -563,6 +576,7 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
     await expect(
       ceremony.submitRound({
         ceremonyType: "dkg",
+        partyId: 0,
         keyId,
         round: 2,
         sequence: 5,
@@ -580,6 +594,7 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
     await expect(
       ceremony.submitRound({
         ceremonyType: "dkg",
+        partyId: 0,
         keyId: randomUUID(),
         round: 1,
         sequence: 1,
@@ -597,6 +612,7 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
     await expect(
       ceremony.submitRound({
         ceremonyType: "dkg",
+        partyId: 0,
         keyId: randomUUID(),
         round: 1,
         sequence: 1,
@@ -621,6 +637,7 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
     await expect(
       ceremony.submitRound({
         ceremonyType: "sign",
+        partyId: 0,
         keyId: dkg.keyId,
         round: 1,
         sequence: 1,
@@ -665,5 +682,80 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
     ).rejects.toMatchObject({ reason: "ownership" })
     // silence unused import lint for mpcKeys/users not directly referenced here
     void mpcKeys
+  })
+
+  // --- IMPORTANT-2: partyId binding ----------------------------------------
+
+  it("rejects a round message whose partyId changed from the bound value", async () => {
+    userId = await createTestUser()
+    const { ceremony } = await Ceremony.create({ userId, ceremonyType: "dkg" })
+    const keyId = randomUUID()
+
+    // Provide a valid-looking DKG r1 bundle (device+backup first messages).
+    const device = new KeygenSession(PARTICIPANTS, THRESHOLD, DEVICE_ID)
+    const backup = new KeygenSession(PARTICIPANTS, THRESHOLD, BACKUP_ID)
+    const devMsg1 = device.createFirstMessage()
+    const bakMsg1 = backup.createFirstMessage()
+    const r1ForSrv = [devMsg1, bakMsg1].map((m) => wireMsg(m.clone()))
+
+    // First round with partyId=0 — accepted, binds partyId to 0.
+    await ceremony.submitRound({
+      ceremonyType: "dkg",
+      partyId: 0,
+      keyId,
+      round: 1,
+      sequence: 1,
+      expiresAt: NOW_PLUS(),
+      payload: encodeBundle(r1ForSrv),
+    })
+
+    // Second round with a DIFFERENT partyId — must be rejected.
+    await expect(
+      ceremony.submitRound({
+        ceremonyType: "dkg",
+        partyId: 2, // changed from 0
+        keyId,
+        round: 2,
+        sequence: 2,
+        expiresAt: NOW_PLUS(),
+        payload: encodeBundle([]),
+      }),
+    ).rejects.toMatchObject({ reason: "party_mismatch" })
+
+    freeAll([device, backup, devMsg1, bakMsg1])
+  })
+
+  // --- MINOR-8: expiry_too_far ---------------------------------------------
+
+  it("rejects a message whose expiresAt is unreasonably far in the future", async () => {
+    userId = await createTestUser()
+    const { ceremony } = await Ceremony.create({ userId, ceremonyType: "dkg" })
+    await expect(
+      ceremony.submitRound({
+        ceremonyType: "dkg",
+        partyId: 0,
+        keyId: randomUUID(),
+        round: 1,
+        sequence: 1,
+        expiresAt: Date.now() + 999_999_999, // far future
+        payload: encodeBundle([]),
+      }),
+    ).rejects.toMatchObject({ reason: "expiry_too_far" })
+  })
+
+  // --- MINOR-9: forceDeadlineForTest production guard ----------------------
+
+  it("forceDeadlineForTest throws in production env", async () => {
+    userId = await createTestUser()
+    const { ceremony } = await Ceremony.create({ userId, ceremonyType: "dkg" })
+    const origEnv = process.env.NODE_ENV
+    process.env.NODE_ENV = "production"
+    try {
+      expect(() => ceremony.forceDeadlineForTest(Date.now() - 1)).toThrow(
+        /forceDeadlineForTest must not be called in production/,
+      )
+    } finally {
+      process.env.NODE_ENV = origEnv
+    }
   })
 })

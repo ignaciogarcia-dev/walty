@@ -57,19 +57,23 @@ export class LocalDevKms implements Kms {
     this.kek = kek
   }
 
-  async wrapDek(dek: Buffer, _ctx: { keyId: string; version: number }): Promise<Buffer> {
+  async wrapDek(dek: Buffer, ctx: { keyId: string; version: number }): Promise<Buffer> {
     if (dek.length !== DEK_LEN) {
       throw new Error(`LocalDevKms: DEK must be exactly ${DEK_LEN} bytes`)
     }
     const nonce = randomBytes(WRAPPED_DEK_NONCE_LEN)
     const cipher = createCipheriv("aes-256-gcm", this.kek, nonce)
+    // Bind ctx into AAD so a wrapped DEK cannot be unwrapped under a different
+    // keyId/version. This makes the dev impl faithful to the interface contract
+    // and sets the right precedent for a future cloud KMS EncryptionContext.
+    cipher.setAAD(Buffer.from(`${ctx.keyId}|${ctx.version}`))
     const ciphertext = Buffer.concat([cipher.update(dek), cipher.final()])
     const tag = cipher.getAuthTag()
     // Layout: nonce | ciphertext | tag
     return Buffer.concat([nonce, ciphertext, tag])
   }
 
-  async unwrapDek(wrappedDek: Buffer, _ctx: { keyId: string; version: number }): Promise<Buffer> {
+  async unwrapDek(wrappedDek: Buffer, ctx: { keyId: string; version: number }): Promise<Buffer> {
     const expectedLen = WRAPPED_DEK_NONCE_LEN + DEK_LEN + WRAPPED_DEK_TAG_LEN
     if (wrappedDek.length !== expectedLen) {
       throw new Error(
@@ -82,10 +86,12 @@ export class LocalDevKms implements Kms {
 
     const decipher = createDecipheriv("aes-256-gcm", this.kek, nonce)
     decipher.setAuthTag(tag)
+    // Reconstruct the same AAD used during wrap — mismatched ctx causes GCM auth failure.
+    decipher.setAAD(Buffer.from(`${ctx.keyId}|${ctx.version}`))
     try {
       return Buffer.concat([decipher.update(ciphertext), decipher.final()])
     } catch {
-      throw new Error("LocalDevKms: DEK unwrap failed — wrong KEK or corrupted wrapped DEK")
+      throw new Error("LocalDevKms: DEK unwrap failed — wrong KEK, wrong ctx, or corrupted wrapped DEK")
     }
   }
 }

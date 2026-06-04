@@ -714,4 +714,23 @@ describe("L2 — inbound frame party-id validation", () => {
     }
     server.free()
   })
+
+  it("rejects a frame that is too short (fewer than 2 bytes)", () => {
+    const server = new MpcServerKeygen(PARTICIPANTS, THRESHOLD, SERVER_ID)
+    server.firstMessage()
+    // A 1-byte frame cannot be parsed into [from_id][to_id][...payload].
+    expect(() => server.handle([Uint8Array.from([0])])).toThrow(
+      /invalid mpc frame: too short/,
+    )
+    server.free()
+  })
+
+  it("rejects an empty frame (0 bytes)", () => {
+    const server = new MpcServerKeygen(PARTICIPANTS, THRESHOLD, SERVER_ID)
+    server.firstMessage()
+    expect(() => server.handle([new Uint8Array(0)])).toThrow(
+      /invalid mpc frame: too short/,
+    )
+    server.free()
+  })
 })
