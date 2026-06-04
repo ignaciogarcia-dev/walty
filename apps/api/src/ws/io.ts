@@ -13,6 +13,7 @@ import {
 import { env } from "../config/env.js"
 import { logger } from "../config/logger.js"
 import { findSession } from "../services/deviceSessions.js"
+import { registerMpcNamespace } from "./mpc.js"
 
 async function authMiddleware(
   socket: import("socket.io").Socket,
@@ -140,6 +141,11 @@ export function initWebSocket(httpServer: HttpServer): Server {
     })
   })
 
+  // /mpc namespace — authenticated MPC ceremony orchestration (DKG / sign /
+  // refresh). The protocol + guards live in services/mpc/ceremony.ts; this
+  // namespace is a thin transport adapter. Disconnect aborts in-flight work.
+  registerMpcNamespace(io, authMiddleware)
+
   ioInstance = io
   logger.info("websocket initialized")
   return io
@@ -149,7 +155,7 @@ export function getIo(): Server | null {
   return ioInstance
 }
 
-const AUTHED_NAMESPACES = ["/tx-intents", "/business", "/devices"] as const
+const AUTHED_NAMESPACES = ["/tx-intents", "/business", "/devices", "/mpc"] as const
 
 /** Drops any open authed sockets for a revoked session id (best-effort). */
 export async function disconnectSession(sid: string): Promise<void> {

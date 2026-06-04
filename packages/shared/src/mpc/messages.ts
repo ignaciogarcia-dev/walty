@@ -74,6 +74,26 @@ export const mpcRoundMessage = z.object({
 export type MpcRoundMessage = z.infer<typeof mpcRoundMessage>
 
 // ---------------------------------------------------------------------------
+// mpcCeremonyStart — client request to begin a ceremony on the /mpc namespace
+// ---------------------------------------------------------------------------
+
+export const mpcCeremonyStart = z.object({
+  /** Which ceremony to begin. */
+  ceremonyType: mpcCeremonyType,
+
+  /** Required for sign / refresh; ignored for dkg (a new key is generated). */
+  keyId: z.string().uuid().optional(),
+
+  /** For sign: the 32-byte message hash to sign, as 0x-prefixed hex. */
+  signHash: z
+    .string()
+    .regex(/^0x[0-9a-fA-F]{64}$/)
+    .optional(),
+})
+
+export type MpcCeremonyStart = z.infer<typeof mpcCeremonyStart>
+
+// ---------------------------------------------------------------------------
 // mpcAbortMessage — explicit ceremony abort sent by any party
 // ---------------------------------------------------------------------------
 
