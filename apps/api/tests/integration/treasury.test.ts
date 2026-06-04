@@ -9,6 +9,7 @@ vi.mock("../../src/lib/safe.js", () => ({
     safeAddress: "0x000000000000000000000000000000000000dEaD",
     txHash: "0xdeploy",
   })),
+  getAdminAddress: vi.fn(() => "0x000000000000000000000000000000000000Ad1E"),
 }))
 
 // Rate limiting is not under test here; no-op it.
