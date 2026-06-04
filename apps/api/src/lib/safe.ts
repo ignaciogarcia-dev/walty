@@ -1,7 +1,23 @@
 import Safe, { type PredictedSafeProps } from "@safe-global/protocol-kit"
 import { getPublicRpcUrl } from "@walty/shared/providers/rpc/public"
 import { getViemChain } from "@walty/shared/rpc/viemChains"
+import { privateKeyToAccount } from "viem/accounts"
 import { waitForTransactionReceipt } from "viem/actions"
+import { env } from "../config/env.js"
+
+/**
+ * Returns the on-chain address of the server-controlled admin EOA derived from
+ * SAFE_DEPLOYER_PRIVATE_KEY. This address is used as the Safe owner in
+ * stratum (a); it will be swapped for the MPC/user key in a later stratum.
+ */
+export function getAdminAddress(): `0x${string}` {
+  const key = env.safeDeployerPrivateKey
+  if (!key) throw new Error("safe-deployer-not-configured")
+  const normalized: `0x${string}` = key.startsWith("0x")
+    ? (key as `0x${string}`)
+    : `0x${key}`
+  return privateKeyToAccount(normalized).address as `0x${string}`
+}
 
 interface PredictArgs {
   ownerAddress: string

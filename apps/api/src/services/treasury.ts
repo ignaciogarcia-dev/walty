@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm"
 import { db, businessTreasuries } from "@walty/db"
-import { deploySafe, predictSafeAddress } from "../lib/safe.js"
+import { deploySafe, getAdminAddress, predictSafeAddress } from "../lib/safe.js"
 import { env } from "../config/env.js"
 
 export type BusinessTreasury = typeof businessTreasuries.$inferSelect
@@ -20,7 +20,7 @@ export async function getTreasury(
 
 export async function ensureTreasury(
   userId: number,
-  ownerAddress: string,
+  ownerAddress: string, // informational in stratum (a) — the on-chain owner is the admin EOA until the MPC swap
 ): Promise<BusinessTreasury> {
   const existing = await getTreasury(userId)
   if (existing?.status === "deployed") return existing
@@ -29,11 +29,16 @@ export async function ensureTreasury(
     throw new Error("safe-deployer-not-configured")
   }
 
+  // In stratum (a) the Safe is owned by the server admin EOA so the server can
+  // sign enableModule / Roles setup without browser interaction. ownerAddress
+  // (the user's real wallet) will replace this once the MPC ownership swap lands.
+  const owner = getAdminAddress()
+
   const chainId = env.safeChainId
   // saltNonce must be a numeric string: the Safe Protocol Kit runs BigInt(saltNonce)
   // internally, so a non-numeric salt (e.g. `walty-${userId}`) throws at deploy time.
   const saltNonce = String(userId)
-  const predicted = await predictSafeAddress({ ownerAddress, chainId, saltNonce })
+  const predicted = await predictSafeAddress({ ownerAddress: owner, chainId, saltNonce })
 
   // Claim the (userId, chainId) slot. If a concurrent request already created
   // a row, this is a no-op and we proceed to (idempotently) deploy + update.
@@ -46,7 +51,7 @@ export async function ensureTreasury(
     .onConflictDoNothing()
 
   const { safeAddress, txHash } = await deploySafe({
-    ownerAddress,
+    ownerAddress: owner,
     chainId,
     saltNonce,
     deployerPrivateKey: env.safeDeployerPrivateKey,
