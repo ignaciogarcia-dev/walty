@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@safe-global/protocol-kit": "^7.2.0",
+    "@silencelaboratories/dkls-wasm-ll-node": "^1.2.0",
     "@walty/db": "workspace:*",
     "@walty/shared": "workspace:*",
     "bcrypt": "^6.0.0",

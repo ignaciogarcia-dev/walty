@@ -23,6 +23,9 @@ importers:
       '@safe-global/protocol-kit':
         specifier: ^7.2.0
         version: 7.2.0(typescript@5.9.3)(zod@4.3.6)
+      '@silencelaboratories/dkls-wasm-ll-node':
+        specifier: ^1.2.0
+        version: 1.2.0
       '@walty/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -2123,6 +2126,9 @@ packages:
 
   '@scure/bip39@1.6.0':
     resolution: {integrity: sha512-+lF0BbLiJNwVlev4eKelw1WWLaiKXw7sSl8T6FvBlWkdX+94aGJ4o8XjUdlyhTCjd8c+B3KT3JfS8P0bLRNU6A==}
+
+  '@silencelaboratories/dkls-wasm-ll-node@1.2.0':
+    resolution: {integrity: sha512-99SdddSs3SWMoYFCPeI3r9Ze41Jl3B10Bm7PnS0e6MfXlFe6sn7TLMkqfulfVp37VvYc3Zx/1+hYwLWc7zuyTg==}
 
   '@socket.io/component-emitter@3.1.2':
     resolution: {integrity: sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==}
@@ -6627,6 +6633,8 @@ snapshots:
     dependencies:
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
+
+  '@silencelaboratories/dkls-wasm-ll-node@1.2.0': {}
 
   '@socket.io/component-emitter@3.1.2': {}
 
