@@ -31,6 +31,7 @@ import {
 } from "@silencelaboratories/dkls-wasm-ll-node"
 import { publicKeyToAddress } from "viem/utils"
 import { encryptShare, decryptShare, type ShareContext } from "./serverShareStore.js"
+import { assembleEthSignature, SECP256K1_N, type EthSignature } from "./signature.js"
 import { db, mpcKeys, mpcServerShares } from "@walty/db"
 import { eq } from "drizzle-orm"
 
@@ -415,9 +416,6 @@ export async function loadServerKeyshare(
 //   caller's buffer is not affected.
 // ---------------------------------------------------------------------------
 
-const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n
-const HALF_N = SECP256K1_N / 2n
-
 export class MpcServerSign {
   private session: SignSession
   private readonly partyId: number
@@ -487,6 +485,9 @@ export class MpcServerSign {
   /**
    * Combine peer last-messages to produce the [R, S] signature.
    * S is normalized to low-s (canonical EIP-2 form).
+   *
+   * For a fully assembled EVM signature (with recovery id), use
+   * `combineAndAssemble()` instead, which delegates to `assembleEthSignature`.
    */
   combine(peerLastMessages: Uint8Array[]): { r: Uint8Array; s: Uint8Array } {
     if (this.round !== 5)
@@ -497,7 +498,8 @@ export class MpcServerSign {
       const result = this.session.combine(filtered) as [Uint8Array, Uint8Array]
       const [R, S] = result
 
-      // Normalize to low-s (EIP-2)
+      // Normalize to low-s (EIP-2) using the canonical SECP256K1_N from signature.ts
+      const HALF_N = SECP256K1_N / 2n
       let sBig = BigInt(u8ToHex(S))
       if (sBig > HALF_N) sBig = SECP256K1_N - sBig
       const sNorm = new Uint8Array(32)
@@ -511,6 +513,26 @@ export class MpcServerSign {
     } finally {
       messages.forEach((m) => { try { m.free() } catch { /* already freed */ } })
     }
+  }
+
+  /**
+   * Combine peer last-messages and assemble a full EVM signature.
+   *
+   * Delegates low-s normalization and recovery-id brute-force to
+   * `assembleEthSignature` from `signature.ts`.
+   *
+   * @param peerLastMessages  Serialised last-messages from peer parties.
+   * @param hash              The 32-byte message hash passed to `lastMessage()`.
+   * @param expectedAddress   The Ethereum address that should be recovered.
+   * @returns                 A fully assembled `EthSignature` (r, s, v, yParity, serialized).
+   */
+  async combineAndAssemble(
+    peerLastMessages: Uint8Array[],
+    hash: `0x${string}`,
+    expectedAddress: `0x${string}` | string,
+  ): Promise<EthSignature> {
+    const { r, s } = this.combine(peerLastMessages)
+    return assembleEthSignature({ r, s, hash, expectedAddress })
   }
 
   /** Release underlying WASM resources. */
