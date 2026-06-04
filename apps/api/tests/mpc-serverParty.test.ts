@@ -665,3 +665,53 @@ describe("Refresh — key rotation keeps pubkey", () => {
     freeAll([...pR1, ...pR2, ...pR3, ...pR4, ...saR1, ...saR2, ...saR3, ...saLast])
   })
 })
+
+// ---------------------------------------------------------------------------
+// L2 — party-id validation on inbound wire frames
+// ---------------------------------------------------------------------------
+
+describe("L2 — inbound frame party-id validation", () => {
+  /** Build a raw wire frame [from_id][to_id][...payload]. */
+  function frame(from: number, to: number, payload: number[] = [1, 2, 3]): Uint8Array {
+    return Uint8Array.from([from, to, ...payload])
+  }
+
+  it("rejects a regular frame with an out-of-range from_id", () => {
+    const server = new MpcServerKeygen(PARTICIPANTS, THRESHOLD, SERVER_ID)
+    server.firstMessage() // advance to round 1 so handle() splits inbound
+    expect(() => server.handle([frame(7, SERVER_ID)])).toThrow(/invalid from_id/)
+    server.free()
+  })
+
+  it("rejects a regular frame with an out-of-range to_id", () => {
+    const server = new MpcServerKeygen(PARTICIPANTS, THRESHOLD, SERVER_ID)
+    server.firstMessage()
+    // to_id 5 is neither a valid party (0,1,2) nor a sentinel (0xff/0xfe).
+    expect(() => server.handle([frame(0, 5)])).toThrow(/invalid to_id/)
+    server.free()
+  })
+
+  it("rejects a commitment frame whose from_id is not a valid party", () => {
+    const server = new MpcServerKeygen(PARTICIPANTS, THRESHOLD, SERVER_ID)
+    server.firstMessage()
+    // [9][0xfe][...] — commitment sentinel but bogus party id.
+    expect(() => server.handle([frame(9, COMMITMENT_SENTINEL)])).toThrow(
+      /invalid from_id/,
+    )
+    server.free()
+  })
+
+  it("accepts the broadcast and commitment sentinels for to_id", () => {
+    const server = new MpcServerKeygen(PARTICIPANTS, THRESHOLD, SERVER_ID)
+    server.firstMessage()
+    // Valid party ids + sentinels must NOT trip the validator. The WASM may
+    // still reject the (garbage) payload, so we only assert it does NOT throw
+    // the party-id validation error specifically.
+    try {
+      server.handle([frame(0, BROADCAST), frame(2, COMMITMENT_SENTINEL)])
+    } catch (err) {
+      expect((err as Error).message).not.toMatch(/invalid (from|to)_id/)
+    }
+    server.free()
+  })
+})

@@ -96,8 +96,8 @@ async function run() {
     const dkgPubkey = dkg.result.pubkey
 
     // ---- Sign (device + server) over the real /mpc ----
-    const { hash: h1, bytes: hb1 } = testHash("walty-mpc-e2e-sign-1")
-    const sign1 = await client.runSign(dkg.keyId, dkg.result.deviceShareBytes, hb1, h1)
+    const { hash: h1 } = testHash("walty-mpc-e2e-sign-1")
+    const sign1 = await client.runSign(dkg.keyId, dkg.result.deviceShareBytes, h1)
     const rec1 = await recover(sign1.result.r, sign1.result.s, h1, dkgAddress)
     assert(rec1.ok, "sign(device+server) recovers DKG address over real /mpc", dkgAddress)
     assert(rec1.lowS, "signature is canonical low-s")
@@ -126,11 +126,10 @@ async function run() {
     )
 
     // ---- Post-refresh sign ----
-    const { hash: h2, bytes: hb2 } = testHash("walty-mpc-e2e-sign-2-post-refresh")
+    const { hash: h2 } = testHash("walty-mpc-e2e-sign-2-post-refresh")
     const sign2 = await client.runSign(
       dkg.keyId,
       refreshed.result.deviceShareBytes,
-      hb2,
       h2,
     )
     const rec2 = await recover(sign2.result.r, sign2.result.s, h2, dkgAddress)

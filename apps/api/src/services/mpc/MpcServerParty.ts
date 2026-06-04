@@ -53,6 +53,32 @@ export interface RoundStep {
 const COMMITMENT_SENTINEL = 0xfe
 const BROADCAST_SENTINEL = 0xff
 
+/** Valid real party ids in the 2-of-3 topology: device(0), server(1), backup(2). */
+const VALID_PARTY_IDS = new Set([0, 1, 2])
+
+/**
+ * Reject any wire frame whose from_id / to_id is not a recognised party id or
+ * sentinel. Catching this at deserialisation gives a clean, early error rather
+ * than letting a malformed/hostile frame surface later as an opaque "missing
+ * commitment" or WASM failure.
+ *
+ *   from_id : must be a real party id (0,1,2).
+ *   to_id   : a real party id (0,1,2), the broadcast sentinel (0xff), or — for a
+ *             commitment frame — the commitment sentinel (0xfe).
+ */
+function assertValidFrame(from: number, to: number): void {
+  if (!VALID_PARTY_IDS.has(from)) {
+    throw new Error(`MpcServerParty: invalid from_id ${from} in wire frame`)
+  }
+  if (
+    to !== BROADCAST_SENTINEL &&
+    to !== COMMITMENT_SENTINEL &&
+    !VALID_PARTY_IDS.has(to)
+  ) {
+    throw new Error(`MpcServerParty: invalid to_id ${to} in wire frame`)
+  }
+}
+
 /** Serialize a WASM Message to the wire envelope, then free it. */
 function serializeMessage(msg: Message): Uint8Array {
   const payload = msg.payload
@@ -68,6 +94,7 @@ function serializeMessage(msg: Message): Uint8Array {
 function deserializeMessage(raw: Uint8Array): Message {
   const from = raw[0]
   const toRaw = raw[1]
+  assertValidFrame(from, toRaw)
   const payload = raw.slice(2)
   const to = toRaw === BROADCAST_SENTINEL ? undefined : toRaw
   return new Message(payload, from, to)
@@ -95,6 +122,8 @@ function splitInbound(
   const commitments = new Map<number, Uint8Array>()
   for (const raw of inbound) {
     if (raw[1] === COMMITMENT_SENTINEL) {
+      // Commitment frame: from_id must still be a real party id.
+      assertValidFrame(raw[0], raw[1])
       commitments.set(raw[0], raw.slice(2))
     } else {
       messages.push(deserializeMessage(raw))

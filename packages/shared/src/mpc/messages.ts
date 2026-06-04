@@ -9,20 +9,31 @@ export const mpcCeremonyType = z.enum(CEREMONY_TYPES)
 export type MpcCeremonyType = z.infer<typeof mpcCeremonyType>
 
 // ---------------------------------------------------------------------------
-// Payload size cap
+// Payload size cap (reconciled with the socket.io transport buffer)
 //
-// The Silence Labs ECDSA library produces key-share blobs of ~247 KB in the
-// largest DKG round (2-of-2 party). Base64 encoding inflates that by ~33%,
-// yielding ~330 KB per share.  A single round message carries at most one
-// such blob, so the tightest mathematically correct cap would be ~350 KB.
-// We set the limit at 2 MB (2_000_000 base64 chars) to give comfortable
-// headroom for future share-size growth and multi-blob rounds while still
-// providing a meaningful bound against payload-amplification abuse
-// (an unbounded payload could exhaust server memory or browser JS heap if
-// many parties send simultaneously).
+// A round `payload` is a base64(JSON(string[])) bundle of wire frames. The
+// largest REAL bundle, measured end-to-end across DKG / sign / refresh in the
+// live e2e (scripts/mpc-e2e), is the DKG/refresh round-3 inbound (and the
+// round-2 outbound) at ~253 KB of base64 — a single ~187 KB keyshare blob plus
+// the JSON envelope / per-frame base64 overhead. (The earlier "~330 KB" figure
+// in this comment was a worst-case estimate; the measured value is ~253 KB.)
+//
+// We set the schema cap at 1 MB (1_000_000 base64 chars). That is ~4× the
+// largest real round, leaving comfortable headroom for future share-size growth
+// and multi-blob rounds, while still bounding payload-amplification abuse (an
+// unbounded payload could exhaust server memory or the browser JS heap).
+//
+// IMPORTANT — this MUST agree with the socket.io `maxHttpBufferSize` set on the
+// Server in apps/api/src/ws/io.ts. socket.io measures the WHOLE packet (the
+// engine.io/JSON envelope, the event name, and the base64 payload string), so
+// io.ts sets `maxHttpBufferSize` slightly ABOVE this value (1.2 MB) to fit a
+// full 1 MB payload plus that envelope. The two caps describe the SAME ~1 MB
+// effective bound: this one rejects oversize payloads at the schema layer; the
+// transport one is the hard backstop that drops the connection before a frame
+// of that size is ever buffered.
 // ---------------------------------------------------------------------------
 
-export const MPC_PAYLOAD_MAX_BYTES = 2_000_000
+export const MPC_PAYLOAD_MAX_BYTES = 1_000_000
 
 // ---------------------------------------------------------------------------
 // mpcRoundMessage — a single round message exchanged over the /mpc namespace
@@ -66,7 +77,7 @@ export const mpcRoundMessage = z.object({
    * round.  The receiver hands this blob directly to the library without
    * further parsing.
    *
-   * Cap: 2 MB (see MPC_PAYLOAD_MAX_BYTES for rationale).
+   * Cap: 1 MB (see MPC_PAYLOAD_MAX_BYTES for the reconciled rationale).
    */
   payload: z.string().max(MPC_PAYLOAD_MAX_BYTES),
 })

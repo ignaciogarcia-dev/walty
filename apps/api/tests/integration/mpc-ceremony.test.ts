@@ -632,6 +632,25 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
     expect(ceremony.isAborted).toBe(true)
   })
 
+  it("active reaper aborts an idle ceremony at its deadline and fires the teardown hook", async () => {
+    userId = await createTestUser()
+    const { ceremony } = await Ceremony.create({ userId, ceremonyType: "dkg" })
+
+    let tornDown = false
+    ceremony.onTeardownOnce(() => {
+      tornDown = true
+    })
+    expect(ceremony.isTerminal).toBe(false)
+
+    // The reaper is armed to MPC_ROUND_TIMEOUT_MS. Drive its deadline into the
+    // past and re-arm so it fires promptly, then wait for the timer.
+    ceremony.forceDeadlineForTest(Date.now() - 1)
+    await new Promise((res) => setTimeout(res, 50))
+
+    expect(ceremony.isAborted).toBe(true)
+    expect(tornDown).toBe(true)
+  })
+
   it("rejects a ceremony whose keyId is not owned by the user", async () => {
     const owner = await createTestUser()
     const attacker = await createTestUser()

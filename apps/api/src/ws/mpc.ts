@@ -34,12 +34,43 @@ import {
 import { rateLimitByUser, RateLimitError } from "@walty/shared/rate-limit"
 import { logger } from "../config/logger.js"
 import { Ceremony, CeremonyError } from "../services/mpc/ceremony.js"
+import { isSocketSessionLive } from "./io.js"
 
 // Ceremony-start rate limit: a generous handful of new ceremonies per minute.
 // A ceremony is a multi-round flow, so each *start* counts once; the per-round
 // messages are bounded by the protocol round count, not rate-limited.
 const MPC_START_LIMIT = 10
 const MPC_START_WINDOW_MS = 60_000
+
+// Concurrency bounds on LIVE (in-flight) ceremonies. The rate limit caps the
+// *rate* of starts; these cap how many can be alive at once, so a client can't
+// pin unbounded server memory + WASM parties by opening many sockets or
+// stalling many ceremonies just under the rate limit.
+//
+// A normal client runs exactly one ceremony at a time per socket; 3 gives slack
+// for retries/overlap. The per-user cap spans that user's sockets (a user may
+// legitimately have a couple of devices) and is the real backstop.
+const MAX_CEREMONIES_PER_SOCKET = 3
+const MAX_CEREMONIES_PER_USER = 5
+
+// Per-userId count of live ceremonies across all of that user's /mpc sockets.
+// Incremented when a ceremony is created, decremented exactly once on its
+// teardown (complete / abort / reap / disconnect). Entries are removed at zero.
+const liveCeremoniesByUser = new Map<number, number>()
+
+function userLiveCount(userId: number): number {
+  return liveCeremoniesByUser.get(userId) ?? 0
+}
+
+function incUserLive(userId: number): void {
+  liveCeremoniesByUser.set(userId, userLiveCount(userId) + 1)
+}
+
+function decUserLive(userId: number): void {
+  const next = userLiveCount(userId) - 1
+  if (next <= 0) liveCeremoniesByUser.delete(userId)
+  else liveCeremoniesByUser.set(userId, next)
+}
 
 interface SocketCeremonyState {
   /** ceremonyId → Ceremony, owned by this socket. */
@@ -62,6 +93,28 @@ function emitError(
   message: string,
 ): void {
   socket.emit("ceremony:error", { ceremonyId, reason, message })
+}
+
+/**
+ * Abort every in-flight ceremony on this socket (freeing WASM + per-user slots
+ * via each ceremony's teardown hook), tell the client why, and drop the socket.
+ * Used when the session is found to be no longer live mid-connection.
+ */
+function killSocket(
+  socket: Socket,
+  state: SocketCeremonyState,
+  reason: string,
+): void {
+  emitError(socket, undefined, reason, "session no longer valid")
+  for (const ceremony of [...state.ceremonies.values()]) {
+    try {
+      ceremony.abort(reason)
+    } catch {
+      /* best effort */
+    }
+  }
+  state.ceremonies.clear()
+  socket.disconnect(true)
 }
 
 export function registerMpcNamespace(
@@ -89,6 +142,34 @@ export function registerMpcNamespace(
         return
       }
 
+      // Re-check the session is still live on this long-lived socket: a JWT may
+      // have expired, or the device session may have been revoked, since the
+      // handshake. If so, abort everything + disconnect.
+      if (!(await isSocketSessionLive(socket))) {
+        killSocket(socket, state, "session_invalid")
+        return
+      }
+
+      // Concurrency caps — reject cleanly BEFORE doing any DKG/keyshare work.
+      if (state.ceremonies.size >= MAX_CEREMONIES_PER_SOCKET) {
+        emitError(
+          socket,
+          undefined,
+          "too_many_ceremonies",
+          "too many concurrent ceremonies on this connection",
+        )
+        return
+      }
+      if (userLiveCount(userId) >= MAX_CEREMONIES_PER_USER) {
+        emitError(
+          socket,
+          undefined,
+          "too_many_ceremonies",
+          "too many concurrent ceremonies for this user",
+        )
+        return
+      }
+
       try {
         await rateLimitByUser(
           userId,
@@ -113,6 +194,14 @@ export function registerMpcNamespace(
           signHash: input.signHash as `0x${string}` | undefined,
         })
         state.ceremonies.set(ceremony.ceremonyId, ceremony)
+        // Reserve the per-user slot and register a one-shot teardown hook so the
+        // slot + map entry are released on ANY terminal path (complete / abort /
+        // reaper-on-deadline / disconnect). The hook runs at most once.
+        incUserLive(userId)
+        ceremony.onTeardownOnce(() => {
+          state.ceremonies.delete(ceremony.ceremonyId)
+          decUserLive(userId)
+        })
         socket.emit("ceremony:started", {
           ceremonyId: ceremony.ceremonyId,
           keyId: ceremony.keyId,
@@ -133,6 +222,13 @@ export function registerMpcNamespace(
         msg = parseMpcRoundMessage(raw)
       } catch {
         emitError(socket, undefined, "invalid_payload", "invalid round message")
+        return
+      }
+
+      // Re-verify the session liveness on every round too (the ceremony can run
+      // for several rounds; a revoke/expiry mid-flight must stop it).
+      if (!(await isSocketSessionLive(socket))) {
+        killSocket(socket, state, "session_invalid")
         return
       }
 
@@ -182,14 +278,17 @@ export function registerMpcNamespace(
       }
       const ceremony = state.ceremonies.get(msg.ceremonyId)
       if (!ceremony) return
+      // abort() fires the teardown hook, which removes the map entry and frees
+      // the per-user slot. (delete here would be redundant.)
       ceremony.abort("client_abort")
-      state.ceremonies.delete(msg.ceremonyId)
       socket.emit("ceremony:aborted", { ceremonyId: msg.ceremonyId })
     })
 
     // --- disconnect: abort everything in-flight (no resume) ---------------
     socket.on("disconnect", () => {
-      for (const ceremony of state.ceremonies.values()) {
+      // Snapshot first: abort() fires the teardown hook, which mutates this map
+      // (and decrements the per-user counter exactly once per ceremony).
+      for (const ceremony of [...state.ceremonies.values()]) {
         try {
           ceremony.abort("disconnect")
         } catch {

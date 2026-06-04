@@ -44,6 +44,7 @@
     "@types/pg": "^8.20.0",
     "@types/supertest": "^6.0.2",
     "@vitest/coverage-v8": "^4.1.0",
+    "socket.io-client": "^4.8.3",
     "supertest": "^7.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3",

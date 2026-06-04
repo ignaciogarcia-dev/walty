@@ -202,6 +202,28 @@ function randomUuid(): string {
   return crypto.randomUUID()
 }
 
+const SIGN_HASH_RE = /^0x[0-9a-fA-F]{64}$/
+
+/**
+ * Decode a 0x-prefixed 32-byte sign hash into its raw bytes. This is the ONLY
+ * place the device-party hash is derived, so the device and the server (which
+ * signs the bytes of the same `signHash`) provably sign identical 32 bytes.
+ */
+function hashBytesFromSignHash(signHash: `0x${string}`): Uint8Array {
+  if (!SIGN_HASH_RE.test(signHash)) {
+    throw new MpcClientError(
+      "invalid_sign_hash",
+      "signHash must be 0x-prefixed 32-byte (64 hex) hash",
+    )
+  }
+  const hex = signHash.slice(2)
+  const out = new Uint8Array(32)
+  for (let i = 0; i < 32; i++) {
+    out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
+  }
+  return out
+}
+
 export class MpcClientError extends Error {
   reason: string
   constructor(reason: string, message: string) {
@@ -334,16 +356,22 @@ export class MpcClient {
   }
 
   /**
-   * Run a device(0)+server(1) sign for `hash` (32 bytes) under `keyId`.
-   * `signHash` is the 0x-hex of `hash`, required by the server to bind the
-   * ceremony to the message.
+   * Run a device(0)+server(1) sign under `keyId`.
+   *
+   * `signHash` (0x-prefixed, exactly 32 bytes / 64 hex chars) is the SINGLE
+   * source of truth for what gets signed. The server signs the bytes of this
+   * value (the ceremony is bound to it via `ceremony:start.signHash`), and the
+   * device party here signs the SAME 32 bytes — derived from `signHash` by
+   * construction, never passed independently. The server's
+   * recoverAddress == address check remains the backstop, but device and server
+   * now provably sign the identical hash.
    */
   async runSign(
     keyId: string,
     deviceShareBytes: Uint8Array,
-    hash: Uint8Array,
     signHash: `0x${string}`,
   ): Promise<SignCeremonyResult> {
+    const hash = hashBytesFromSignHash(signHash)
     const deviceStart = await this.startDevice({
       type: "start",
       ceremony: "sign",

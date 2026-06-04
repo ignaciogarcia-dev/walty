@@ -135,6 +135,11 @@ export async function exportBackupShare(
 /**
  * Decrypt a BackupExport using the recovery password.
  *
+ * OWNERSHIP: the returned Uint8Array holds the plaintext backup share. The
+ * CALLER owns its lifecycle and MUST `zeroizeShare` it as soon as it is no
+ * longer needed (e.g. after re-importing it into a fresh keygen/refresh). This
+ * module only zeroizes copies it creates internally (see verifyBackupExport).
+ *
  * @throws "Invalid recovery password" when the password is wrong or the blob
  *   is tampered (AES-GCM authentication failure).
  */
@@ -176,7 +181,11 @@ export async function verifyBackupExport(
   } catch {
     return false
   }
-  if (decrypted.length !== originalBytes.length) return false
+  if (decrypted.length !== originalBytes.length) {
+    // Still wipe the transient plaintext copy we just decrypted.
+    zeroizeShare(decrypted)
+    return false
+  }
   // Constant-time-ish comparison (best-effort in JS — V8 may short-circuit,
   // but for a correctness check rather than a timing-sensitive path this is
   // acceptable).
@@ -184,6 +193,10 @@ export async function verifyBackupExport(
   for (let i = 0; i < originalBytes.length; i++) {
     diff |= decrypted[i] ^ originalBytes[i]
   }
+  // Zeroize the transient decrypted copy this function created — it is a second
+  // in-memory plaintext of the backup share and must not linger after the
+  // round-trip check. (The caller's `originalBytes` is owned by the caller.)
+  zeroizeShare(decrypted)
   return diff === 0
 }
 

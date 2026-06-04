@@ -4,6 +4,7 @@ import { Server } from "socket.io"
 import { db, txIntents } from "@walty/db"
 import { verifySessionToken } from "@walty/shared/auth/session-token"
 import { getBusinessContext } from "@walty/shared/business/getBusinessContext"
+import { MPC_PAYLOAD_MAX_BYTES } from "@walty/shared/mpc/messages"
 import {
   DEVICE_EVENTS,
   DEVICES_NAMESPACE,
@@ -15,10 +16,8 @@ import { logger } from "../config/logger.js"
 import { findSession } from "../services/deviceSessions.js"
 import { registerMpcNamespace } from "./mpc.js"
 
-async function authMiddleware(
-  socket: import("socket.io").Socket,
-  next: (err?: Error) => void,
-) {
+/** Extract the session token from a socket handshake (cookie / bearer / auth). */
+function tokenFromHandshake(socket: import("socket.io").Socket): string | null {
   const cookieHeader = socket.handshake.headers.cookie ?? ""
   const cookieToken = /(?:^|;\s*)token=([^;]+)/.exec(cookieHeader)?.[1]
   const bearer = /^Bearer\s+(.+)$/i.exec(
@@ -26,13 +25,52 @@ async function authMiddleware(
   )?.[1]
   // Browsers can't set custom headers on the WebSocket upgrade, so the
   // socket.io-client `auth: { token }` handshake field is the cross-origin
-  // path. It is still fully verified below (JWT + live session lookup).
+  // path. It is still fully verified by callers (JWT + live session lookup).
   const authObj = socket.handshake.auth as { token?: unknown } | undefined
-  const authToken =
-    typeof authObj?.token === "string" ? authObj.token : null
+  const authToken = typeof authObj?.token === "string" ? authObj.token : null
   const token = cookieToken
     ? decodeURIComponent(cookieToken)
     : (bearer ?? authToken)
+  return token ?? null
+}
+
+/**
+ * Re-verify, mid-connection, that the socket's session is still usable:
+ *   - the JWT still verifies (not expired / not tampered),
+ *   - it carries a sid that matches the socket's bound userId,
+ *   - the device_session row exists and is NOT revoked.
+ *
+ * Used by long-lived namespaces (e.g. /mpc) before privileged actions so a
+ * revoked/expired session cannot keep driving work on an already-open socket.
+ * Returns true iff the session is live. Cheap: one indexed session lookup +
+ * a stateless JWT verify.
+ */
+export async function isSocketSessionLive(
+  socket: import("socket.io").Socket,
+): Promise<boolean> {
+  const token = tokenFromHandshake(socket)
+  if (!token) return false
+  try {
+    const auth = verifySessionToken(token) // throws on expiry/tamper
+    if (!auth.sid) return false
+    if (auth.userId !== socket.data.userId || auth.sid !== socket.data.sid) {
+      return false
+    }
+    const session = await findSession(auth.sid)
+    if (!session || session.userId !== auth.userId || session.revokedAt) {
+      return false
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function authMiddleware(
+  socket: import("socket.io").Socket,
+  next: (err?: Error) => void,
+) {
+  const token = tokenFromHandshake(socket)
   if (!token) {
     next(new Error("unauthorized"))
     return
@@ -66,6 +104,15 @@ export function initWebSocket(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     cors: { origin: env.webOrigin, credentials: true },
     serveClient: false,
+    // Transport-level hard cap on a single inbound packet. The /mpc round
+    // payloads are the only large frames we exchange; their schema cap is
+    // MPC_PAYLOAD_MAX_BYTES (1 MB, see packages/shared/src/mpc/messages.ts).
+    // socket.io measures the WHOLE packet (engine.io/JSON envelope + event name
+    // + the base64 payload), so we add headroom above the payload cap so a
+    // legitimate full-size MPC round (largest real bundle measured ~253 KB)
+    // plus its envelope still fits, while anything materially larger is dropped
+    // before it is buffered. The two caps describe the same ~1 MB bound.
+    maxHttpBufferSize: MPC_PAYLOAD_MAX_BYTES + 200_000,
   })
 
   // /tx-intents namespace — authenticated, room per intent id, scoped to owning user.

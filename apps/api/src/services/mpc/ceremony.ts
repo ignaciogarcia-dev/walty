@@ -44,9 +44,17 @@ import type { EthSignature } from "./signature.js"
 // Tunables
 // ---------------------------------------------------------------------------
 
-/** A single round must make progress within this window or the ceremony is
- *  abortable/cleanable. Also used as the per-message `expiresAt` horizon. */
+/** Default window in which a single round must make progress or the ceremony
+ *  is reaped/abortable. Also the per-message `expiresAt` horizon. */
 export const MPC_ROUND_TIMEOUT_MS = 30_000
+
+/** Effective round timeout, read at call time so tests can override it via the
+ *  MPC_ROUND_TIMEOUT_MS env var (e.g. the reaper test uses a tiny value). In
+ *  production the env var is unset and this is exactly MPC_ROUND_TIMEOUT_MS. */
+function roundTimeoutMs(): number {
+  const raw = Number(process.env.MPC_ROUND_TIMEOUT_MS)
+  return Number.isFinite(raw) && raw > 0 ? raw : MPC_ROUND_TIMEOUT_MS
+}
 
 const PARTICIPANTS = 3
 const THRESHOLD = 2
@@ -160,13 +168,84 @@ export class Ceremony {
   private engine: Engine | null = null
   /** Absolute deadline for the next inbound step; refreshed on every step. */
   private deadline: number
+  /**
+   * Active reaper: fires at `deadline` to abort an idle ceremony so it cannot
+   * leak (WASM party + transport bookkeeping) until the socket disconnects.
+   * Reset on every accepted round; cleared on teardown.
+   */
+  private reaper: ReturnType<typeof setTimeout> | null = null
+  /**
+   * Transport-registered teardown hook, invoked exactly once when the ceremony
+   * reaches a terminal state (complete / abort / reaped). The transport uses it
+   * to drop its map entry and decrement the per-user live-ceremony counter.
+   */
+  private onTeardown: (() => void) | null = null
+  private teardownNotified = false
 
   private constructor(init: CeremonyInit) {
     this.ceremonyId = randomUUID()
     this.userId = init.userId
     this.ceremonyType = init.ceremonyType
     this.keyId = init.keyId ?? null
-    this.deadline = Date.now() + MPC_ROUND_TIMEOUT_MS
+    this.deadline = Date.now() + roundTimeoutMs()
+  }
+
+  /**
+   * Register a one-shot teardown hook (transport bookkeeping cleanup) and arm
+   * the active reaper. Called by the transport immediately after create().
+   * If the ceremony already finished (fast-path error), the hook fires now.
+   */
+  onTeardownOnce(hook: () => void): void {
+    this.onTeardown = hook
+    if (this.isTerminal) {
+      this.notifyTeardown()
+      return
+    }
+    this.armReaper()
+  }
+
+  /**
+   * TEST-ONLY: force the next-step deadline and re-arm the reaper so a test can
+   * trigger the active-reap path without waiting the full round timeout. Not
+   * used in production code.
+   */
+  forceDeadlineForTest(deadline: number): void {
+    this.deadline = deadline
+    if (!this.isTerminal) this.armReaper()
+  }
+
+  private armReaper(): void {
+    this.clearReaper()
+    if (this.isTerminal) return
+    const delay = Math.max(0, this.deadline - Date.now())
+    this.reaper = setTimeout(() => {
+      this.reaper = null
+      // Idle past the deadline → abort, free WASM, notify the transport.
+      this.abort("timeout")
+    }, delay)
+    // Don't let a stalled ceremony keep the process alive.
+    this.reaper.unref?.()
+  }
+
+  private clearReaper(): void {
+    if (this.reaper) {
+      clearTimeout(this.reaper)
+      this.reaper = null
+    }
+  }
+
+  private notifyTeardown(): void {
+    if (this.teardownNotified) return
+    this.teardownNotified = true
+    const hook = this.onTeardown
+    this.onTeardown = null
+    if (hook) {
+      try {
+        hook()
+      } catch {
+        /* best effort */
+      }
+    }
   }
 
   /** Per-message expiry the client should stamp on its NEXT message. */
@@ -190,7 +269,7 @@ export class Ceremony {
       const firstOutbound = encodeBundle(party.firstMessage())
       ceremony.status = "running"
       ceremony.step = 1
-      ceremony.deadline = Date.now() + MPC_ROUND_TIMEOUT_MS
+      ceremony.deadline = Date.now() + roundTimeoutMs()
       return { ceremony, firstOutbound, expiresAt: ceremony.deadline }
     }
 
@@ -227,7 +306,7 @@ export class Ceremony {
       const firstOutbound = encodeBundle(party.firstMessage())
       ceremony.status = "running"
       ceremony.step = 1
-      ceremony.deadline = Date.now() + MPC_ROUND_TIMEOUT_MS
+      ceremony.deadline = Date.now() + roundTimeoutMs()
       return { ceremony, firstOutbound, expiresAt: ceremony.deadline }
     }
 
@@ -242,7 +321,7 @@ export class Ceremony {
     const firstOutbound = encodeBundle(party.firstMessage())
     ceremony.status = "running"
     ceremony.step = 1
-    ceremony.deadline = Date.now() + MPC_ROUND_TIMEOUT_MS
+    ceremony.deadline = Date.now() + roundTimeoutMs()
     return { ceremony, firstOutbound, expiresAt: ceremony.deadline }
   }
 
@@ -338,8 +417,11 @@ export class Ceremony {
       // Commit guard state only after the engine accepted the step.
       this.lastSequence = meta.sequence
       this.step += 1
-      this.deadline = Date.now() + MPC_ROUND_TIMEOUT_MS
+      this.deadline = Date.now() + roundTimeoutMs()
       result.expiresAt = this.deadline
+      // The step made progress — push the reaper out to the new deadline
+      // (unless the engine already finalised this ceremony).
+      if (!this.isTerminal) this.armReaper()
       return result
     } catch (err) {
       // ANY engine error tears down the session (frees WASM) — no resume.
@@ -498,17 +580,24 @@ export class Ceremony {
   /** Mark aborted, clear all state, and free WASM. Idempotent. */
   abort(_reason: string): void {
     if (this.status === "completed" || this.status === "aborted") {
-      // Already terminal — still ensure engine freed.
+      // Already terminal — still ensure engine freed + timer/hook cleared.
       this.freeEngine()
+      this.clearReaper()
       if (this.status !== "completed") this.status = "aborted"
+      this.notifyTeardown()
       return
     }
     this.teardown("aborted")
   }
 
   private teardown(finalStatus: "completed" | "aborted"): void {
+    this.clearReaper()
     this.freeEngine()
     this.status = finalStatus
+    // Notify the transport so it drops its reference and frees the per-user
+    // live-ceremony slot. Safe to run inside a submitRound success path: the
+    // transport hook only touches its own maps/counters.
+    this.notifyTeardown()
   }
 
   private freeEngine(): void {
