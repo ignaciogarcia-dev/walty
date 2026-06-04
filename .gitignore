@@ -25,6 +25,7 @@ node_modules
 /build
 
 # misc
+docs/superpowers
 .DS_Store
 *.pem
 
