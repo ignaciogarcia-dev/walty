@@ -1,26 +1,12 @@
-// apps/web/lib/mpc/deviceShareStore.ts
-//
-// Encrypt-at-rest persistence for the MPC DEVICE share (party 0 only).
-//
-// Mirrors the seed envelope handling in lib/crypto.ts (EncryptedSeedV3: random
-// Device Key encrypts the payload, KEK derived from the PIN via PBKDF2 600k
-// wraps the Device Key) and the IndexedDB access pattern in lib/wallet-store.ts.
-// Here the PIN protects the *device share* blob instead of a mnemonic seed —
-// this is the stratum-b storage hook; the full seed→share flow swap is stratum
-// c.
-//
-// IMPORTANT: only the DEVICE share is persisted. The BACKUP share is exported
-// and zeroized by Task 8 and is never written here.
+// Encrypt-at-rest persistence for the MPC device share (party 0). Stored via the
+// same v3 envelope as the seed (PIN-derived KEK wraps a random Device Key),
+// replacing the seed envelope. Only the device share is persisted — the backup
+// share is exported and zeroized elsewhere, never written here.
 
 import { encryptSeedV3, decryptSeedV3, type EncryptedSeedV3 } from "@/lib/crypto"
 
-// ---------------------------------------------------------------------------
-// Stored shape
-// ---------------------------------------------------------------------------
-
-/** Device share persisted in IndexedDB, encrypted with the same v3 envelope
- *  used for the seed. The share bytes are base64-wrapped as the "mnemonic"
- *  payload so we reuse the audited crypto.ts primitives verbatim. */
+/** Share bytes are base64-wrapped as the v3 "mnemonic" payload to reuse the
+ *  audited crypto.ts primitives verbatim. */
 export type StoredDeviceShareV3 = {
   /** v3 envelope whose plaintext is the base64 of the device share bytes. */
   encrypted: EncryptedSeedV3
@@ -34,10 +20,7 @@ export type StoredDeviceShareV3 = {
   shareVersion: number
 }
 
-// ---------------------------------------------------------------------------
-// IndexedDB helpers (same DB/store as lib/wallet-store.ts)
-// ---------------------------------------------------------------------------
-
+// IndexedDB helpers (same DB/store as lib/wallet-store.ts).
 const DB_NAME = "walty"
 const DB_VERSION = 1
 const STORE_NAME = "wallet"
@@ -93,10 +76,7 @@ function idbDelete(key: string): Promise<void> {
   )
 }
 
-// ---------------------------------------------------------------------------
-// base64 helpers (binary-safe, no spread on large arrays)
-// ---------------------------------------------------------------------------
-
+// base64 helpers (binary-safe, no spread on large arrays).
 function bytesToBase64(bytes: Uint8Array): string {
   let s = ""
   for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i])
@@ -110,10 +90,6 @@ function base64ToBytes(b64: string): Uint8Array {
   return out
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
 export interface DeviceShareMeta {
   keyId: string
   pubkey: string
@@ -121,8 +97,7 @@ export interface DeviceShareMeta {
 }
 
 /**
- * Encrypt the device share with the PIN (v3 envelope) and persist it to
- * IndexedDB. Only the device share is stored — never the backup share.
+ * Encrypt the device share under the PIN (v3 envelope) and persist to IndexedDB.
  *
  * @param shareBytes  Raw serialised device(0) keyshare bytes.
  * @param pin         6–8 digit PIN (same policy as the seed).

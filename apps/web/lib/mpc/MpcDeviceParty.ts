@@ -1,41 +1,18 @@
-// apps/web/lib/mpc/MpcDeviceParty.ts
-//
-// Browser DEVICE-side wrapper that drives the DKLS23 ceremony for the parties
-// that live in the browser. It mirrors the SERVER wrapper
+// Browser DEVICE-side DKLS23 ceremony wrapper, mirror of the server wrapper
 // (apps/api/src/services/mpc/MpcServerParty.ts) but against the wasm-bindgen
-// *web* artifact `@silencelaboratories/dkls-wasm-ll-web` and is intended to run
-// inside a Web Worker (see ./mpcWorker.ts).
+// *web* artifact `@silencelaboratories/dkls-wasm-ll-web`. Runs in a Web Worker
+// (./mpcWorker.ts).
 //
-// Topology (Walty 2-of-3 share model):
-//   0 = device  (browser)
-//   1 = server  (api)
-//   2 = backup  (browser)
+// Topology (2-of-3): 0 = device (browser), 1 = server (api), 2 = backup (browser).
+// DKG/refresh run device(0)+backup(2) locally and route only server-bound frames
+// outside; a normal sign quorum is device(0)+server(1) so only device runs locally.
 //
-// During DKG / refresh the browser runs TWO local parties — device(0) and
-// backup(2) — and the server runs server(1). This wrapper drives both local
-// parties, routes the intra-browser frames between them locally, and exchanges
-// only the SERVER-bound frames with the outside via the bundle codec. During a
-// normal sign the quorum is device(0)+server(1), so only the device party runs
-// locally.
+// Wire frame: byte 0 = from_id, byte 1 = to_id (0xff broadcast, 0xfe commitment),
+// byte 2+ = payload. Bundle = base64(JSON(string[])) of base64'd frames, identical
+// to apps/api/.../ceremony.ts.
 //
-// Wire frame format (identical to MpcServerParty):
-//   byte 0  — from_id
-//   byte 1  — to_id (0xff broadcast, 0xfe commitment sentinel)
-//   byte 2+ — payload
-//
-// Bundle codec (identical to apps/api/.../ceremony.ts):
-//   a round payload bundle = base64(JSON(string[])) where each string is the
-//   base64 of one wire frame.
-//
-// The exchange is driven by the SERVER ceremony orchestrator: the server emits
-// its FIRST outbound bundle (round 0) and then, for each step, the client sends
-// a bundle and receives the server's next outbound bundle. This wrapper mirrors
-// that: `startDkg()` / `startSign()` / `startRefresh()` returns the client's
-// FIRST outbound bundle (to relay to the server alongside the server's own
-// first bundle), and each subsequent `handleServerBundle(bundle)` consumes the
-// server's outbound bundle and returns the next client outbound bundle.
-//
-// All WASM objects are `.free()`d; routing is by REAL partyId.
+// Driven by the server orchestrator: start*() returns the client's first outbound
+// bundle, each handleServerBundle() consumes a server bundle and returns the next.
 
 import init, {
   KeygenSession,
@@ -44,14 +21,10 @@ import init, {
   SignSession,
 } from "@silencelaboratories/dkls-wasm-ll-web"
 // esbuild's `--loader:.wasm=file` resolves this to a same-origin URL that
-// wasm-bindgen `init()` fetches. Under Next/Turbopack the worker must resolve
-// the asset URL the same way (see ./mpcWorker.ts + concerns in the task report).
+// wasm-bindgen `init()` fetches. Under Next/Turbopack the worker resolves the
+// asset URL itself (see ./mpcWorker.ts).
 import wasmUrl from "@silencelaboratories/dkls-wasm-ll-web/dkls-wasm-ll-web_bg.wasm"
 import { publicKeyToAddress } from "viem/utils"
-
-// ---------------------------------------------------------------------------
-// Party id constants
-// ---------------------------------------------------------------------------
 
 export const DEVICE_PARTY_ID = 0
 export const SERVER_PARTY_ID = 1
@@ -63,19 +36,13 @@ const THRESHOLD = 2
 const COMMITMENT_SENTINEL = 0xfe
 const BROADCAST_SENTINEL = 0xff
 
-// ---------------------------------------------------------------------------
-// WASM init (idempotent) — must be awaited before constructing any session.
-// ---------------------------------------------------------------------------
-
+// Must be awaited before constructing any session.
 let wasmReady: Promise<void> | null = null
 
 /**
- * Initialise the DKLS23 WASM module exactly once.
- * Safe to call repeatedly; subsequent calls await the same promise.
- *
- * @param overrideWasmUrl  Optional explicit URL for the `_bg.wasm` asset. When
- *   omitted, the import-resolved same-origin URL is used (esbuild bundle). Under
- *   Next/Turbopack callers may need to pass an asset URL they resolved.
+ * Init the DKLS23 WASM module once; safe to call repeatedly.
+ * overrideWasmUrl: explicit `_bg.wasm` URL when the import-resolved one is wrong
+ * (e.g. under Next/Turbopack).
  */
 export async function initMpcWasm(overrideWasmUrl?: string): Promise<void> {
   if (!wasmReady) {
@@ -85,10 +52,6 @@ export async function initMpcWasm(overrideWasmUrl?: string): Promise<void> {
   }
   return wasmReady
 }
-
-// ---------------------------------------------------------------------------
-// Wire-frame helpers (mirror MpcServerParty)
-// ---------------------------------------------------------------------------
 
 function serializeMessage(msg: Message): Uint8Array {
   const payload = msg.payload
@@ -104,12 +67,8 @@ function serializeMessage(msg: Message): Uint8Array {
 const VALID_PARTY_IDS = new Set([0, 1, 2])
 
 /**
- * Validate from_id / to_id in an inbound wire frame, mirroring the server's
- * assertValidFrame guard. Throws a clean error rather than constructing a
- * Message with garbage party ids.
- *   from_id : must be a real party id (0,1,2).
- *   to_id   : a real party id (0,1,2), broadcast sentinel (0xff), or commitment
- *             sentinel (0xfe).
+ * Reject garbage party ids before building a Message. from_id must be 0/1/2;
+ * to_id may also be the broadcast (0xff) or commitment (0xfe) sentinel.
  */
 function assertValidFrame(from: number, to: number): void {
   if (!VALID_PARTY_IDS.has(from)) {
@@ -164,7 +123,6 @@ function splitInbound(inbound: Uint8Array[]): SplitInbound {
   for (const raw of inbound) {
     if (raw.length < 2) throw new Error("invalid mpc frame: too short")
     if (raw[1] === COMMITMENT_SENTINEL) {
-      // Validate from_id even for commitment frames.
       assertValidFrame(raw[0], raw[1])
       commitments.set(raw[0], raw.slice(2))
     } else {
@@ -184,11 +142,7 @@ function freeMessages(msgs: Message[]): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Bundle codec — IDENTICAL to apps/api/src/services/mpc/ceremony.ts so the
-// device and server speak the same wire bundle format.
-// ---------------------------------------------------------------------------
-
+// Bundle codec — must stay identical to apps/api/src/services/mpc/ceremony.ts.
 function b64encode(bytes: Uint8Array): string {
   let s = ""
   for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i])
@@ -219,10 +173,6 @@ export function decodeBundle(payloadB64: string): Uint8Array[] {
   }
   return (parsed as string[]).map((s) => b64decode(s))
 }
-
-// ---------------------------------------------------------------------------
-// Pubkey utilities (mirror MpcServerParty)
-// ---------------------------------------------------------------------------
 
 const P_SECP256K1 = 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2fn
 const SECP256K1_N =
@@ -275,14 +225,10 @@ function lowS(s: Uint8Array): Uint8Array {
   return out
 }
 
-// ---------------------------------------------------------------------------
-// Public result types
-// ---------------------------------------------------------------------------
-
 export interface DkgResult {
   /** Serialised device(0) keyshare — persisted at rest (PIN-protected). */
   deviceShareBytes: Uint8Array
-  /** Serialised backup(2) keyshare — exported + zeroized by Task 8, NOT stored. */
+  /** Serialised backup(2) keyshare — exported then zeroized, never persisted. */
   backupShareBytes: Uint8Array
   /** Compressed (33-byte) combined public key, 0x-hex. */
   pubkey: `0x${string}`
@@ -314,44 +260,27 @@ export interface DeviceStep<R> {
   result?: R
 }
 
-// ---------------------------------------------------------------------------
-// Local keygen / refresh round driver shared by DKG and refresh.
-//
-// Drives device(0) and backup(2) through the keygen state machine, exchanging
-// only server-bound frames with the outside. The round mapping mirrors the
-// server (MpcServerKeygen.handle + ceremony stepDkg):
-//
-//   start  : both local parties createFirstMessage() (r1 broadcasts). The
-//            server-bound frames (broadcasts are addressed to everyone) are
-//            returned as the first outbound bundle.
-//   step 1 : feed server r1 + locally-buffered peer r1 → handleMessages → r2
-//            (P2P). Compute each local commitment. Return server-bound r2 +
-//            local commitments (so the server can complete round 4a).
-//   step 2 : feed server r2 (+ buffered local r2) → handleMessages → r3 (P2P).
-//            Return server-bound r3.
-//   step 3 : feed server r3 + ALL commitments (server's via 0xfe + local) →
-//            handleMessages(.,commitments) → r4 (broadcast). Return server-bound
-//            r4.
-//   step 4 : feed server r4 (+ buffered local r4) → handleMessages → done.
-//            finish() → extract both shares.
-// ---------------------------------------------------------------------------
-
+// Drives device(0) + backup(2) through the keygen state machine (shared by DKG
+// and refresh), exchanging only server-bound frames with the outside. Round
+// mapping mirrors the server (MpcServerKeygen.handle + ceremony stepDkg):
+//   1: r1 broadcasts → r2 P2P, compute local chain-code commitments
+//   2: r2 → r3 P2P, commitments ride along here (see round 1→2 boundary note)
+//   3: r3 + all commitments → r4 broadcast
+//   4: r4 → done, extract both shares
 type KeygenFactory = () => { device: KeygenSession; backup: KeygenSession }
 
 class LocalKeygenDriver {
   private device: KeygenSession
   private backup: KeygenSession
   private round = 0
-  /** Local frames produced this round that are addressed to the OTHER local
-   *  party (or broadcast) and must be replayed into the next handle. */
+  /** Frames addressed to the other local party (or broadcast), replayed next round. */
   private localPending: Uint8Array[] = []
   private deviceCommitment: Uint8Array | null = null
   private backupCommitment: Uint8Array | null = null
-  /** Commitments received from non-local parties (e.g. the server), keyed by
-   *  partyId. The server emits its commitment in an earlier round than the one
-   *  in which the local parties consume it, so we accumulate across rounds. */
+  /** Non-local (server) commitments by partyId; the server emits its commitment
+   *  a round before the local parties consume it, so accumulate across rounds. */
   private peerCommitments = new Map<number, Uint8Array>()
-  /** True once keyshare() consumed both sessions — free() must be a no-op. */
+  /** keyshare() consumed both sessions — free() must be a no-op. */
   private consumed = false
 
   constructor(factory: KeygenFactory) {
@@ -366,8 +295,7 @@ class LocalKeygenDriver {
     const devMsgs = [this.device.createFirstMessage()]
     const bakMsgs = [this.backup.createFirstMessage()]
     const allFrames = [...devMsgs, ...bakMsgs].map(serializeMessage)
-    // Buffer the local frames for the next round; emit the same broadcasts to
-    // the server (broadcasts are addressed to all parties, server included).
+    // Broadcasts go to all parties: buffer locally and also send to the server.
     this.localPending = allFrames
     this.round = 1
     return encodeBundle(allFrames)
@@ -387,15 +315,12 @@ class LocalKeygenDriver {
     this.localPending = []
     const inbound = [...serverFrames, ...buffered]
 
-    // Harvest any commitment frames the server sent THIS round. The server
-    // broadcasts its chain-code commitment a round earlier than the local
-    // parties consume it, so we accumulate across rounds.
+    // Server broadcasts its chain-code commitment a round before we consume it.
     for (const raw of serverFrames) {
       if (raw[1] === COMMITMENT_SENTINEL) this.peerCommitments.set(raw[0], raw.slice(2))
     }
 
     if (this.round === 1) {
-      // r1 → r2: broadcasts handled with filterMessages.
       const { messages } = splitInbound(inbound)
       try {
         const devR2 = this.device.handleMessages(
@@ -407,11 +332,9 @@ class LocalKeygenDriver {
         this.deviceCommitment = this.device.calculateChainCodeCommitment()
         this.backupCommitment = this.backup.calculateChainCodeCommitment()
         this.round = 2
-        // Commitments are NOT appended here: the real server consumes the
-        // device/backup chain-code commitments in the SAME round it consumes
-        // their r3 P2P messages (see ceremony.ts stepDkg round 3 +
-        // apps/api/tests/integration/mpc-ceremony.test.ts `r3ForSrv`). They are
-        // therefore appended in the round===2 branch below.
+        // Don't append commitments yet: the server consumes device/backup
+        // chain-code commitments in the same round as their r3 P2P messages, so
+        // they're appended in the round===2 branch below (see ceremony.ts stepDkg).
         return this.routeOutbound([...devR2, ...bakR2], /*withCommitments*/ false)
       } finally {
         freeMessages(messages)
@@ -419,9 +342,8 @@ class LocalKeygenDriver {
     }
 
     if (this.round === 2) {
-      // r2 → r3: P2P, select messages addressed to each local party. The
-      // device/backup chain-code commitments (computed last round) ride along
-      // here so they reach the server in the round it consumes r3.
+      // r2 → r3 P2P. Local chain-code commitments ride along so they reach the
+      // server in the round it consumes r3.
       const { messages } = splitInbound(inbound)
       try {
         const devR3 = this.device.handleMessages(
@@ -443,8 +365,7 @@ class LocalKeygenDriver {
       try {
         if (!this.deviceCommitment || !this.backupCommitment)
           throw new Error("LocalKeygenDriver: local commitments missing in round 3")
-        // Use commitments accumulated across all prior rounds (server's arrived
-        // earlier) plus this round's, then add the two local ones.
+        // Accumulated peer commitments (server's arrived earlier) + the two local ones.
         const commitMap = new Map<number, Uint8Array>(this.peerCommitments)
         commitMap.set(DEVICE_PARTY_ID, this.deviceCommitment)
         commitMap.set(BACKUP_PARTY_ID, this.backupCommitment)
@@ -473,7 +394,6 @@ class LocalKeygenDriver {
     }
 
     if (this.round === 4) {
-      // r4 → done: final broadcasts handled with filterMessages.
       const { messages } = splitInbound(inbound)
       try {
         this.device.handleMessages(filterMessages(messages, DEVICE_PARTY_ID))
@@ -500,9 +420,8 @@ class LocalKeygenDriver {
   }
 
   /**
-   * Partition produced local frames: buffer those addressed to a LOCAL party
-   * (device/backup) or broadcast for the next round; emit to the server those
-   * addressed to the server or broadcast. Commitments (round 2 only) are
+   * Partition produced frames: local-addressed (or broadcast) get buffered for
+   * next round, server-addressed (or broadcast) go out. Round-2 commitments are
    * appended to the server-bound bundle.
    */
   private routeOutbound(
@@ -515,14 +434,12 @@ class LocalKeygenDriver {
     for (const f of frames) {
       const to = f[1]
       if (to === BROADCAST_SENTINEL) {
-        // Broadcasts go to everyone: replay locally AND send to server.
         serverBound.push(f)
         localBuffer.push(f)
       } else if (to === SERVER_PARTY_ID) {
         serverBound.push(f)
       } else {
-        // Addressed to device(0) or backup(2) → keep intra-browser.
-        localBuffer.push(f)
+        localBuffer.push(f) // device(0)/backup(2) stays intra-browser
       }
     }
     if (withCommitments) {
@@ -536,9 +453,8 @@ class LocalKeygenDriver {
   }
 
   free(): void {
-    // After a successful keygen, keyshare() has CONSUMED (and deallocated) both
-    // sessions; calling free() again would dereference a null pointer in the
-    // -web build. Only free when the sessions were not consumed.
+    // keyshare() already deallocated both sessions in the -web build; a second
+    // free() would dereference a null pointer.
     if (this.consumed) return
     try {
       this.device.free()
@@ -553,10 +469,7 @@ class LocalKeygenDriver {
   }
 }
 
-// ---------------------------------------------------------------------------
-// MpcDeviceParty — the public façade. One instance drives one ceremony.
-// ---------------------------------------------------------------------------
-
+// One MpcDeviceParty instance drives one ceremony.
 type DeviceEngine =
   | { kind: "dkg"; driver: LocalKeygenDriver }
   | { kind: "refresh"; driver: LocalKeygenDriver }
@@ -572,12 +485,7 @@ type DeviceEngine =
 export class MpcDeviceParty {
   private engine: DeviceEngine | null = null
 
-  // ---- DKG ----------------------------------------------------------------
-
-  /**
-   * Begin a DKG ceremony. Returns the client's FIRST outbound bundle
-   * (device+backup round-1 broadcasts) to relay to the server.
-   */
+  /** Returns the client's first outbound bundle (device+backup r1 broadcasts). */
   startDkg(): string {
     if (this.engine) throw new Error("MpcDeviceParty: ceremony already started")
     const driver = new LocalKeygenDriver(() => ({
@@ -588,12 +496,7 @@ export class MpcDeviceParty {
     return driver.start()
   }
 
-  // ---- Refresh ------------------------------------------------------------
-
-  /**
-   * Begin a refresh (key rotation) ceremony from the existing device + backup
-   * shares. Returns the client's FIRST outbound bundle.
-   */
+  /** Key rotation from existing device+backup shares. Returns first outbound bundle. */
   startRefresh(deviceShareBytes: Uint8Array, backupShareBytes: Uint8Array): string {
     if (this.engine) throw new Error("MpcDeviceParty: ceremony already started")
     const driver = new LocalKeygenDriver(() => {
@@ -608,14 +511,9 @@ export class MpcDeviceParty {
     return driver.start()
   }
 
-  // ---- Sign ---------------------------------------------------------------
-
   /**
-   * Begin a normal sign ceremony (device(0)+server(1)). Returns the client's
-   * FIRST outbound bundle (device round-1 broadcast).
-   *
-   * @param deviceShareBytes  Serialised device(0) keyshare.
-   * @param hash              32-byte message hash to sign.
+   * Normal sign (device(0)+server(1)). hash must be 32 bytes. Returns the
+   * client's first outbound bundle (device r1 broadcast).
    */
   startSign(deviceShareBytes: Uint8Array, hash: Uint8Array): string {
     if (this.engine) throw new Error("MpcDeviceParty: ceremony already started")
@@ -639,8 +537,6 @@ export class MpcDeviceParty {
     }
     return encodeBundle([first])
   }
-
-  // ---- Round pump ---------------------------------------------------------
 
   /**
    * Consume the server's outbound bundle and advance the ceremony one round.
@@ -681,12 +577,11 @@ export class MpcDeviceParty {
     return this.stepSign(serverBundle)
   }
 
-  // Sign round machine (mirrors MpcServerSign + ceremony.stepSign), but for
-  // the LOCAL device party only; the server is the only peer.
-  //   round 1: handle(r1) → r2 P2P outbound
-  //   round 2: handle(r2) → r3 P2P outbound
-  //   round 3: handle(r3) → [] then lastMessage(hash) → last broadcast
-  //   round 4: combine(server last) → {r, s}
+  // Sign round machine for the local device party (server is the only peer):
+  //   1: handle(r1) → r2 P2P
+  //   2: handle(r2) → r3 P2P
+  //   3: handle(r3) then lastMessage(hash) → last broadcast
+  //   4: combine(server last) → {r, s}
   private stepSign(serverBundle: string): DeviceStep<SignResult> {
     if (this.engine?.kind !== "sign") throw new Error("MpcDeviceParty: not a sign ceremony")
     const eng = this.engine
@@ -702,8 +597,8 @@ export class MpcDeviceParty {
         const filtered = filterMessages(messages, DEVICE_PARTY_ID)
         const [R, S] = eng.session.combine(filtered) as [Uint8Array, Uint8Array]
         const result: SignResult = { r: R, s: lowS(S) }
-        // combine() consumes (deallocates) the session in the -web build, so a
-        // subsequent free() would dereference a null pointer — guard it.
+        // combine() already deallocated the session in the -web build; a second
+        // free() would dereference a null pointer.
         try {
           eng.session.free()
         } catch {
@@ -730,7 +625,7 @@ export class MpcDeviceParty {
       }
       if (eng.round === 3) {
         eng.session.handleMessages(selectMessages(messages, DEVICE_PARTY_ID))
-        // round 3 produces no peer-bound P2P for a 2-party quorum → emit last.
+        // 2-party quorum: no peer-bound P2P, emit the last message directly.
         const last = serializeMessage(eng.session.lastMessage(eng.hash))
         eng.round = 4
         eng.lastSent = true
@@ -745,9 +640,7 @@ export class MpcDeviceParty {
   private routeSignOutbound(produced: Message[]): DeviceStep<SignResult> {
     if (this.engine?.kind !== "sign") throw new Error("MpcDeviceParty: not a sign ceremony")
     const frames = produced.map(serializeMessage)
-    // With a 2-party quorum (device+server) every produced frame is bound for
-    // the server (or broadcast); nothing is intra-browser. Keep the same
-    // partition logic for safety/symmetry.
+    // 2-party quorum: everything is server-bound. Same partition as keygen for symmetry.
     const serverBound: Uint8Array[] = []
     const localBuffer: Uint8Array[] = []
     for (const f of frames) {

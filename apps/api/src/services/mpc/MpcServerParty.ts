@@ -1,27 +1,9 @@
-// apps/api/src/services/mpc/MpcServerParty.ts
+// Drives the SERVER party through the DKLS23 keygen / sign / refresh rounds.
+// Takes and returns raw protocol bytes; routes by REAL DKG partyId (not array
+// index), else the {server,backup} quorum breaks. WASM objects must be .free()d.
 //
-// Transport-agnostic wrapper that drives the SERVER party through the
-// DKLS23 keygen / sign / refresh state machine.
-//
-// Design:
-//   - Takes and returns raw protocol message bytes (Uint8Array).
-//   - Round sequencing mirrors scripts/mpc-dkls-spike.ts exactly.
-//   - Routes messages by REAL DKG partyId (from_id / to_id in Message),
-//     NOT array index — critical invariant for the {server,backup} quorum.
-//   - Enforces .free() on all WASM objects to avoid WASM memory leaks.
-//   - Persistence functions use serverShareStore + @walty/db.
-//
-// Wire message format (Uint8Array envelope):
-//   byte 0  — from_id (source party id)
-//   byte 1  — to_id   (dest party id, 0xff = broadcast)
-//   byte 2+ — WASM Message payload
-//
-// Commitment wire format (used in round-3 → round-4 transition):
-//   byte 0  — from_id (party that computed this commitment)
-//   byte 1  — 0xfe    (sentinel distinguishing commitment from regular message)
-//   byte 2+ — Uint8Array from calculateChainCodeCommitment()
-//
-// Transport (socket.io /mpc namespace) wraps these in envelopes — Task 5.
+// Wire frame: [from_id][to_id | 0xff broadcast | 0xfe commitment][payload].
+// Commitment payload is calculateChainCodeCommitment() bytes.
 
 import {
   KeygenSession,
@@ -35,10 +17,6 @@ import { assembleEthSignature, SECP256K1_N, type EthSignature } from "./signatur
 import { db, mpcKeys, mpcServerShares } from "@walty/db"
 import { eq } from "drizzle-orm"
 
-// ---------------------------------------------------------------------------
-// Public types
-// ---------------------------------------------------------------------------
-
 export interface RoundStep {
   /** Outbound messages to be forwarded to peer parties. */
   outbound: Uint8Array[]
@@ -46,26 +24,15 @@ export interface RoundStep {
   done: boolean
 }
 
-// ---------------------------------------------------------------------------
-// Wire-format helpers
-// ---------------------------------------------------------------------------
-
 const COMMITMENT_SENTINEL = 0xfe
 const BROADCAST_SENTINEL = 0xff
 
-/** Valid real party ids in the 2-of-3 topology: device(0), server(1), backup(2). */
+/** 2-of-3 topology: device(0), server(1), backup(2). */
 const VALID_PARTY_IDS = new Set([0, 1, 2])
 
-/**
- * Reject any wire frame whose from_id / to_id is not a recognised party id or
- * sentinel. Catching this at deserialisation gives a clean, early error rather
- * than letting a malformed/hostile frame surface later as an opaque "missing
- * commitment" or WASM failure.
- *
- *   from_id : must be a real party id (0,1,2).
- *   to_id   : a real party id (0,1,2), the broadcast sentinel (0xff), or — for a
- *             commitment frame — the commitment sentinel (0xfe).
- */
+// Reject malformed/hostile frames at deserialisation so they fail clean rather
+// than surfacing later as an opaque "missing commitment" or WASM error.
+// from_id ∈ {0,1,2}; to_id ∈ {0,1,2, 0xff broadcast, 0xfe commitment}.
 function assertValidFrame(from: number, to: number): void {
   if (!VALID_PARTY_IDS.has(from)) {
     throw new Error(`MpcServerParty: invalid from_id ${from} in wire frame`)
@@ -111,11 +78,7 @@ function selectMessages(msgs: Message[], partyId: number): Message[] {
   return msgs.filter((m) => m.to_id === partyId).map((m) => m.clone())
 }
 
-/**
- * Split an inbound Uint8Array[] into:
- *   - Regular wire messages (deserialised to WASM Message)
- *   - Commitment payloads keyed by from_id (byte 1 === COMMITMENT_SENTINEL)
- */
+/** Split inbound frames into WASM messages and commitment payloads (keyed by from_id). */
 function splitInbound(
   inbound: Uint8Array[],
 ): { messages: Message[]; commitments: Map<number, Uint8Array> } {
@@ -124,7 +87,6 @@ function splitInbound(
   for (const raw of inbound) {
     if (raw.length < 2) throw new Error("invalid mpc frame: too short")
     if (raw[1] === COMMITMENT_SENTINEL) {
-      // Commitment frame: from_id must still be a real party id.
       assertValidFrame(raw[0], raw[1])
       commitments.set(raw[0], raw.slice(2))
     } else {
@@ -134,14 +96,7 @@ function splitInbound(
   return { messages, commitments }
 }
 
-// ---------------------------------------------------------------------------
-// Public wire-format utilities (used by tests and Task 5 transport layer)
-// ---------------------------------------------------------------------------
-
-/**
- * Encode a chain-code commitment into the sentinel wire format.
- * Format: [from_id][0xfe][commitment bytes]
- */
+/** Encode a chain-code commitment frame: [from_id][0xfe][commitment bytes]. */
 export function encodeCommitment(fromPartyId: number, commitmentBytes: Uint8Array): Uint8Array {
   const result = new Uint8Array(2 + commitmentBytes.length)
   result[0] = fromPartyId
@@ -149,10 +104,6 @@ export function encodeCommitment(fromPartyId: number, commitmentBytes: Uint8Arra
   result.set(commitmentBytes, 2)
   return result
 }
-
-// ---------------------------------------------------------------------------
-// Pubkey utilities (mirrors spike's decompressPubkey + viem publicKeyToAddress)
-// ---------------------------------------------------------------------------
 
 const P_SECP256K1 = 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2fn
 
@@ -194,19 +145,12 @@ export function compressedPubkeyToAddress(compressed: Uint8Array): string {
   return publicKeyToAddress(decompressPubkey(compressed))
 }
 
-// ---------------------------------------------------------------------------
-// MpcServerKeygen
-//
-// Round state machine (maps to spike runDkg):
-//   round 0 → firstMessage() → round 1
-//   round 1 → handle(filter(r1))          → r2 P2P outbound         → round 2
-//   round 2 → handle(select(r2))          → r3 P2P outbound         → round 3
-//             getCommitment() is available from round 2 onward
-//   round 3 → handle(select(r3) + commitments) → r4 broadcast       → round 4
-//   round 4 → handle(filter(r4))          → [], done=true            → round 5
-//             finish() extracts the keyshare
-// ---------------------------------------------------------------------------
-
+// Round state machine:
+//   0 → firstMessage()                     → 1
+//   1 → handle(filter(r1))                  → r2 P2P    → 2
+//   2 → handle(select(r2))                  → r3 P2P    → 3   (commitment ready from 2)
+//   3 → handle(select(r3) + commitments)    → r4 cast   → 4
+//   4 → handle(filter(r4))                  → done      → 5   (finish() extracts keyshare)
 export class MpcServerKeygen {
   private session: KeygenSession
   private readonly partyId: number
@@ -219,10 +163,7 @@ export class MpcServerKeygen {
     this.session = new KeygenSession(participants, threshold, serverPartyId)
   }
 
-  /**
-   * Round 1: generate the server's first broadcast message.
-   * Must be called exactly once before handle().
-   */
+  /** Round 1 first broadcast. Call exactly once before handle(). */
   firstMessage(): Uint8Array[] {
     if (this.round !== 0) throw new Error("MpcServerKeygen: firstMessage already called")
     const msg = this.session.createFirstMessage()
@@ -231,10 +172,8 @@ export class MpcServerKeygen {
   }
 
   /**
-   * Returns the server's chain-code commitment as a wire-format commitment message.
-   * Only available after handle() has been called for round 1 (i.e., round >= 2).
-   * The transport layer must broadcast this to all peer parties before they
-   * transition to round 4a.
+   * Chain-code commitment as a wire frame, available from round 2.
+   * Transport must broadcast it to peers before they transition to round 4a.
    */
   getCommitmentWire(): Uint8Array {
     if (this.round < 2 || !this._commitment) {
@@ -245,22 +184,15 @@ export class MpcServerKeygen {
     return encodeCommitment(this.partyId, this._commitment)
   }
 
-  /**
-   * Feed peer inbound messages for the current round.
-   *
-   * Rounds 1–2: inbound is Uint8Array[] of serialised wire messages.
-   * Round 3: inbound is Uint8Array[] of serialised wire messages PLUS
-   *          commitment messages (byte 1 === 0xfe) from all peer parties.
-   *          The server's OWN commitment is added internally.
-   * Round 4: inbound is Uint8Array[] of broadcast messages for round 4b.
-   */
+  // Round 3 inbound must include peer commitment frames (0xfe); the server's
+  // own commitment is added internally.
   handle(inbound: Uint8Array[]): RoundStep {
     if (this.round === 1) {
       const { messages } = splitInbound(inbound)
       try {
         const filtered = filterMessages(messages, this.partyId)
         const r2 = this.session.handleMessages(filtered)
-        // Compute commitment immediately after round 2 so getCommitmentWire() works
+        // compute now so getCommitmentWire() works from round 2
         this._commitment = this.session.calculateChainCodeCommitment()
         this.round = 2
         return { outbound: r2.map(serializeMessage), done: false }
@@ -286,8 +218,7 @@ export class MpcServerKeygen {
       try {
         const selected = selectMessages(messages, this.partyId)
 
-        // Build the full commitments array indexed by partyId
-        // Server's own commitment + peer commitments passed in via sentinel format
+        // commitments array indexed by partyId: server's own + peers
         const commitMap = new Map<number, Uint8Array>(peerCommitments)
         if (!this._commitment)
           throw new Error("MpcServerKeygen: internal error — commitment missing in round 3")
@@ -327,10 +258,7 @@ export class MpcServerKeygen {
     throw new Error(`MpcServerKeygen: unexpected call to handle() in round ${this.round}`)
   }
 
-  /**
-   * Extract the completed keyshare after handle() returns done=true.
-   * Consumes the underlying KeygenSession; do not call methods afterward.
-   */
+  /** Extract the keyshare once handle() returns done=true. Consumes the session. */
   finish(): { keyshareBytes: Buffer; pubkey: string; address: string } {
     if (this.round !== 5)
       throw new Error("MpcServerKeygen: not done yet — call handle() until done=true")
@@ -349,18 +277,7 @@ export class MpcServerKeygen {
   }
 }
 
-// ---------------------------------------------------------------------------
-// persistServerKey
-// ---------------------------------------------------------------------------
-
-/**
- * Persist the server's DKG result to the database:
- *   1. Insert an mpc_keys row (status "active", version 1).
- *   2. Encrypt the keyshare via serverShareStore.encryptShare().
- *   3. Insert an mpc_server_shares row.
- *
- * @returns The newly created keyId (UUID).
- */
+/** Persist the DKG result: mpc_keys row + encrypted share in mpc_server_shares. Returns the keyId. */
 export async function persistServerKey(
   userId: number,
   dkg: { keyshareBytes: Buffer; pubkey: string; address: string },
@@ -391,15 +308,7 @@ export async function persistServerKey(
   return { keyId }
 }
 
-// ---------------------------------------------------------------------------
-// loadServerKeyshare
-// ---------------------------------------------------------------------------
-
-/**
- * Load and decrypt the server's key share for a given keyId.
- *
- * @returns The raw keyshare bytes and the ShareContext used for encryption.
- */
+/** Load and decrypt the server share for a keyId, with the ShareContext used to encrypt it. */
 export async function loadServerKeyshare(
   keyId: string,
 ): Promise<{ keyshareBytes: Buffer; ctx: ShareContext }> {
@@ -431,32 +340,25 @@ export async function loadServerKeyshare(
   return { keyshareBytes, ctx }
 }
 
-// ---------------------------------------------------------------------------
-// MpcServerSign
+// Round state machine:
+//   0 → firstMessage()        → 1
+//   1 → handle(filter(r1))     → r2 P2P  → 2
+//   2 → handle(select(r2))     → r3 P2P  → 3
+//   3 → handle(select(r3))     → []      → 4
+//   4 → lastMessage(hash)      → last    → 5
+//   5 → combine(filter(last))  → {r,s}   → 6
 //
-// Round state machine (maps to spike runSign):
-//   round 0 → firstMessage() → round 1
-//   round 1 → handle(filter(r1))   → r2 P2P outbound   → round 2
-//   round 2 → handle(select(r2))   → r3 P2P outbound   → round 3
-//   round 3 → handle(select(r3))   → [], done=false     → round 4
-//   round 4 → lastMessage(hash)    → last broadcast     → round 5
-//   round 5 → combine(filter(last))→ {r, s}             → round 6
-//
-// NOTE: SignSession CONSUMES the keyshare passed to its constructor.
-//   The constructor clones keyshareBytes via Keyshare.fromBytes() so the
-//   caller's buffer is not affected.
-// ---------------------------------------------------------------------------
-
+// SignSession consumes the keyshare; the ctor clones via fromBytes so the
+// caller's buffer survives.
 export class MpcServerSign {
   private session: SignSession
   private readonly partyId: number
   private round: number = 0
 
   constructor(keyshareBytes: Buffer) {
-    // Clone via fromBytes so the caller's buffer is not affected by the consume
     const keyshare = Keyshare.fromBytes(keyshareBytes)
     this.partyId = keyshare.partyId
-    // SignSession consumes the keyshare — the clone is intentionally consumed here
+    // SignSession consumes this clone, not the caller's buffer
     this.session = new SignSession(keyshare, "m")
   }
 
@@ -468,12 +370,7 @@ export class MpcServerSign {
     return [serializeMessage(msg)]
   }
 
-  /**
-   * Feed peer messages for rounds 1–3.
-   *   round 1: handle(filter(r1)) → r2 P2P outbound
-   *   round 2: handle(select(r2)) → r3 P2P outbound
-   *   round 3: handle(select(r3)) → [], done=false
-   */
+  /** Feed peer messages for rounds 1–3. */
   handle(inbound: Uint8Array[]): RoundStep {
     const { messages } = splitInbound(inbound)
     try {
@@ -501,10 +398,7 @@ export class MpcServerSign {
     }
   }
 
-  /**
-   * Round 4: bind the 32-byte message hash to the pre-signature.
-   * Returns the final broadcast message for combine().
-   */
+  /** Round 4: bind the 32-byte hash to the pre-signature; returns the last broadcast for combine(). */
   lastMessage(hash: Uint8Array): Uint8Array[] {
     if (this.round !== 4)
       throw new Error("MpcServerSign: call handle() for rounds 1–3 first")
@@ -514,11 +408,9 @@ export class MpcServerSign {
   }
 
   /**
-   * Combine peer last-messages to produce the [R, S] signature.
-   * S is normalized to low-s (canonical EIP-2 form).
-   *
-   * For a fully assembled EVM signature (with recovery id), use
-   * `combineAndAssemble()` instead, which delegates to `assembleEthSignature`.
+   * Combine peer last-messages. WASM combine() returns [R,S] with NO recovery-id
+   * and NO low-s, so we enforce EIP-2 (low-s) here. For a full EVM sig with v,
+   * use combineAndAssemble().
    */
   combine(peerLastMessages: Uint8Array[]): { r: Uint8Array; s: Uint8Array } {
     if (this.round !== 5)
@@ -529,7 +421,7 @@ export class MpcServerSign {
       const result = this.session.combine(filtered) as [Uint8Array, Uint8Array]
       const [R, S] = result
 
-      // Normalize to low-s (EIP-2) using the canonical SECP256K1_N from signature.ts
+      // low-s normalization (EIP-2)
       const HALF_N = SECP256K1_N / 2n
       let sBig = BigInt(u8ToHex(S))
       if (sBig > HALF_N) sBig = SECP256K1_N - sBig
@@ -547,15 +439,9 @@ export class MpcServerSign {
   }
 
   /**
-   * Combine peer last-messages and assemble a full EVM signature.
-   *
-   * Delegates low-s normalization and recovery-id brute-force to
-   * `assembleEthSignature` from `signature.ts`.
-   *
-   * @param peerLastMessages  Serialised last-messages from peer parties.
-   * @param hash              The 32-byte message hash passed to `lastMessage()`.
-   * @param expectedAddress   The Ethereum address that should be recovered.
-   * @returns                 A fully assembled `EthSignature` (r, s, v, yParity, serialized).
+   * Combine and assemble a full EVM signature. Delegates low-s + recovery-id
+   * brute-force to assembleEthSignature(). hash must match lastMessage();
+   * expectedAddress is the address that must recover.
    */
   async combineAndAssemble(
     peerLastMessages: Uint8Array[],
@@ -572,14 +458,8 @@ export class MpcServerSign {
   }
 }
 
-// ---------------------------------------------------------------------------
-// MpcServerRefresh
-//
-// Uses KeygenSession.initKeyRotation(oldShare), then the identical round flow
-// as MpcServerKeygen. The resulting share has the SAME combined public key
-// but different internal bytes (re-randomized shares).
-// ---------------------------------------------------------------------------
-
+// initKeyRotation(oldShare) then the same round flow as MpcServerKeygen.
+// Resulting share has the SAME public key but re-randomized internal bytes.
 export class MpcServerRefresh {
   private session: KeygenSession
   private readonly partyId: number
@@ -601,10 +481,7 @@ export class MpcServerRefresh {
     return [serializeMessage(msg)]
   }
 
-  /**
-   * Returns the server's chain-code commitment as a wire-format commitment message.
-   * Available from round 2 onward.
-   */
+  /** Chain-code commitment wire frame, available from round 2. */
   getCommitmentWire(): Uint8Array {
     if (this.round < 2 || !this._commitment) {
       throw new Error(
@@ -614,11 +491,7 @@ export class MpcServerRefresh {
     return encodeCommitment(this.partyId, this._commitment)
   }
 
-  /**
-   * Feed peer messages. Identical contract to MpcServerKeygen.handle().
-   * Round 3 requires commitment messages (0xfe sentinel) from peer parties.
-   * Returns done=true on round 4 — call finish() next.
-   */
+  /** Same contract as MpcServerKeygen.handle(): round 3 needs peer commitment frames. */
   handle(inbound: Uint8Array[]): RoundStep {
     if (this.round === 1) {
       const { messages } = splitInbound(inbound)
@@ -686,10 +559,7 @@ export class MpcServerRefresh {
     throw new Error(`MpcServerRefresh: unexpected call to handle() in round ${this.round}`)
   }
 
-  /**
-   * Extract the refreshed keyshare after handle() returns done=true.
-   * The public key and address are UNCHANGED from the original share.
-   */
+  /** Extract the refreshed keyshare once done=true. pubkey/address are unchanged. */
   finish(): { keyshareBytes: Buffer; pubkey: string; address: string } {
     if (this.round !== 5)
       throw new Error("MpcServerRefresh: not done yet — call handle() until done=true")

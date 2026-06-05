@@ -23,9 +23,8 @@ function tokenFromHandshake(socket: import("socket.io").Socket): string | null {
   const bearer = /^Bearer\s+(.+)$/i.exec(
     socket.handshake.headers.authorization ?? "",
   )?.[1]
-  // Browsers can't set custom headers on the WebSocket upgrade, so the
-  // socket.io-client `auth: { token }` handshake field is the cross-origin
-  // path. It is still fully verified by callers (JWT + live session lookup).
+  // Browsers can't set headers on the WS upgrade, so `auth.token` is the
+  // cross-origin path. Still fully verified by callers (JWT + live session).
   const authObj = socket.handshake.auth as { token?: unknown } | undefined
   const authToken = typeof authObj?.token === "string" ? authObj.token : null
   const token = cookieToken
@@ -35,15 +34,11 @@ function tokenFromHandshake(socket: import("socket.io").Socket): string | null {
 }
 
 /**
- * Re-verify, mid-connection, that the socket's session is still usable:
- *   - the JWT still verifies (not expired / not tampered),
- *   - it carries a sid that matches the socket's bound userId,
- *   - the device_session row exists and is NOT revoked.
- *
- * Used by long-lived namespaces (e.g. /mpc) before privileged actions so a
- * revoked/expired session cannot keep driving work on an already-open socket.
- * Returns true iff the session is live. Cheap: one indexed session lookup +
- * a stateless JWT verify.
+ * Re-verify mid-connection that the session is still live: JWT verifies, sid/
+ * userId match the socket, and the device_session row exists and isn't revoked.
+ * Long-lived namespaces (/mpc) call this before privileged actions so a revoked
+ * or expired session can't keep driving an already-open socket. Cheap: one
+ * indexed lookup + a stateless verify.
  */
 export async function isSocketSessionLive(
   socket: import("socket.io").Socket,
@@ -104,14 +99,10 @@ export function initWebSocket(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     cors: { origin: env.webOrigin, credentials: true },
     serveClient: false,
-    // Transport-level hard cap on a single inbound packet. The /mpc round
-    // payloads are the only large frames we exchange; their schema cap is
-    // MPC_PAYLOAD_MAX_BYTES (1 MB, see packages/shared/src/mpc/messages.ts).
-    // socket.io measures the WHOLE packet (engine.io/JSON envelope + event name
-    // + the base64 payload), so we add headroom above the payload cap so a
-    // legitimate full-size MPC round (largest real bundle measured ~253 KB)
-    // plus its envelope still fits, while anything materially larger is dropped
-    // before it is buffered. The two caps describe the same ~1 MB bound.
+    // Hard cap on one inbound packet. /mpc round payloads are the only large
+    // frames; their schema cap is MPC_PAYLOAD_MAX_BYTES (1 MB). socket.io
+    // measures the whole packet (envelope + event name + base64 payload), so add
+    // headroom for the envelope while still dropping anything materially larger.
     maxHttpBufferSize: MPC_PAYLOAD_MAX_BYTES + 200_000,
   })
 

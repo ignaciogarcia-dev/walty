@@ -1,30 +1,16 @@
-// apps/api/src/services/mpc/ceremony.ts
+// Transport-agnostic server-side orchestrator for a 2-of-3 DKLS23 ceremony
+// (keygen/sign/refresh). Drives one MpcServer* state machine through its rounds
+// and enforces the on-wire guards (sequence/replay, expiry, round order, keyId
+// ownership, abort, timeout) without importing socket.io.
 //
-// TRANSPORT-AGNOSTIC ceremony orchestrator for the SERVER side of a 2-of-3
-// DKLS23 MPC ceremony. It drives one of the MpcServer* state machines
-// (keygen / sign / refresh) through its rounds and enforces the on-wire
-// protocol guards (sequence/replay, expiry, round ordering, keyId ownership,
-// abort, per-round timeout) WITHOUT importing socket.io.
+// Topology: browser runs device(0) and backup(2), server runs server(1). One
+// ceremony per client connection. Client relays the bundle of wire frames
+// addressed to the server; orchestrator feeds them in and returns the server's
+// outbound bundle for the client to route to its local parties (by real partyId,
+// inside MpcServerParty).
 //
-// Topology (see task spec):
-//   During DKG the BROWSER runs device(0) and backup(2); the SERVER runs
-//   server(1). A ceremony is between ONE client connection and the server's
-//   party. The client sends the bundle of wire messages addressed to the
-//   server; the orchestrator feeds them to the server party and returns the
-//   server's outbound bundle for the client to route to its local parties.
-//   Routing is by REAL partyId and is handled inside MpcServerParty.
-//
-// Step model (one `submitRound` call per protocol step):
-//   - The client base64-encodes a JSON array of wire-message envelopes
-//     (the [from][to][payload] frames produced by the client's parties,
-//     plus 0xfe commitment frames in the relevant DKG/refresh round) and
-//     sends it as the `payload` of an mpcRoundMessage.
-//   - The orchestrator decodes that bundle, advances the server party one
-//     round, and returns the server's outbound bundle (base64 JSON array of
-//     wire frames) to send back. When the underlying party signals done the
-//     ceremony finalises (DKG/refresh → persist; sign → assemble signature).
-//
-// The orchestrator NEVER logs payloads or share bytes.
+// One submitRound call per protocol step. Payload is base64(JSON(string[])) of
+// base64 wire frames. Never logs payloads or share bytes.
 
 import { eq } from "drizzle-orm"
 import { db, mpcKeys, mpcServerShares } from "@walty/db"
@@ -40,17 +26,12 @@ import {
 import { encryptShare, type ShareContext } from "./serverShareStore.js"
 import type { EthSignature } from "./signature.js"
 
-// ---------------------------------------------------------------------------
-// Tunables
-// ---------------------------------------------------------------------------
-
-/** Default window in which a single round must make progress or the ceremony
- *  is reaped/abortable. Also the per-message `expiresAt` horizon. */
+/** Window in which a round must make progress before it's reaped. Also the
+ *  per-message expiresAt horizon. */
 export const MPC_ROUND_TIMEOUT_MS = 30_000
 
-/** Effective round timeout, read at call time so tests can override it via the
- *  MPC_ROUND_TIMEOUT_MS env var (e.g. the reaper test uses a tiny value). In
- *  production the env var is unset and this is exactly MPC_ROUND_TIMEOUT_MS. */
+/** Read at call time so tests can override via MPC_ROUND_TIMEOUT_MS env; unset
+ *  in production. */
 function roundTimeoutMs(): number {
   const raw = Number(process.env.MPC_ROUND_TIMEOUT_MS)
   return Number.isFinite(raw) && raw > 0 ? raw : MPC_ROUND_TIMEOUT_MS
@@ -60,12 +41,8 @@ const PARTICIPANTS = 3
 const THRESHOLD = 2
 const SERVER_PARTY_ID = 1
 
-// ---------------------------------------------------------------------------
-// Bundle codec — a step's payload is a base64(JSON(string[])) of wire frames,
-// each wire frame itself base64-encoded. Kept deliberately simple and free of
-// any framing the WASM library cares about (it only sees the inner bytes).
-// ---------------------------------------------------------------------------
-
+// Bundle codec: base64(JSON(string[])) of base64 wire frames. The WASM library
+// only ever sees the inner bytes.
 function encodeBundle(frames: Uint8Array[]): string {
   const arr = frames.map((f) => Buffer.from(f).toString("base64"))
   return Buffer.from(JSON.stringify(arr), "utf8").toString("base64")
@@ -84,11 +61,8 @@ function decodeBundle(payloadB64: string): Uint8Array[] {
   return (parsed as string[]).map((s) => new Uint8Array(Buffer.from(s, "base64")))
 }
 
-// ---------------------------------------------------------------------------
-// Errors — a single typed error so the transport layer can react uniformly.
-// Reasons are coarse-grained and never carry sensitive material.
-// ---------------------------------------------------------------------------
-
+// Single typed error so transport reacts uniformly. Reasons are coarse and
+// never carry sensitive material.
 export type CeremonyErrorReason =
   | "invalid_payload"
   | "replay"
@@ -113,10 +87,6 @@ export class CeremonyError extends Error {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Step result returned to the transport layer.
-// ---------------------------------------------------------------------------
-
 export interface CeremonyStepResult {
   /** Base64 bundle of server outbound wire frames to relay to the client. */
   outbound: string
@@ -139,10 +109,6 @@ export interface CeremonyInit {
   signHash?: `0x${string}`
 }
 
-// ---------------------------------------------------------------------------
-// Ceremony — the orchestrator state machine.
-// ---------------------------------------------------------------------------
-
 type Engine =
   | { kind: "dkg"; party: MpcServerKeygen }
   | { kind: "refresh"; party: MpcServerRefresh; keyId: string; ctx: ShareContext }
@@ -162,31 +128,22 @@ export class Ceremony {
   /** keyId the ceremony is bound to (set for sign/refresh; set after DKG persist). */
   keyId: string | null
 
-  /** Highest accepted client sequence; the next must be strictly greater. */
+  /** Highest accepted sequence; next must be strictly greater (replay guard). */
   private lastSequence = -1
-  /**
-   * partyId bound from the FIRST accepted round message; subsequent messages
-   * must carry the same value. For the single-client driver this will always
-   * be 0, but binding it enforces the field rather than treating it as dead weight.
-   */
+  /** Bound from the first accepted message; every later message must match
+   *  ("party_mismatch"). */
   private boundPartyId: number | null = null
-  /** Current protocol round the orchestrator expects next (0-based step index). */
+  /** Round expected next (0-based). */
   private step = 0
   private status: "init" | "running" | "completed" | "aborted" = "init"
   private engine: Engine | null = null
-  /** Absolute deadline for the next inbound step; refreshed on every step. */
+  /** Deadline for the next inbound step; refreshed on every step. */
   private deadline: number
-  /**
-   * Active reaper: fires at `deadline` to abort an idle ceremony so it cannot
-   * leak (WASM party + transport bookkeeping) until the socket disconnects.
-   * Reset on every accepted round; cleared on teardown.
-   */
+  /** Fires at deadline to abort an idle ceremony so WASM state doesn't leak
+   *  until disconnect. Reset every accepted round, cleared on teardown. */
   private reaper: ReturnType<typeof setTimeout> | null = null
-  /**
-   * Transport-registered teardown hook, invoked exactly once when the ceremony
-   * reaches a terminal state (complete / abort / reaped). The transport uses it
-   * to drop its map entry and decrement the per-user live-ceremony counter.
-   */
+  /** Fires once on terminal state so transport drops its map entry and the
+   *  per-user live-ceremony counter. */
   private onTeardown: (() => void) | null = null
   private teardownNotified = false
 
@@ -198,11 +155,8 @@ export class Ceremony {
     this.deadline = Date.now() + roundTimeoutMs()
   }
 
-  /**
-   * Register a one-shot teardown hook (transport bookkeeping cleanup) and arm
-   * the active reaper. Called by the transport immediately after create().
-   * If the ceremony already finished (fast-path error), the hook fires now.
-   */
+  /** Register the teardown hook and arm the reaper. If the ceremony already
+   *  finished (fast-path error), the hook fires now. */
   onTeardownOnce(hook: () => void): void {
     this.onTeardown = hook
     if (this.isTerminal) {
@@ -212,13 +166,8 @@ export class Ceremony {
     this.armReaper()
   }
 
-  /**
-   * TEST-ONLY: force the next-step deadline and re-arm the reaper so a test can
-   * trigger the active-reap path without waiting the full round timeout. Not
-   * used in production code.
-   *
-   * Throws in production so this method is a no-op risk in prod environments.
-   */
+  /** TEST-ONLY: force the next deadline so a test can hit the reap path without
+   *  waiting the full timeout. Throws in production. */
   forceDeadlineForTest(deadline: number): void {
     if (process.env.NODE_ENV === "production") {
       throw new Error("forceDeadlineForTest must not be called in production")
@@ -233,10 +182,9 @@ export class Ceremony {
     const delay = Math.max(0, this.deadline - Date.now())
     this.reaper = setTimeout(() => {
       this.reaper = null
-      // Idle past the deadline → abort, free WASM, notify the transport.
       this.abort("timeout")
     }, delay)
-    // Don't let a stalled ceremony keep the process alive.
+    // don't keep the process alive on a stalled ceremony
     this.reaper.unref?.()
   }
 
@@ -261,16 +209,14 @@ export class Ceremony {
     }
   }
 
-  /** Per-message expiry the client should stamp on its NEXT message. */
+  /** Expiry the client should stamp on its next message. */
   get expiresAt(): number {
     return this.deadline
   }
 
-  /**
-   * Create + initialise a ceremony, loading any required keyshare and
-   * verifying keyId ownership. Returns the orchestrator plus the server's
-   * FIRST outbound bundle (round 0). The client kicks off by relaying this.
-   */
+  /** Init a ceremony, loading any required keyshare and verifying keyId
+   *  ownership. Returns the server's first outbound bundle for the client to
+   *  relay. */
   static async create(
     init: CeremonyInit,
   ): Promise<{ ceremony: Ceremony; firstOutbound: string; expiresAt: number }> {
@@ -347,11 +293,9 @@ export class Ceremony {
     }
   }
 
-  /**
-   * Validate + apply one inbound round message's metadata against the protocol
-   * guards. Throws CeremonyError on any violation. Does NOT touch the WASM
-   * engine — callers run this before decoding the payload bundle.
-   */
+  /** Check one inbound message's metadata against the protocol guards before
+   *  the payload is decoded. Throws CeremonyError on violation; never touches
+   *  the WASM engine. */
   private guard(meta: {
     ceremonyType: MpcCeremonyType
     keyId: string
@@ -366,61 +310,48 @@ export class Ceremony {
     if (this.status === "completed") {
       throw new CeremonyError("completed", "ceremony already completed")
     }
-    // Per-round timeout: no progress past the deadline → abortable.
     if (Date.now() > this.deadline) {
       this.abort("timeout")
       throw new CeremonyError("timeout", "ceremony round timed out")
     }
-    // Expiry: the client-stamped expiry must still be in the future.
     if (Date.now() > meta.expiresAt) {
       throw new CeremonyError("expired", "message expired")
     }
-    // Expiry upper bound: defense-in-depth — reject an unreasonably far expiry
-    // so a client cannot stamp a huge expiry to defeat the per-message expiry intent.
+    // upper-clamp expiry so a client can't stamp a huge value to defeat the
+    // per-message expiry
     const SKEW = 5_000
     if (meta.expiresAt > Date.now() + roundTimeoutMs() + SKEW) {
       throw new CeremonyError("expiry_too_far", "expiresAt is unreasonably far in the future")
     }
-    // Ceremony-type must match what this ceremony was created for.
     if (meta.ceremonyType !== this.ceremonyType) {
       throw new CeremonyError("ceremony_type_mismatch", "ceremonyType mismatch")
     }
-    // keyId ownership/consistency: for sign/refresh the message keyId must
-    // match the bound keyId. For DKG the keyId is the placeholder the client
-    // chose; we only require it to be stable across the ceremony.
+    // sign/refresh: keyId must match the bound one. dkg: keyId is the client's
+    // placeholder, only required to stay stable.
     if (this.keyId !== null && meta.keyId !== this.keyId) {
       throw new CeremonyError("ownership", "keyId mismatch for ceremony")
     }
     if (this.keyId === null && this.ceremonyType === "dkg") {
-      // First DKG message fixes the placeholder keyId so subsequent messages
-      // must keep using the same correlation id.
       this.keyId = meta.keyId
     }
-    // partyId binding: bind from the FIRST accepted message; subsequent messages
-    // must carry the same partyId so the field is enforced rather than dead weight.
+    // bind partyId on first message; must stay constant
     if (this.boundPartyId === null) {
       this.boundPartyId = meta.partyId
     } else if (meta.partyId !== this.boundPartyId) {
       throw new CeremonyError("party_mismatch", "partyId changed mid-ceremony")
     }
-    // Replay / old sequence: must be strictly greater than the last accepted.
     if (meta.sequence <= this.lastSequence) {
       throw new CeremonyError("replay", "sequence is not strictly increasing")
     }
-    // Round ordering: the message's round must match the step we expect next.
     if (meta.round !== this.step) {
       throw new CeremonyError("out_of_order", "round out of order")
     }
   }
 
-  /**
-   * Accept one validated inbound step, advance the server party one round, and
-   * return the server's outbound bundle. On the terminal round the ceremony
-   * finalises (DKG/refresh → persist + return keyId; sign → return signature).
-   *
-   * @param meta  Parsed mpcRoundMessage fields (already schema-validated by the
-   *              transport layer via parseMpcRoundMessage).
-   */
+  /** Accept one validated step, advance the server party one round, return the
+   *  outbound bundle. On the terminal round it finalises (dkg/refresh persist +
+   *  keyId; sign returns the signature). meta is already schema-validated by
+   *  transport. */
   async submitRound(meta: {
     ceremonyType: MpcCeremonyType
     keyId: string
@@ -442,17 +373,16 @@ export class Ceremony {
             ? await this.stepRefresh(inbound)
             : await this.stepSign(inbound)
 
-      // Commit guard state only after the engine accepted the step.
+      // advance guard state only after the engine accepted the step, so a
+      // rejected message doesn't burn the sequence
       this.lastSequence = meta.sequence
       this.step += 1
       this.deadline = Date.now() + roundTimeoutMs()
       result.expiresAt = this.deadline
-      // The step made progress — push the reaper out to the new deadline
-      // (unless the engine already finalised this ceremony).
       if (!this.isTerminal) this.armReaper()
       return result
     } catch (err) {
-      // ANY engine error tears down the session (frees WASM) — no resume.
+      // any engine error tears down the session (frees WASM); no resume
       if (!(err instanceof CeremonyError && err.reason === "completed")) {
         this.abort("engine_error")
       }
@@ -461,12 +391,11 @@ export class Ceremony {
     }
   }
 
-  // --- DKG -----------------------------------------------------------------
-  // Steps (server party rounds), matching MpcServerKeygen.handle():
-  //   step 1: handle r1 → r2 outbound + server commitment wire appended
-  //   step 2: handle r2 → r3 outbound
-  //   step 3: handle r3 + peer commitments → r4 outbound
-  //   step 4: handle r4 → done; finish() + persist
+  // server-party rounds, matching MpcServerKeygen.handle():
+  //   1: r1 → r2 outbound + server commitment wire appended
+  //   2: r2 → r3 outbound
+  //   3: r3 + peer commitments → r4 outbound
+  //   4: r4 → done; finish() + persist
   private async stepDkg(inbound: Uint8Array[]): Promise<CeremonyStepResult> {
     if (this.engine?.kind !== "dkg") throw new CeremonyError("internal")
     const party = this.engine.party
@@ -474,9 +403,8 @@ export class Ceremony {
 
     if (!stepResult.done) {
       const outFrames = [...stepResult.outbound]
-      // After round 1's handle the server commitment becomes available and the
-      // client needs it for its round-4a transition — append the commitment
-      // wire to this step's outbound bundle.
+      // server commitment only becomes available after round 1; client needs it
+      // for its round-4a transition
       if (this.step === 1) {
         outFrames.push(party.getCommitmentWire())
       }
@@ -487,7 +415,6 @@ export class Ceremony {
       }
     }
 
-    // Terminal: extract the share and persist.
     const dkg = party.finish()
     let keyId: string
     try {
@@ -505,7 +432,6 @@ export class Ceremony {
     }
   }
 
-  // --- Refresh -------------------------------------------------------------
   private async stepRefresh(inbound: Uint8Array[]): Promise<CeremonyStepResult> {
     if (this.engine?.kind !== "refresh") throw new CeremonyError("internal")
     const { party, keyId, ctx } = this.engine
@@ -523,8 +449,7 @@ export class Ceremony {
       }
     }
 
-    // Terminal: the refreshed share has the SAME pubkey; re-encrypt + bump
-    // the version, keeping the same keyId/pubkey.
+    // refreshed share keeps the same pubkey/keyId; re-encrypt and bump version
     const refreshed = party.finish()
     try {
       const nextVersion = ctx.version + 1
@@ -554,18 +479,17 @@ export class Ceremony {
     }
   }
 
-  // --- Sign ----------------------------------------------------------------
-  // Steps (server party rounds), matching MpcServerSign:
-  //   step 1: handle r1 → r2 outbound
-  //   step 2: handle r2 → r3 outbound
-  //   step 3: handle r3 → [] (internal), then lastMessage(hash) → last outbound
-  //   step 4: combine(peer last) → assembled signature; done
+  // server-party rounds, matching MpcServerSign:
+  //   1: r1 → r2 outbound
+  //   2: r2 → r3 outbound
+  //   3: r3 → [] (internal), then lastMessage(hash) → last outbound
+  //   4: combine(peer last) → assembled signature; done
   private async stepSign(inbound: Uint8Array[]): Promise<CeremonyStepResult> {
     if (this.engine?.kind !== "sign") throw new CeremonyError("internal")
     const eng = this.engine
     const party = eng.party
 
-    // step 4 = combine: the inbound bundle is the peer's last-message(s).
+    // step 4: inbound is the peer's last message(s) to combine
     if (eng.lastSent) {
       const sig = await party.combineAndAssemble(
         inbound,
@@ -583,7 +507,7 @@ export class Ceremony {
 
     const stepResult = party.handle(inbound)
     if (!stepResult.done && stepResult.outbound.length > 0) {
-      // rounds 1–2 produced P2P outbound.
+      // rounds 1–2: P2P outbound
       return {
         outbound: encodeBundle(stepResult.outbound),
         done: false,
@@ -591,7 +515,7 @@ export class Ceremony {
       }
     }
 
-    // round 3 returns empty outbound → immediately emit the last message.
+    // round 3 returns empty outbound, so emit the last message immediately
     const lastFrames = party.lastMessage(
       Uint8Array.from(Buffer.from(eng.hash.slice(2), "hex")),
     )
@@ -603,12 +527,10 @@ export class Ceremony {
     }
   }
 
-  // --- Abort / teardown ----------------------------------------------------
-
-  /** Mark aborted, clear all state, and free WASM. Idempotent. */
+  /** Mark aborted, clear state, free WASM. Idempotent. */
   abort(_reason: string): void {
     if (this.status === "completed" || this.status === "aborted") {
-      // Already terminal — still ensure engine freed + timer/hook cleared.
+      // already terminal, but still ensure engine/timer/hook are cleared
       this.freeEngine()
       this.clearReaper()
       if (this.status !== "completed") this.status = "aborted"
@@ -622,9 +544,8 @@ export class Ceremony {
     this.clearReaper()
     this.freeEngine()
     this.status = finalStatus
-    // Notify the transport so it drops its reference and frees the per-user
-    // live-ceremony slot. Safe to run inside a submitRound success path: the
-    // transport hook only touches its own maps/counters.
+    // safe to call on a submitRound success path: the hook only touches the
+    // transport's own maps/counters
     this.notifyTeardown()
   }
 
@@ -639,7 +560,7 @@ export class Ceremony {
     }
   }
 
-  /** True once the ceremony reached a terminal state (completed or aborted). */
+  /** Terminal = completed or aborted. */
   get isTerminal(): boolean {
     return this.status === "completed" || this.status === "aborted"
   }

@@ -1,39 +1,17 @@
-// apps/web/lib/mpc/backupShare.ts
+// Backup-share export/verify/zeroize lifecycle.
 //
-// Backup-share export / verify / zeroize lifecycle (Task 8 — Spec Req #3).
+// INVARIANT: the backup share NEVER touches deviceShareStore, wallet-store, or
+// any IndexedDB write path (no storage imports here). It's returned to the caller as a
+// serialisable blob for offline export (download/print), never persisted.
+// finalizeBackupShare enforces the order: export → verify(true) → zeroize.
 //
-// INVARIANT: This module NEVER imports or calls deviceShareStore, wallet-store,
-// or any IndexedDB write path. The backup share is returned to the caller as a
-// serialisable blob for offline export (download / print). It is never persisted
-// to browser storage.
-//
-// Required order enforced by finalizeBackupShare:
-//   exportBackupShare → verifyBackupExport (must return true) → zeroizeShare
-//
-// Crypto: AES-GCM with a one-layer PBKDF2 KEK (600 k iters / SHA-256) derived
-// from the recovery password. We intentionally bypass encryptSeedV3 / the v3
-// two-layer hierarchy because:
-//   1. The v3 Device Key layer is designed for PIN rotation on a persisted
-//      share; the backup export is a one-shot, never-stored blob.
-//   2. encryptSeedV3 calls validatePin which rejects non-numeric / long
-//      passphrases — recovery passwords are unconstrained human phrases.
-// The envelope shape is documented below as BackupExport and is structurally
-// analogous to the v3 envelope but single-layer keyed by the recovery password.
+// Single-layer AES-GCM keyed by PBKDF2(recoveryPassword), not encryptSeedV3:
+// the v3 Device Key layer is for PIN rotation on a persisted share (this blob
+// is one-shot, never re-wrapped), and validatePin rejects the long non-numeric
+// passphrases used as recovery passwords.
 
-// ---------------------------------------------------------------------------
-// Serialisable export shape
-// ---------------------------------------------------------------------------
-
-/**
- * A serialisable encrypted blob carrying the backup share (party 2).
- *
- * Shape mirrors the v3 seed envelope for auditability, but uses a single
- * AES-GCM layer keyed directly by PBKDF2(recoveryPassword). There is no
- * separate Device Key layer because the backup export is never re-wrapped.
- *
- * All byte arrays are base64url-encoded strings so the object is safe for
- * JSON, QR codes, or printed paper backups.
- */
+// Serialisable encrypted blob carrying the backup share (party 2). Byte arrays
+// are base64url so it's safe for JSON, QR codes, or printed paper backups.
 export interface BackupExport {
   /** AES-GCM ciphertext of the raw backup share bytes, base64url. */
   ciphertext: string
@@ -45,22 +23,16 @@ export interface BackupExport {
   format: "walty-backup-share-v1"
 }
 
-// ---------------------------------------------------------------------------
-// Internal crypto helpers
-// ---------------------------------------------------------------------------
-
 const BACKUP_KDF_ITERATIONS = 600_000
 const BACKUP_KDF_HASH = "SHA-256"
 
 function toBase64url(bytes: Uint8Array): string {
-  // Binary-safe btoa + standard base64url substitution.
   let s = ""
   for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i])
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "")
 }
 
 function fromBase64url(s: string): Uint8Array<ArrayBuffer> {
-  // Restore standard base64 padding.
   const b64 = s.replace(/-/g, "+").replace(/_/g, "/")
   const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4)
   const bin = atob(padded)
@@ -69,10 +41,7 @@ function fromBase64url(s: string): Uint8Array<ArrayBuffer> {
   return out
 }
 
-/**
- * Derive an AES-GCM-256 key from the recovery password using PBKDF2.
- * Usage includes "encrypt" or "decrypt" depending on the direction.
- */
+/** Derive an AES-GCM-256 key from the recovery password via PBKDF2. */
 async function deriveBackupKey(
   password: string,
   salt: Uint8Array<ArrayBuffer>,
@@ -99,15 +68,9 @@ async function deriveBackupKey(
   )
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
 /**
- * Encrypt the backup share under a recovery password.
- *
- * The recovery password is unconstrained (unlike the device PIN). Callers
- * should encourage long human-memorable passphrases.
+ * Encrypt the backup share under a recovery password. Unlike the device PIN,
+ * the password is unconstrained — encourage long human-memorable passphrases.
  *
  * @param backupShareBytes  Raw serialised backup(2) keyshare bytes.
  * @param recoveryPassword  Recovery passphrase chosen by the user.
@@ -133,15 +96,11 @@ export async function exportBackupShare(
 }
 
 /**
- * Decrypt a BackupExport using the recovery password.
+ * Decrypt a BackupExport. The returned plaintext is the CALLER's to zeroize
+ * once no longer needed; this module only zeroizes copies it makes internally.
  *
- * OWNERSHIP: the returned Uint8Array holds the plaintext backup share. The
- * CALLER owns its lifecycle and MUST `zeroizeShare` it as soon as it is no
- * longer needed (e.g. after re-importing it into a fresh keygen/refresh). This
- * module only zeroizes copies it creates internally (see verifyBackupExport).
- *
- * @throws "Invalid recovery password" when the password is wrong or the blob
- *   is tampered (AES-GCM authentication failure).
+ * @throws "Invalid recovery password" on wrong password or tampered blob
+ *   (AES-GCM auth failure).
  */
 export async function importBackupShare(
   exp: BackupExport,
@@ -166,10 +125,7 @@ export async function importBackupShare(
   }
 }
 
-/**
- * Verify that a BackupExport decrypts correctly AND round-trips to the exact
- * original bytes. Returns true only on a byte-perfect match.
- */
+/** True only if the BackupExport decrypts and round-trips byte-for-byte. */
 export async function verifyBackupExport(
   exp: BackupExport,
   recoveryPassword: string,
@@ -182,68 +138,47 @@ export async function verifyBackupExport(
     return false
   }
   if (decrypted.length !== originalBytes.length) {
-    // Still wipe the transient plaintext copy we just decrypted.
     zeroizeShare(decrypted)
     return false
   }
-  // Constant-time-ish comparison (best-effort in JS — V8 may short-circuit,
-  // but for a correctness check rather than a timing-sensitive path this is
-  // acceptable).
   let diff = 0
   for (let i = 0; i < originalBytes.length; i++) {
     diff |= decrypted[i] ^ originalBytes[i]
   }
-  // Zeroize the transient decrypted copy this function created — it is a second
-  // in-memory plaintext of the backup share and must not linger after the
-  // round-trip check. (The caller's `originalBytes` is owned by the caller.)
+  // Wipe the transient plaintext copy we decrypted; caller owns originalBytes.
   zeroizeShare(decrypted)
   return diff === 0
 }
 
 /**
- * Overwrite a share buffer in place with zeros (best-effort zeroization).
- *
- * Caveats: JS engines may have already copied the Uint8Array's underlying
- * ArrayBuffer (e.g. typed-array slice, GC relocation, or WASM linear-memory
- * copies from the DKG boundary). This call zeroes the *given view* and is the
- * best defence available without native zeroing support in the platform.
+ * Best-effort zeroize: overwrites the given view with zeros. The engine may
+ * have already copied the underlying buffer (slice, GC relocation, WASM linear
+ * memory) — no native zeroing exists on the platform, so this is all we can do.
  */
 export function zeroizeShare(buf: Uint8Array): void {
   buf.fill(0)
 }
 
 /**
- * Export + verify + zeroize the backup share in the required order.
- *
- * Returns the serialisable BackupExport for the user to download or print.
- * THROWS if verification fails (and still zeroizes the buffer regardless).
- * Never persists the backup share to IndexedDB or any browser storage.
- *
- * Enforced order:
- *   1. exportBackupShare  — encrypt under recoveryPassword
- *   2. verifyBackupExport — decrypt + compare to originalBytes (must be true)
- *   3. zeroizeShare       — overwrite buffer with zeros
- *
- * If step 2 fails, step 3 still runs before the error is thrown.
+ * export → verify → zeroize, in that order. Returns the BackupExport to
+ * download/print. Throws if verification fails — but zeroizes the buffer first,
+ * always. Never persisted to storage.
  */
 export async function finalizeBackupShare(
   backupShareBytes: Uint8Array,
   recoveryPassword: string,
 ): Promise<BackupExport> {
-  // Step 1 — export (encrypt).
   const exported = await exportBackupShare(backupShareBytes, recoveryPassword)
 
-  // Step 2 — verify round-trip (always runs before zeroize, even if it throws).
   let verified: boolean
   try {
     verified = await verifyBackupExport(exported, recoveryPassword, backupShareBytes)
   } catch (err) {
-    // Unexpected error during verification — zeroize then re-throw.
+    // Zeroize even when verification throws.
     zeroizeShare(backupShareBytes)
     throw err
   }
 
-  // Step 3 — zeroize (unconditional).
   zeroizeShare(backupShareBytes)
 
   if (!verified) {

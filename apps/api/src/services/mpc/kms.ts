@@ -1,47 +1,20 @@
-// apps/api/src/services/mpc/kms.ts
-//
-// KMS abstraction for DEK wrapping/unwrapping.
-//
-// Production: replace LocalDevKms with a cloud-KMS implementation (e.g. AWS KMS,
-// GCP Cloud KMS, HashiCorp Vault Transit) and select it via env at startup.
-// The interface is intentionally minimal so any KMS backend can implement it.
+// KMS abstraction for DEK wrapping/unwrapping. In production, swap LocalDevKms
+// for a cloud KMS (AWS/GCP/Vault) selected via env at startup.
 
 import { randomBytes, createCipheriv, createDecipheriv } from "crypto"
 
-// ---------------------------------------------------------------------------
-// Interface
-// ---------------------------------------------------------------------------
-
 export interface Kms {
-  /**
-   * Wraps a 32-byte DEK with the KEK identified by the given context.
-   * Returns the wrapped DEK bytes (opaque to the caller).
-   */
+  /** Wrap a 32-byte DEK under the KEK for this ctx; returns opaque bytes. */
   wrapDek(dek: Buffer, ctx: { keyId: string; version: number }): Promise<Buffer>
 
-  /**
-   * Unwraps a previously wrapped DEK.
-   * Throws if the wrapped DEK is invalid or was wrapped under a different KEK.
-   */
+  /** Throws if the wrapped DEK is invalid or was wrapped under a different KEK. */
   unwrapDek(wrappedDek: Buffer, ctx: { keyId: string; version: number }): Promise<Buffer>
 }
 
-// ---------------------------------------------------------------------------
-// DEV-ONLY local implementation
-// ---------------------------------------------------------------------------
-//
-// ⚠  DEV ONLY — NOT FOR PRODUCTION USE ⚠
-//
-// The KEK lives in memory, derived from MPC_KMS_DEV_KEK env var.
-// This implementation is intentionally simple: it AES-256-GCM wraps the DEK
-// using the KEK directly. In production, use a managed KMS that provides:
-//   - Hardware-backed key storage
-//   - Key versioning and rotation
-//   - Audit logging of all key operations
-//   - Access control policies
-//
-// Wrapped DEK layout: [ 12-byte nonce | 32-byte ciphertext | 16-byte tag ]
-// Total: 60 bytes.
+// DEV ONLY — NOT FOR PRODUCTION. KEK lives in memory from MPC_KMS_DEV_KEK and
+// wraps the DEK directly. A real KMS gives hardware-backed storage, rotation,
+// audit logging, and access control.
+// Wrapped DEK layout: [ 12-byte nonce | 32-byte ciphertext | 16-byte tag ] = 60 bytes.
 
 const WRAPPED_DEK_NONCE_LEN = 12
 const WRAPPED_DEK_TAG_LEN = 16
@@ -63,13 +36,11 @@ export class LocalDevKms implements Kms {
     }
     const nonce = randomBytes(WRAPPED_DEK_NONCE_LEN)
     const cipher = createCipheriv("aes-256-gcm", this.kek, nonce)
-    // Bind ctx into AAD so a wrapped DEK cannot be unwrapped under a different
-    // keyId/version. This makes the dev impl faithful to the interface contract
-    // and sets the right precedent for a future cloud KMS EncryptionContext.
+    // Bind ctx into AAD so a wrapped DEK can't be unwrapped under a different
+    // keyId/version (mirrors a cloud KMS EncryptionContext).
     cipher.setAAD(Buffer.from(`${ctx.keyId}|${ctx.version}`))
     const ciphertext = Buffer.concat([cipher.update(dek), cipher.final()])
     const tag = cipher.getAuthTag()
-    // Layout: nonce | ciphertext | tag
     return Buffer.concat([nonce, ciphertext, tag])
   }
 
@@ -86,7 +57,7 @@ export class LocalDevKms implements Kms {
 
     const decipher = createDecipheriv("aes-256-gcm", this.kek, nonce)
     decipher.setAuthTag(tag)
-    // Reconstruct the same AAD used during wrap — mismatched ctx causes GCM auth failure.
+    // Same AAD as wrap — mismatched ctx fails GCM auth.
     decipher.setAAD(Buffer.from(`${ctx.keyId}|${ctx.version}`))
     try {
       return Buffer.concat([decipher.update(ciphertext), decipher.final()])
@@ -96,22 +67,9 @@ export class LocalDevKms implements Kms {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
-
 let _kmsInstance: Kms | null = null
 
-/**
- * Returns the configured KMS instance.
- *
- * Selection order:
- *   1. (Future) Cloud KMS when MPC_KMS_PROVIDER env is set (not yet implemented)
- *   2. LocalDevKms from MPC_KMS_DEV_KEK — dev/test only
- *
- * Throws at startup if no KEK is configured, so misconfigured environments
- * fail loudly rather than silently.
- */
+// Throws if no KEK is configured so misconfigured envs fail loudly at startup.
 export function getKms(): Kms {
   if (_kmsInstance) return _kmsInstance
 
@@ -132,10 +90,7 @@ export function getKms(): Kms {
   return _kmsInstance
 }
 
-/**
- * Reset the cached KMS instance — for testing only.
- * @internal
- */
+/** Reset the cached instance — tests only. @internal */
 export function _resetKmsInstance(): void {
   _kmsInstance = null
 }

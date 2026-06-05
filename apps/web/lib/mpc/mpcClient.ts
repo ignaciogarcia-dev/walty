@@ -1,49 +1,17 @@
-// apps/web/lib/mpc/mpcClient.ts
+// Browser client driver for the /mpc namespace. Bridges the device-side engine
+// (MpcDeviceParty in a Web Worker, lib/mpc/mpcWorker.ts — device(0)+backup(2)
+// parties + WASM) and the server ceremony orchestrator over socket.io
+// (services/mpc/ceremony.ts — server(1) party).
 //
-// Browser CLIENT driver for the /mpc socket.io namespace. It glues together:
-//   - the device-side engine (MpcDeviceParty) running inside a Web Worker
-//     (lib/mpc/mpcWorker.ts) — this is where the device(0)+backup(2) parties
-//     and all WASM live; and
-//   - the server ceremony orchestrator reachable over socket.io at /mpc
-//     (apps/api/src/ws/mpc.ts + services/mpc/ceremony.ts) — the server(1) party.
+// Lock-step: server seeds its round-1 bundle in "ceremony:started", the worker
+// seeds the device round-1 bundle. Each round the device consumes the server's
+// prior bundle and emits its next one, which the client relays via
+// "ceremony:round" to get the server's next bundle. Loop ends when the device
+// signals done (it produces the DKG/refresh result or signature locally).
 //
-// Protocol recap (the only events this driver speaks):
-//   client → "ceremony:start"  { ceremonyType, keyId?, signHash? }
-//   server → "ceremony:started" { ceremonyId, keyId, outbound, expiresAt }
-//   client → "ceremony:round"  MpcRoundMessage (ceremonyId/keyId/round/sequence/…)
-//   server → "ceremony:message" { ceremonyId, outbound, done, keyId?, signature?, expiresAt }
-//   client → "ceremony:abort"  { ceremonyId, keyId, reason }
-//   server → "ceremony:error"  { ceremonyId?, reason, message }
-//   server → "ceremony:aborted" { ceremonyId }
-//
-// Round/sequence model. The server kicks off by emitting its FIRST outbound
-// bundle (server round-1 broadcast) in "ceremony:started". The device's
-// start*() likewise produces the device+backup round-1 broadcasts. The two
-// sides then advance in lock-step, each consuming the counterpart's bundle from
-// the SAME round:
-//
-//   • the device consumes the server's *previous* outbound bundle and emits its
-//     *next* outbound bundle;
-//   • the client posts that device bundle to the server as the next
-//     "ceremony:round" and receives the server's *next* outbound bundle.
-//
-// Concretely, with `serverOut` seeded from "ceremony:started".outbound and
-// `deviceOut` seeded from the worker's start bundle:
-//
-//   round r (r = 1..N):
-//     1. send ceremony:round{ round: r, sequence: r, payload: deviceOut }
-//        → receive ceremony:message{ outbound: nextServerOut, done, … }
-//     2. feed the device the PRIOR serverOut → deviceOut' / device result
-//     3. serverOut := nextServerOut
-//
-// We feed the device the server bundle from the round it has not yet seen. The
-// very first device round consumes "ceremony:started".outbound (server r1); the
-// last consumes the terminal server bundle. The loop ends when the device
-// signals `done` (it produces the DKG/refresh result or the signature locally).
-//
-// This module imports the production worker via `new Worker(new URL(...))` so a
-// bundler (Next/Turbopack OR the esbuild e2e harness) emits the worker chunk +
-// its wasm asset. The worker never logs payloads/shares; neither does this.
+// Worker imported via new Worker(new URL(...)) so the bundler (Next/Turbopack or
+// the esbuild e2e harness) emits the worker chunk + its wasm asset. Neither the
+// worker nor this logs payloads/shares.
 
 import { io, type Socket } from "socket.io-client"
 import type {
@@ -52,25 +20,18 @@ import type {
   SignResult,
 } from "./MpcDeviceParty"
 
-// ---------------------------------------------------------------------------
-// Public options / results
-// ---------------------------------------------------------------------------
-
 export interface MpcClientOptions {
   /** Base URL of the API server (e.g. "http://127.0.0.1:4000"). */
   apiUrl: string
   /**
-   * Session token for the /mpc handshake. Sent as a Bearer token in the
-   * socket.io `auth` + an Authorization header (the namespace accepts either a
-   * `token` cookie or a `Bearer` Authorization header — see ws/io.ts). When the
-   * browser already holds an httpOnly `token` cookie for the API origin you may
-   * omit this and rely on `withCredentials`.
+   * Session token for the /mpc handshake, sent via socket.io `auth` + an
+   * Authorization header. Omit if the browser already holds the httpOnly
+   * `token` cookie for the API origin (relies on `withCredentials`).
    */
   token?: string
   /**
-   * Factory that creates the device Web Worker. Defaults to instantiating
-   * lib/mpc/mpcWorker.ts via `new Worker(new URL(...))`. The e2e harness
-   * overrides this to point at its esbuild-bundled worker on a plain origin.
+   * Factory for the device Web Worker. Defaults to mpcWorker.ts; the e2e
+   * harness overrides this to point at its esbuild-bundled worker.
    */
   createWorker?: () => Worker
   /** Optional explicit wasm asset URL forwarded to the worker `init`. */
@@ -97,10 +58,6 @@ export interface SignCeremonyResult {
   /** The assembled signature the SERVER returned, if any (sign only). */
   serverSignature?: { r: `0x${string}`; s: `0x${string}`; yParity: 0 | 1 }
 }
-
-// ---------------------------------------------------------------------------
-// Worker RPC plumbing
-// ---------------------------------------------------------------------------
 
 interface WorkerReply {
   id: number
@@ -152,22 +109,15 @@ class WorkerChannel {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Default worker factory — bundler-resolved worker URL.
-// ---------------------------------------------------------------------------
-
 function defaultCreateWorker(): Worker {
-  // Under Next/Turbopack this form makes the bundler emit the worker chunk and
-  // its wasm asset. The esbuild e2e harness overrides createWorker instead.
+  // This form makes the bundler emit the worker chunk + its wasm asset. The
+  // e2e harness overrides createWorker instead.
   return new Worker(new URL("./mpcWorker.ts", import.meta.url), {
     type: "module",
   })
 }
 
-// ---------------------------------------------------------------------------
-// Server message shapes (subset we consume)
-// ---------------------------------------------------------------------------
-
+// Server message shapes (subset we consume).
 interface CeremonyStarted {
   ceremonyId: string
   keyId: string
@@ -205,9 +155,9 @@ function randomUuid(): string {
 const SIGN_HASH_RE = /^0x[0-9a-fA-F]{64}$/
 
 /**
- * Decode a 0x-prefixed 32-byte sign hash into its raw bytes. This is the ONLY
- * place the device-party hash is derived, so the device and the server (which
- * signs the bytes of the same `signHash`) provably sign identical 32 bytes.
+ * Decode a 0x-prefixed 32-byte sign hash to raw bytes. The only place the
+ * device-party hash is derived, so device and server provably sign the same 32
+ * bytes.
  */
 function hashBytesFromSignHash(signHash: `0x${string}`): Uint8Array {
   if (!SIGN_HASH_RE.test(signHash)) {
@@ -233,10 +183,7 @@ export class MpcClientError extends Error {
   }
 }
 
-// ---------------------------------------------------------------------------
-// MpcClient — one instance manages one socket; runs ceremonies sequentially.
-// ---------------------------------------------------------------------------
-
+// One instance manages one socket; runs ceremonies sequentially.
 const DEFAULT_STEP_TIMEOUT_MS = 30_000
 const DEFAULT_CONNECT_TIMEOUT_MS = 15_000
 
@@ -257,8 +204,6 @@ export class MpcClient {
     }
   }
 
-  // ---- lifecycle ---------------------------------------------------------
-
   /** Open the socket.io /mpc connection and init the device worker. */
   async connect(): Promise<void> {
     if (this.socket && this.socket.connected) return
@@ -272,11 +217,9 @@ export class MpcClient {
       transports: ["websocket"],
       forceNew: true,
       withCredentials: true,
-      // The namespace reads a `token` cookie or a `Bearer` Authorization
-      // header. socket.io-client's `auth` is delivered in the handshake but the
-      // server middleware inspects headers, so we also pass extraHeaders when a
-      // token is supplied (works in node; browsers ignore extraHeaders on WS
-      // and fall back to the cookie via withCredentials).
+      // Browsers can't set WS headers, so the token rides in `auth`. In node we
+      // also pass extraHeaders; browsers ignore those and fall back to the
+      // cookie via withCredentials.
       auth: token ? { token } : undefined,
       extraHeaders: token ? { Authorization: `Bearer ${token}` } : undefined,
     })
@@ -327,8 +270,6 @@ export class MpcClient {
     this.workerReady = false
   }
 
-  // ---- ceremonies --------------------------------------------------------
-
   /** Run a full DKG. Resolves with the new keyId + the device-side result. */
   async runDkg(): Promise<DkgCeremonyResult> {
     const deviceStart = await this.startDevice({ type: "start", ceremony: "dkg" })
@@ -356,15 +297,11 @@ export class MpcClient {
   }
 
   /**
-   * Run a device(0)+server(1) sign under `keyId`.
-   *
-   * `signHash` (0x-prefixed, exactly 32 bytes / 64 hex chars) is the SINGLE
-   * source of truth for what gets signed. The server signs the bytes of this
-   * value (the ceremony is bound to it via `ceremony:start.signHash`), and the
-   * device party here signs the SAME 32 bytes — derived from `signHash` by
-   * construction, never passed independently. The server's
-   * recoverAddress == address check remains the backstop, but device and server
-   * now provably sign the identical hash.
+   * Run a device(0)+server(1) sign under `keyId`. `signHash` (0x + 32 bytes) is
+   * the single source of truth: the ceremony binds the server to it via
+   * `ceremony:start.signHash`, and the device hash is derived from the same
+   * value here, never passed independently — so both provably sign identical
+   * bytes. The server's recoverAddress == address check is the backstop.
    */
   async runSign(
     keyId: string,
@@ -385,8 +322,6 @@ export class MpcClient {
       serverSignature: out.serverSignature,
     }
   }
-
-  // ---- internals ---------------------------------------------------------
 
   private async startDevice(msg: Record<string, unknown>): Promise<string> {
     if (!this.channel) throw new MpcClientError("not_connected", "worker not started")
@@ -411,8 +346,8 @@ export class MpcClient {
   }
 
   /**
-   * Core lock-step driver shared by DKG / refresh / sign. `deviceStart` is the
-   * worker's first outbound bundle. Returns the device-side result plus the
+   * Lock-step driver shared by DKG / refresh / sign. `deviceStart` is the
+   * worker's first outbound bundle. Returns the device result plus the
    * server-assigned keyId (and server signature for sign).
    */
   private async runCeremony(
@@ -430,27 +365,24 @@ export class MpcClient {
       throw new MpcClientError("not_connected", "socket not connected")
     }
 
-    // 1) start the server ceremony and capture its first outbound bundle.
     const started = await this.startServerCeremony(ceremonyType, keyId, signHash)
     const ceremonyId = started.ceremonyId
-    // Round messages must carry a STABLE keyId (uuid). For sign/refresh this is
-    // the bound keyId. For DKG the real keyId is only assigned at completion, so
-    // the client picks a placeholder uuid that the server pins from round 1
-    // (Ceremony.guard) and requires to stay constant for the ceremony.
+    // Round messages need a stable keyId. sign/refresh use the bound keyId; DKG
+    // has none until completion, so pick a placeholder uuid the server pins from
+    // round 1 and requires constant.
     const wireKeyId =
       keyId ??
       (started.keyId && isUuid(started.keyId) ? started.keyId : randomUuid())
 
-    let serverOut = started.outbound // server's prior-round outbound (feeds device)
-    let deviceOut = deviceStart // device's current outbound (sent to server)
+    let serverOut = started.outbound // prior-round server bundle, feeds device
+    let deviceOut = deviceStart // current device bundle, sent to server
     let serverSignature:
       | { r: `0x${string}`; s: `0x${string}`; yParity: 0 | 1 }
       | undefined
     let resolvedKeyId = keyId ?? wireKeyId
     let deviceResult: DkgResult | RefreshResult | SignResult | undefined
 
-    // Safety bound: DKG/refresh take 4 server rounds, sign takes 4. Allow a
-    // generous ceiling to surface protocol stalls rather than hang.
+    // Ceilings real ceremonies (4 rounds) never hit; surfaces stalls vs hang.
     const MAX_ROUNDS = 8
     let round = 1
     let serverDone = false
@@ -460,9 +392,9 @@ export class MpcClient {
         throw new MpcClientError("stalled", `ceremony exceeded ${MAX_ROUNDS} rounds`)
       }
 
-      // (a) advance the SERVER one round with the device's current bundle,
-      //     unless the server already finalised (device may need one more
-      //     local round to combine its own signature/share).
+      // (a) advance the server one round with the device's current bundle,
+      //     unless it already finalised (device may need one more local round
+      //     to combine its own signature/share).
       let nextServerOut = serverOut
       if (!serverDone) {
         const msg = await this.sendRound(socket, {
@@ -479,8 +411,8 @@ export class MpcClient {
         serverDone = msg.done
       }
 
-      // (b) feed the device the server's PRIOR outbound bundle; it emits its
-      //     next bundle (to relay next round) or the terminal result.
+      // (b) feed the device the server's prior bundle; it emits its next bundle
+      //     (to relay next round) or the terminal result.
       const dev = await this.deviceRound(serverOut)
       deviceOut = dev.outboundBundle
       if (dev.done) {

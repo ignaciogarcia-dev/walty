@@ -1,11 +1,7 @@
-// apps/web/lib/mpc/mpcWorker.ts
+// Web Worker hosting an MpcDeviceParty: inits the DKLS23 WASM and relays round
+// bundles over postMessage, keeping keygen/sign/refresh CPU off the UI thread.
 //
-// Web Worker entry that hosts an MpcDeviceParty, inits the DKLS23 WASM off the
-// main thread, and relays round bundles over postMessage. This keeps the heavy
-// WASM (init + keygen/sign/refresh CPU) off the UI thread.
-//
-// Protocol (main thread <-> worker), all messages carry a numeric `id` so the
-// caller can correlate replies:
+// Protocol (main <-> worker), every message carries a numeric `id` to correlate:
 //
 //   → { id, type: "init", wasmUrl? }
 //   ← { id, type: "ready" }
@@ -21,13 +17,11 @@
 //
 //   ← { id, type: "error", error }                             (on any failure)
 //
-// Share bytes cross the boundary as Uint8Array (structured-clone). The worker
-// never logs payloads or share bytes.
+// Share bytes cross as Uint8Array (structured-clone). Never logs payloads/shares.
 //
-// NOTE: under Next/Turbopack instantiate this with
+// Under Next/Turbopack instantiate via
 //   new Worker(new URL("./mpcWorker.ts", import.meta.url), { type: "module" })
-// so the bundler emits the worker chunk and its wasm asset. See the device
-// spike (scripts/mpc-device-spike) for the validated esbuild equivalent.
+// so the bundler emits the worker chunk and its wasm asset.
 
 import {
   MpcDeviceParty,
