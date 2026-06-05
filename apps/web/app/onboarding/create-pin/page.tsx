@@ -10,25 +10,26 @@ import { useOnboarding } from "../context"
 import { useTranslation } from "@/hooks/useTranslation"
 import { encryptSeedV3 } from "@/lib/crypto"
 import { saveWallet, type StoredWalletV3 } from "@/lib/wallet-store"
+import { saveDeviceShare } from "@/lib/mpc/deviceShareStore"
 import { getWalletClient } from "@/lib/rpc/getWalletClient"
 import { unwrap } from "@/lib/api/unwrap"
 
 export default function CreatePinPage() {
   const { t } = useTranslation()
   const router = useRouter()
-  const { mnemonic, address, clear, markCompleted, completed } = useOnboarding()
+  const { mnemonic, address, mpc, clear, markCompleted, completed } = useOnboarding()
   const [pin, setPin] = useState("")
   const [confirmPin, setConfirmPin] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if ((!mnemonic || !address) && !completed) {
+    if (!address && !completed) {
       router.replace("/onboarding/create-wallet?reason=reloaded")
     }
-  }, [mnemonic, address, completed, router])
+  }, [address, completed, router])
 
-  if (!mnemonic || !address) return null
+  if (!address) return null
 
   const handleSubmit = async () => {
     setError(null)
@@ -44,6 +45,25 @@ export default function CreatePinPage() {
 
     setLoading(true)
     try {
+      // MPC custody: encrypt + persist the device share under the PIN. The MPC
+      // address was already registered server-side during the DKG, so there is
+      // no nonce/link/backup dance here.
+      if (mpc) {
+        await saveDeviceShare(mpc.deviceShareBytes, pin, {
+          keyId: mpc.keyId,
+          pubkey: mpc.pubkey,
+          address: mpc.address,
+        })
+        markCompleted()
+        clear() // zeroizes the in-memory device share
+        router.push("/dashboard")
+        return
+      }
+
+      if (!mnemonic) {
+        throw new Error(t("unexpected-error"))
+      }
+
       // 1. Encrypt seed locally with v3 (DK+KEK) and save to IndexedDB
       const encrypted = await encryptSeedV3(mnemonic, pin)
       await saveWallet({ encrypted, address } satisfies StoredWalletV3)

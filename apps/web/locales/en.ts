@@ -153,6 +153,20 @@ export const en = {
   "onboarding-login-title": "Welcome back",
   "onboarding-login-description": "Sign in to access your wallet.",
   "onboarding-creating-wallet": "Creating your wallet…",
+  "onboarding-recovery-kit-title": "Your recovery kit",
+  "onboarding-recovery-kit-description":
+    "Your key is split into three shares and never reassembled. Export your encrypted backup share and keep it offline — it's how you recover your wallet if you lose this device.",
+  "onboarding-recovery-password": "Recovery password",
+  "onboarding-recovery-password-confirm": "Confirm password",
+  "onboarding-recovery-password-hint":
+    "A long passphrase (at least 12 characters), different from your PIN. It protects your backup file. We never store it.",
+  "onboarding-recovery-password-too-short":
+    "The recovery password must be at least 12 characters.",
+  "onboarding-recovery-password-mismatch": "Passwords do not match.",
+  "onboarding-download-kit": "Download recovery kit",
+  "onboarding-kit-saved-warning":
+    "Save the file somewhere safe and offline (password manager, USB). If you lose both this device and the file, your funds cannot be recovered.",
+  "onboarding-kit-saved-continue": "I've saved it, continue",
   "onboarding-recovery-phrase-title": "Your recovery phrase",
   "onboarding-recovery-phrase-description":
     "Write all 24 words down in order and keep them safe. They are the only way to recover your wallet if you lose access.",
