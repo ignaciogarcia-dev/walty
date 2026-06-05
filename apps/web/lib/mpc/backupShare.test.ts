@@ -201,7 +201,6 @@ describe("finalizeBackupShare", () => {
     // it throw on the FIRST call (which is the internal verify → importBackupShare
     // → decrypt path). The export step uses crypto.subtle.encrypt, not decrypt,
     // so the spy intercepts only the verification call.
-    const originalDecrypt = crypto.subtle.decrypt.bind(crypto.subtle)
     const decryptSpy = vi
       .spyOn(crypto.subtle, "decrypt")
       .mockImplementationOnce(async () => {
