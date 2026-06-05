@@ -55,6 +55,7 @@ export function useWallet() {
     importWallet: lifecycle.importWallet,
     createBackup: lifecycle.createBackup,
     recoverWallet: lifecycle.recoverWallet,
+    deriveCashierAddress: lifecycle.deriveCashierAddress,
 
     // Transfer — used by signAndBroadcastIntent (refund flow)
     txStatus: transfer.txStatus,

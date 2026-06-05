@@ -9,12 +9,12 @@ import { db, mpcKeys } from "@walty/db"
  */
 export async function getActiveMpcKey(
   userId: number,
-): Promise<{ address: string } | null> {
+): Promise<{ keyId: string; address: string } | null> {
   const row = await db.query.mpcKeys.findFirst({
     where: and(eq(mpcKeys.userId, userId), eq(mpcKeys.status, "active")),
-    columns: { address: true },
+    columns: { id: true, address: true },
   })
-  return row ? { address: row.address } : null
+  return row ? { keyId: row.id, address: row.address } : null
 }
 
 /** True when the business owner holds an active MPC key (vs a mnemonic). */
