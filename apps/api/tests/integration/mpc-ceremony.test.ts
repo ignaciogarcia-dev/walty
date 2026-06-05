@@ -31,6 +31,7 @@ import { publicKeyToAddress } from "viem/utils"
 import { db, users, mpcKeys, mpcChildAddresses } from "@walty/db"
 import { randomUUID } from "node:crypto"
 import { Ceremony, CeremonyError } from "../../src/services/mpc/ceremony.js"
+import { registerChildAddress } from "../../src/services/mpc/MpcServerParty.js"
 
 const PARTICIPANTS = 3
 const THRESHOLD = 2
@@ -318,7 +319,8 @@ async function runSignCeremony(
   deviceShareBytes: Buffer,
   hashHex: Hex,
   derivationIndex = 0,
-): Promise<{ r: Hex; s: Hex; yParity: 0 | 1 }> {
+  derive = false,
+): Promise<{ r: Hex; s: Hex; yParity: 0 | 1; deviceR: Uint8Array; deviceS: Uint8Array }> {
   const hashBytes = Uint8Array.from(
     (hashHex.slice(2).match(/.{2}/g) as string[]).map((h) => parseInt(h, 16)),
   )
@@ -336,6 +338,7 @@ async function runSignCeremony(
     keyId,
     signHash: hashHex,
     derivationIndex,
+    derive,
   })
 
   // R1
@@ -398,8 +401,12 @@ async function runSignCeremony(
   const devLast = deviceSign.lastMessage(hashBytes)
   const allLast: Message[] = [devLast, ...srvLast]
 
-  // device combines (locally) — not needed for assertion, but advances state
-  deviceSign.combine(filter(allLast, DEVICE_ID))
+  // The device combine yields its own [R,S] — the only signature in derive mode
+  // (the server skips assembly), and an independent witness in normal mode.
+  const [devR, devS] = deviceSign.combine(filter(allLast, DEVICE_ID)) as [
+    Uint8Array,
+    Uint8Array,
+  ]
 
   // server combines: client sends the device's last message to the server
   const lastForSrv = allLast
@@ -415,14 +422,21 @@ async function runSignCeremony(
     payload: encodeBundle(lastForSrv),
   })
   expect(step4.done).toBe(true)
-  expect(step4.signature).toBeTruthy()
 
   freeAll([deviceSign, ...all1, ...all2, ...all3, ...allLast])
 
+  if (derive) {
+    // Server skips assembly — no server signature; the device [R,S] is the proof.
+    expect(step4.signature).toBeUndefined()
+    return { r: u8ToHex(devR), s: u8ToHex(devS), yParity: 0, deviceR: devR, deviceS: devS }
+  }
+  expect(step4.signature).toBeTruthy()
   return {
     r: step4.signature!.r,
     s: step4.signature!.s,
     yParity: step4.signature!.yParity,
+    deviceR: devR,
+    deviceS: devS,
   }
 }
 
@@ -658,6 +672,39 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
         derivationIndex: 7,
       }),
     ).rejects.toMatchObject({ reason: "invalid_payload" })
+  })
+
+  it("derive-mode ceremony learns the child address (no server sig), then a normal sign recovers it", async () => {
+    userId = await createTestUser()
+    const dkg = await runDkgCeremony(userId)
+    const localChild = await deriveChildLocal(
+      [dkg.deviceShareBytes, dkg.backupShareBytes],
+      3,
+    )
+
+    // Derive child 3 via the REAL ceremony in derive mode (device+server), twice;
+    // the server skips assembly, so the device [R,S] is the only signature.
+    const h1 = hashOf("derive-srv-1")
+    const h2 = hashOf("derive-srv-2")
+    const d1 = await runSignCeremony(userId, dkg.keyId, dkg.deviceShareBytes, h1.hex, 3, true)
+    const d2 = await runSignCeremony(userId, dkg.keyId, dkg.deviceShareBytes, h2.hex, 3, true)
+    const c1 = await candidatePubkeys(d1.deviceR, d1.deviceS, h1.hex)
+    const c2 = await candidatePubkeys(d2.deviceR, d2.deviceS, h2.hex)
+    const common = [...c1].filter((p) => c2.has(p))
+    expect(common.length).toBe(1)
+    const ceremonyChild = publicKeyToAddress(common[0] as Hex)
+    // ceremony-derived (device+server) == locally-derived (device+backup)
+    expect(ceremonyChild.toLowerCase()).toBe(localChild.toLowerCase())
+
+    // Register via the production helper → a normal sign at m/3 recovers it.
+    await registerChildAddress(dkg.keyId, 3, ceremonyChild)
+    const signHash = keccak256(toHex("hd-child-3-tx"))
+    const sig = await runSignCeremony(userId, dkg.keyId, dkg.deviceShareBytes, signHash, 3, false)
+    const rec = await recoverAddress({
+      hash: signHash,
+      signature: { r: sig.r, s: sig.s, yParity: sig.yParity },
+    })
+    expect(rec.toLowerCase()).toBe(ceremonyChild.toLowerCase())
   })
 
   // --- Protocol guards -----------------------------------------------------

@@ -51,6 +51,10 @@ export const mpcCeremonyStart = z.object({
   // HD-under-MPC derivation index for sign: omit/0 = owner master ("m"),
   // i>=1 = cashier i's child key ("m/i"). Non-hardened only.
   derivationIndex: z.number().int().min(0).optional(),
+
+  // Derive mode: sign at m/i only to learn the child address (server skips
+  // assembly, address need not be registered). Valid with derivationIndex>=1.
+  derive: z.boolean().optional(),
 })
 
 export type MpcCeremonyStart = z.infer<typeof mpcCeremonyStart>

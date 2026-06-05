@@ -14,6 +14,8 @@
 // worker nor this logs payloads/shares.
 
 import { io, type Socket } from "socket.io-client"
+import { recoverPublicKey, keccak256, toHex, type Hex } from "viem"
+import { publicKeyToAddress } from "viem/utils"
 import type {
   DkgResult,
   RefreshResult,
@@ -174,6 +176,29 @@ function hashBytesFromSignHash(signHash: `0x${string}`): Uint8Array {
   return out
 }
 
+/**
+ * The signer pubkeys consistent with a signature (both recovery ids). `s` is the
+ * device's already-low-s value. Two signatures over different hashes share only
+ * the real signer pubkey — intersect them to disambiguate.
+ */
+async function candidatePubkeys(
+  r: Uint8Array,
+  s: Uint8Array,
+  hash: Hex,
+): Promise<Set<string>> {
+  const rHex = toHex(r)
+  const sHex = toHex(s)
+  const out = new Set<string>()
+  for (const yParity of [0, 1] as const) {
+    try {
+      out.add(await recoverPublicKey({ hash, signature: { r: rHex, s: sHex, yParity } }))
+    } catch {
+      /* skip invalid parity */
+    }
+  }
+  return out
+}
+
 export class MpcClientError extends Error {
   reason: string
   constructor(reason: string, message: string) {
@@ -308,6 +333,7 @@ export class MpcClient {
     deviceShareBytes: Uint8Array,
     signHash: `0x${string}`,
     derivationIndex = 0,
+    derive = false,
   ): Promise<SignCeremonyResult> {
     const hash = hashBytesFromSignHash(signHash)
     // HD path: 0 = owner master ("m"), i>=1 = cashier i's child ("m/i"). Device
@@ -321,12 +347,40 @@ export class MpcClient {
       hash,
       path,
     })
-    const out = await this.runCeremony("sign", keyId, signHash, deviceStart, derivationIndex)
+    const out = await this.runCeremony("sign", keyId, signHash, deviceStart, derivationIndex, derive)
     return {
       keyId: out.keyId,
       result: out.result as SignResult,
       serverSignature: out.serverSignature,
     }
+  }
+
+  /**
+   * Learn cashier `index`'s child address (m/index) from the owner's MPC key,
+   * keyless for the cashier. We sign twice at m/index in DERIVE mode and recover
+   * the consistent pubkey from the device's own [R,S] (one signature gives two
+   * candidates; the address is the one common to both). The caller registers the
+   * returned address server-side.
+   */
+  async deriveChildAddress(
+    keyId: string,
+    deviceShareBytes: Uint8Array,
+    index: number,
+  ): Promise<`0x${string}`> {
+    if (index < 1) {
+      throw new MpcClientError("invalid_index", "child index must be >= 1")
+    }
+    const h1 = keccak256(toHex(`walty-hd-derive-1:${keyId}:${index}`))
+    const h2 = keccak256(toHex(`walty-hd-derive-2:${keyId}:${index}`))
+    const s1 = await this.runSign(keyId, deviceShareBytes, h1, index, true)
+    const s2 = await this.runSign(keyId, deviceShareBytes, h2, index, true)
+    const c1 = await candidatePubkeys(s1.result.r, s1.result.s, h1)
+    const c2 = await candidatePubkeys(s2.result.r, s2.result.s, h2)
+    const common = [...c1].filter((p) => c2.has(p))
+    if (common.length !== 1) {
+      throw new MpcClientError("derive_ambiguous", `expected 1 child pubkey, got ${common.length}`)
+    }
+    return publicKeyToAddress(common[0] as Hex)
   }
 
   private async startDevice(msg: Record<string, unknown>): Promise<string> {
@@ -362,6 +416,7 @@ export class MpcClient {
     signHash: `0x${string}` | undefined,
     deviceStart: string,
     derivationIndex = 0,
+    derive = false,
   ): Promise<{
     keyId: string
     result: DkgResult | RefreshResult | SignResult
@@ -372,7 +427,7 @@ export class MpcClient {
       throw new MpcClientError("not_connected", "socket not connected")
     }
 
-    const started = await this.startServerCeremony(ceremonyType, keyId, signHash, derivationIndex)
+    const started = await this.startServerCeremony(ceremonyType, keyId, signHash, derivationIndex, derive)
     const ceremonyId = started.ceremonyId
     // Round messages need a stable keyId. sign/refresh use the bound keyId; DKG
     // has none until completion, so pick a placeholder uuid the server pins from
@@ -444,6 +499,7 @@ export class MpcClient {
     keyId: string | undefined,
     signHash: `0x${string}` | undefined,
     derivationIndex = 0,
+    derive = false,
   ): Promise<CeremonyStarted> {
     const socket = this.socket!
     return new Promise<CeremonyStarted>((resolve, reject) => {
@@ -471,6 +527,7 @@ export class MpcClient {
         ...(keyId ? { keyId } : {}),
         ...(signHash ? { signHash } : {}),
         ...(derivationIndex > 0 ? { derivationIndex } : {}),
+        ...(derive ? { derive: true } : {}),
       })
     })
   }

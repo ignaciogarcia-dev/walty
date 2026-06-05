@@ -14,7 +14,7 @@ import {
 import { publicKeyToAddress } from "viem/utils"
 import { encryptShare, decryptShare, type ShareContext } from "./serverShareStore.js"
 import { assembleEthSignature, SECP256K1_N, type EthSignature } from "./signature.js"
-import { db, mpcKeys, mpcServerShares, addresses } from "@walty/db"
+import { db, mpcKeys, mpcServerShares, addresses, mpcChildAddresses } from "@walty/db"
 import { eq } from "drizzle-orm"
 
 export interface RoundStep {
@@ -324,6 +324,24 @@ export async function persistServerKey(
 
     return { keyId }
   })
+}
+
+/**
+ * Register an HD child address (m/i) for a key. The client derives it by signing
+ * at m/i (it recovers the address from the device [R,S]); we store it so the sign
+ * ceremony can later assemble/verify a child signature. Idempotent per (keyId,index).
+ * A mis-registered address only breaks signing for that index (the sig won't recover
+ * it), so this is safe as an owner-scoped action.
+ */
+export async function registerChildAddress(
+  keyId: string,
+  derivationIndex: number,
+  address: string,
+): Promise<void> {
+  await db
+    .insert(mpcChildAddresses)
+    .values({ keyId, derivationIndex, address })
+    .onConflictDoNothing()
 }
 
 /** Load and decrypt the server share for a keyId, with the ShareContext used to encrypt it. */
