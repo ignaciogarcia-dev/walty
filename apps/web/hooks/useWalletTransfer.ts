@@ -66,15 +66,13 @@ export function useWalletTransfer(
   const sendLockRef = useRef(false);
   const txIntentKeyRef = useRef<string | null>(null);
 
-  // Pick the signer by custody. MPC is owner-only — operators (derivationIndex)
-  // HD-derive from a mnemonic that no longer exists, so they're rejected.
+  // Pick the signer by custody. Under MPC, an operator tx (derivationIndex>=1)
+  // signs at the cashier's HD child path m/index via the owner's quorum; the
+  // owner (no index) signs at master. Legacy custody HD-derives from the seed.
   const signOne = useCallback(
     (intentId: string, derivationIndex?: number) => {
       if (custody === "mpc") {
-        if (derivationIndex != null) {
-          throw new Error("Operators are not supported on MPC wallets yet");
-        }
-        return signIntentMpc(intentId, mpcSecurity);
+        return signIntentMpc(intentId, mpcSecurity, derivationIndex ?? 0);
       }
       return signIntent(intentId, security, address!, derivationIndex);
     },
@@ -215,11 +213,9 @@ export function useWalletTransfer(
         const derivationIndex = intent.payload.derivationIndex;
         const fromAddress = intent.payload.from;
 
-        if (custody === "mpc" && derivationIndex != null) {
-          throw new Error("Operators are not supported on MPC wallets yet");
-        }
-
-        // Gas funding for operator wallets on Polygon (mnemonic custody only)
+        // Gas funding for operator wallets on Polygon. The cashier's address
+        // (legacy HD or MPC child) pays gas for its own refund/collection tx, so
+        // the owner tops it up first if low. The owner signs this top-up (master).
         if (
           derivationIndex != null &&
           intent.payload.chainId === PAYMENT_CHAIN_ID_POLYGON
@@ -260,7 +256,7 @@ export function useWalletTransfer(
               "gas_funding",
             );
 
-            await signIntent(gasIntent.id, security, address);
+            await signOne(gasIntent.id);
             const gasBroadcasted = await broadcastTxIntent(gasIntent.id);
             const gasHash = gasBroadcasted.txHash!;
 
