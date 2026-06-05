@@ -20,10 +20,6 @@ import init, {
   Message,
   SignSession,
 } from "@silencelaboratories/dkls-wasm-ll-web"
-// esbuild's `--loader:.wasm=file` resolves this to a same-origin URL that
-// wasm-bindgen `init()` fetches. Under Next/Turbopack the worker resolves the
-// asset URL itself (see ./mpcWorker.ts).
-import wasmUrl from "@silencelaboratories/dkls-wasm-ll-web/dkls-wasm-ll-web_bg.wasm"
 import { publicKeyToAddress } from "viem/utils"
 
 export const DEVICE_PARTY_ID = 0
@@ -40,15 +36,14 @@ const BROADCAST_SENTINEL = 0xff
 let wasmReady: Promise<void> | null = null
 
 /**
- * Init the DKLS23 WASM module once; safe to call repeatedly.
- * overrideWasmUrl: explicit `_bg.wasm` URL when the import-resolved one is wrong
- * (e.g. under Next/Turbopack).
+ * Init the DKLS23 WASM module once; safe to call repeatedly. `wasmUrl` is the
+ * same-origin `_bg.wasm` URL to fetch — the caller supplies it (Turbopack and
+ * esbuild resolve `.wasm` differently, so this module stays bundler-agnostic and
+ * never statically imports the asset).
  */
-export async function initMpcWasm(overrideWasmUrl?: string): Promise<void> {
+export async function initMpcWasm(wasmUrl: string): Promise<void> {
   if (!wasmReady) {
-    wasmReady = init(overrideWasmUrl ?? (wasmUrl as unknown as string)).then(
-      () => undefined,
-    )
+    wasmReady = init(wasmUrl).then(() => undefined)
   }
   return wasmReady
 }

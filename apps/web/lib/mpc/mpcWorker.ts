@@ -30,6 +30,7 @@ import {
   type RefreshResult,
   type SignResult,
 } from "./MpcDeviceParty"
+import { MPC_WASM_URL } from "./wasmUrl"
 
 type InMsg =
   | { id: number; type: "init"; wasmUrl?: string }
@@ -72,7 +73,7 @@ function post(msg: OutMsg): void {
 async function handle(msg: InMsg): Promise<void> {
   switch (msg.type) {
     case "init": {
-      await initMpcWasm(msg.wasmUrl)
+      await initMpcWasm(msg.wasmUrl ?? MPC_WASM_URL)
       post({ id: msg.id, type: "ready" })
       return
     }
