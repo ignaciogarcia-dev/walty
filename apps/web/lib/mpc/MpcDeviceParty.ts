@@ -510,7 +510,9 @@ export class MpcDeviceParty {
    * Normal sign (device(0)+server(1)). hash must be 32 bytes. Returns the
    * client's first outbound bundle (device r1 broadcast).
    */
-  startSign(deviceShareBytes: Uint8Array, hash: Uint8Array): string {
+  // `path` is the BIP32 chain path: "m" = owner master, "m/i" = cashier i's child
+  // key (non-hardened only). Device and server must use the SAME path to co-sign.
+  startSign(deviceShareBytes: Uint8Array, hash: Uint8Array, path: string = "m"): string {
     if (this.engine) throw new Error("MpcDeviceParty: ceremony already started")
     if (hash.length !== 32) throw new Error("MpcDeviceParty: sign hash must be 32 bytes")
     // SignSession consumes its keyshare — clone via fromBytes.
@@ -520,7 +522,7 @@ export class MpcDeviceParty {
       keyshare.free()
       throw new Error(`MpcDeviceParty: expected device share (party 0), got party ${id}`)
     }
-    const session = new SignSession(keyshare, "m")
+    const session = new SignSession(keyshare, path)
     const first = serializeMessage(session.createFirstMessage())
     this.engine = {
       kind: "sign",

@@ -373,11 +373,13 @@ export class MpcServerSign {
   private readonly partyId: number
   private round: number = 0
 
-  constructor(keyshareBytes: Buffer) {
+  // `path` is the BIP32 chain path for HD-under-MPC: "m" is the owner master key,
+  // "m/i" is cashier i's derived child key (non-hardened only — DKLS rejects "m/i'").
+  constructor(keyshareBytes: Buffer, path: string = "m") {
     const keyshare = Keyshare.fromBytes(keyshareBytes)
     this.partyId = keyshare.partyId
     // SignSession consumes this clone, not the caller's buffer
-    this.session = new SignSession(keyshare, "m")
+    this.session = new SignSession(keyshare, path)
   }
 
   /** Round 1: generate the server's first broadcast message. */
