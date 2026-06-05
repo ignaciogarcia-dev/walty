@@ -291,7 +291,7 @@ export function useWalletTransfer(
         sendLockRef.current = false;
       }
     },
-    [address, security, custody, signOne, broadcastIntentInternal],
+    [address, security, signOne, broadcastIntentInternal],
   );
 
   // ── executeTransfer ────────────────────────────────────────────────────
