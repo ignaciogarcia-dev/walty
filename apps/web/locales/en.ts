@@ -494,6 +494,8 @@ export const en = {
     "Your cashiers' wallet balances. Collect earnings to your main wallet.",
   "cashier-wallets-empty":
     "No cashiers with an assigned wallet yet. Invite a cashier from the Team section.",
+  "operator-wallets-mpc-na":
+    "Per-cashier wallets don't apply under MPC custody — all payments land on your business address. Manage cashiers from the Team section.",
   "cashier-inactive": "Inactive cashiers",
   "member-status-active": "Active",
   "member-status-suspended": "Suspended",

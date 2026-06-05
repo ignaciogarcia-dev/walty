@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useWalletContext } from "@/components/wallet/context"
+import { useBusinessContext } from "@/hooks/useBusinessContext"
 import { useUnlockFlow } from "@/hooks/useUnlockFlow"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
@@ -34,6 +35,7 @@ export default function OperatorWalletsPage() {
   const { collectOperatorFunds, collectStatus, collectTxHash, collectError, resetCollect } =
     useWalletContext()
   const { ensureUnlocked, unlockDialog } = useUnlockFlow()
+  const { isMpc } = useBusinessContext()
 
   const [collecting, setCollecting] = useState<{ memberId: number; token: CollectToken } | null>(null)
 
@@ -68,6 +70,16 @@ export default function OperatorWalletsPage() {
 
     queryClient.invalidateQueries({ queryKey: ["operator-wallets"] })
     setCollecting(null)
+  }
+
+  // Under MPC there are no per-operator wallets — cashiers are keyless and all
+  // funds land on the business address, so there's nothing to collect here.
+  if (isMpc) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <p className="text-sm text-muted-foreground">{t("operator-wallets-mpc-na")}</p>
+      </div>
+    )
   }
 
   const activeWallets = wallets.filter((w) => w.status === "active")

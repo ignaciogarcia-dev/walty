@@ -494,6 +494,8 @@ export const es = {
     "Balances de las wallets de tus cajeros. Recaudá las ganancias en tu wallet principal.",
   "cashier-wallets-empty":
     "No hay cajeros con wallet asignada todavía. Invitá un cajero desde la sección Equipo.",
+  "operator-wallets-mpc-na":
+    "Las cajas por cajero no aplican con custodia MPC — todos los pagos caen en la address de tu negocio. Gestioná los cajeros desde la sección Equipo.",
   "cashier-inactive": "Cajeros inactivos",
   "member-status-active": "Activo",
   "member-status-suspended": "Suspendido",

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useUser } from "@/hooks/useUser"
+import { useBusinessContext } from "@/hooks/useBusinessContext"
 import { UserMenu } from "@/components/user/user-menu"
 import { cn } from "@/utils/style"
 import Image from "next/image"
@@ -31,13 +32,16 @@ export function DashboardSidebar() {
   const pathname = usePathname()
   const { t } = useTranslation()
   const { user } = useUser()
+  const { isMpc } = useBusinessContext()
   const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebarState()
   const isCollapsed = state === "collapsed"
   const isOwner = user?.isOwner ?? false
   const showActivityTab = true
   const showTeamTab = isOwner
   const showRefundsTab = isOwner
-  const showWalletsTab = isOwner
+  // Per-operator wallets don't exist under MPC — cashiers are keyless and all
+  // funds land on the business address, so there's nothing to collect.
+  const showWalletsTab = isOwner && !isMpc
 
   function handleMobileNavigation() {
     if (isMobile) {

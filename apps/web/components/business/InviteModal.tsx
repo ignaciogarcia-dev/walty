@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useWalletContext } from "@/components/wallet/context"
+import { useBusinessContext } from "@/hooks/useBusinessContext"
 import { useUnlockFlow } from "@/hooks/useUnlockFlow"
 import { truncateLink } from "@/utils/url"
 import { unwrap } from "@/lib/api/unwrap"
@@ -25,6 +26,7 @@ type Props = {
 export function InviteModal({ open, onOpenChange, onInviteCreated }: Props) {
   const { t } = useTranslation()
   const { deriveOperatorAddress } = useWalletContext()
+  const { isMpc } = useBusinessContext()
   const { ensureUnlocked, unlockDialog } = useUnlockFlow()
 
   const [inviteUrl, setInviteUrl] = useState("")
@@ -48,30 +50,27 @@ export function InviteModal({ open, onOpenChange, onInviteCreated }: Props) {
     setLoading(true)
 
     try {
-      // Gate: wallet must be unlocked to derive the operator address
-      const unlocked = await ensureUnlocked()
-      if (!unlocked) {
-        setLoading(false)
-        return
+      // MPC business: cashiers are keyless. No seed to unlock, no derivation —
+      // the server assigns the business MPC address. Mnemonic businesses derive
+      // a per-operator address from the owner's seed.
+      let body: Record<string, unknown> = { role: "cashier" }
+      if (!isMpc) {
+        const unlocked = await ensureUnlocked()
+        if (!unlocked) {
+          setLoading(false)
+          return
+        }
+        const indexRes = await fetch("/api/business/members/next-index")
+        if (!indexRes.ok) throw new Error(t("error-creating-invite"))
+        const { nextIndex } = unwrap<{ nextIndex: number }>(await indexRes.json())
+        const walletAddress = await deriveOperatorAddress(nextIndex)
+        body = { role: "cashier", walletAddress, derivationIndex: nextIndex }
       }
 
-      // Step 1: get next available derivation index
-      const indexRes = await fetch("/api/business/members/next-index")
-      if (!indexRes.ok) throw new Error(t("error-creating-invite"))
-      const { nextIndex } = unwrap<{ nextIndex: number }>(await indexRes.json())
-
-      // Step 2: derive operator address client-side from owner's seed
-      const walletAddress = await deriveOperatorAddress(nextIndex)
-
-      // Step 3: create invite with wallet already assigned
       const inviteRes = await fetch("/api/business/members/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          role: "cashier",
-          walletAddress,
-          derivationIndex: nextIndex,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!inviteRes.ok) {
