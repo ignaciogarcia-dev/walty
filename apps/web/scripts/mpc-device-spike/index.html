@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MpcDeviceParty browser spike</title>
+  </head>
+  <body>
+    <pre id="status">running device spike…</pre>
+    <script type="module" src="./page.bundle.js"></script>
+    <script type="module">
+      const status = document.getElementById("status");
+      const poll = setInterval(() => {
+        const r = window.__DEVICE_SPIKE_RESULT__;
+        if (r != null) {
+          clearInterval(poll);
+          status.textContent = r.error
+            ? "ERROR:\n" + r.error
+            : "DONE pass=" + r.pass;
+        }
+      }, 100);
+    </script>
+  </body>
+</html>

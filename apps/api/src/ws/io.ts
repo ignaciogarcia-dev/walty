@@ -4,6 +4,7 @@ import { Server } from "socket.io"
 import { db, txIntents } from "@walty/db"
 import { verifySessionToken } from "@walty/shared/auth/session-token"
 import { getBusinessContext } from "@walty/shared/business/getBusinessContext"
+import { MPC_PAYLOAD_MAX_BYTES } from "@walty/shared/mpc/messages"
 import {
   DEVICE_EVENTS,
   DEVICES_NAMESPACE,
@@ -13,19 +14,58 @@ import {
 import { env } from "../config/env.js"
 import { logger } from "../config/logger.js"
 import { findSession } from "../services/deviceSessions.js"
+import { registerMpcNamespace } from "./mpc.js"
 
-async function authMiddleware(
-  socket: import("socket.io").Socket,
-  next: (err?: Error) => void,
-) {
+/** Extract the session token from a socket handshake (cookie / bearer / auth). */
+function tokenFromHandshake(socket: import("socket.io").Socket): string | null {
   const cookieHeader = socket.handshake.headers.cookie ?? ""
   const cookieToken = /(?:^|;\s*)token=([^;]+)/.exec(cookieHeader)?.[1]
   const bearer = /^Bearer\s+(.+)$/i.exec(
     socket.handshake.headers.authorization ?? "",
   )?.[1]
+  // Browsers can't set headers on the WS upgrade, so `auth.token` is the
+  // cross-origin path. Still fully verified by callers (JWT + live session).
+  const authObj = socket.handshake.auth as { token?: unknown } | undefined
+  const authToken = typeof authObj?.token === "string" ? authObj.token : null
   const token = cookieToken
     ? decodeURIComponent(cookieToken)
-    : (bearer ?? null)
+    : (bearer ?? authToken)
+  return token ?? null
+}
+
+/**
+ * Re-verify mid-connection that the session is still live: JWT verifies, sid/
+ * userId match the socket, and the device_session row exists and isn't revoked.
+ * Long-lived namespaces (/mpc) call this before privileged actions so a revoked
+ * or expired session can't keep driving an already-open socket. Cheap: one
+ * indexed lookup + a stateless verify.
+ */
+export async function isSocketSessionLive(
+  socket: import("socket.io").Socket,
+): Promise<boolean> {
+  const token = tokenFromHandshake(socket)
+  if (!token) return false
+  try {
+    const auth = verifySessionToken(token) // throws on expiry/tamper
+    if (!auth.sid) return false
+    if (auth.userId !== socket.data.userId || auth.sid !== socket.data.sid) {
+      return false
+    }
+    const session = await findSession(auth.sid)
+    if (!session || session.userId !== auth.userId || session.revokedAt) {
+      return false
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function authMiddleware(
+  socket: import("socket.io").Socket,
+  next: (err?: Error) => void,
+) {
+  const token = tokenFromHandshake(socket)
   if (!token) {
     next(new Error("unauthorized"))
     return
@@ -59,6 +99,11 @@ export function initWebSocket(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     cors: { origin: env.webOrigin, credentials: true },
     serveClient: false,
+    // Hard cap on one inbound packet. /mpc round payloads are the only large
+    // frames; their schema cap is MPC_PAYLOAD_MAX_BYTES (1 MB). socket.io
+    // measures the whole packet (envelope + event name + base64 payload), so add
+    // headroom for the envelope while still dropping anything materially larger.
+    maxHttpBufferSize: MPC_PAYLOAD_MAX_BYTES + 200_000,
   })
 
   // /tx-intents namespace — authenticated, room per intent id, scoped to owning user.
@@ -140,6 +185,11 @@ export function initWebSocket(httpServer: HttpServer): Server {
     })
   })
 
+  // /mpc namespace — authenticated MPC ceremony orchestration (DKG / sign /
+  // refresh). The protocol + guards live in services/mpc/ceremony.ts; this
+  // namespace is a thin transport adapter. Disconnect aborts in-flight work.
+  registerMpcNamespace(io, authMiddleware)
+
   ioInstance = io
   logger.info("websocket initialized")
   return io
@@ -149,7 +199,7 @@ export function getIo(): Server | null {
   return ioInstance
 }
 
-const AUTHED_NAMESPACES = ["/tx-intents", "/business", "/devices"] as const
+const AUTHED_NAMESPACES = ["/tx-intents", "/business", "/devices", "/mpc"] as const
 
 /** Drops any open authed sockets for a revoked session id (best-effort). */
 export async function disconnectSession(sid: string): Promise<void> {

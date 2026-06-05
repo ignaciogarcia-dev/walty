@@ -1,4 +1,9 @@
-import { pgTable, serial, text, timestamp, pgEnum, integer, unique, uuid, boolean, index, jsonb, bigint, uniqueIndex } from "drizzle-orm/pg-core"
+import { pgTable, serial, text, timestamp, pgEnum, integer, unique, uuid, boolean, index, jsonb, bigint, uniqueIndex, customType } from "drizzle-orm/pg-core"
+
+// Postgres bytea column — driver returns Buffer, we keep it as Buffer.
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+})
 
 export const txStatusEnum = pgEnum("tx_status", ["pending", "confirmed", "failed"])
 export const txIntentStatusEnum = pgEnum("tx_intent_status", ["pending", "signed", "broadcasting", "broadcasted", "confirmed", "failed", "expired"])
@@ -254,4 +259,29 @@ export const businessTreasuries = pgTable("business_treasuries", {
 }, (t) => ({
   byUser: uniqueIndex("business_treasuries_user_chain_idx").on(t.userId, t.chainId),
 }))
+
+// MPC key record — one per user key (keyId). Status: dkg_pending | active.
+export const mpcKeys = pgTable("mpc_keys", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  pubkey: text("pubkey").notNull(),
+  address: text("address").notNull(),
+  status: text("status").notNull().default("dkg_pending"), // dkg_pending | active
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  byUser: index("mpc_keys_user_id_idx").on(t.userId),
+}))
+
+// Server-side AES-GCM encrypted share envelope — one row per mpc_keys row.
+// The AAD (userId|keyId|pubkey|version) is reconstructed at decrypt time from
+// the mpc_keys row + this row's version; it is NOT stored here.
+export const mpcServerShares = pgTable("mpc_server_shares", {
+  keyId: uuid("key_id").primaryKey().references(() => mpcKeys.id, { onDelete: "cascade" }),
+  ciphertext: bytea("ciphertext").notNull(),   // AES-GCM ciphertext + 16-byte tag (~247 KB + 16)
+  nonce: bytea("nonce").notNull(),             // 12 bytes
+  wrappedDek: bytea("wrapped_dek").notNull(),  // KMS-wrapped DEK
+  version: integer("version").notNull(),       // must match the AAD version used at encrypt
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
 

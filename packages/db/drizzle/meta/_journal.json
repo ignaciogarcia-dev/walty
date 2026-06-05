@@ -50,6 +50,13 @@
       "when": 1748995200000,
       "tag": "0006_treasury_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1749081600000,
+      "tag": "0007_mpc",
+      "breakpoints": true
     }
   ]
 }
