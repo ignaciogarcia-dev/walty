@@ -39,6 +39,8 @@ export function useWallet() {
     lifecycle.address,
     lifecycle.security,
     history.loadBalance,
+    lifecycle.mpcSecurity,
+    lifecycle.custody,
   );
 
   return {
