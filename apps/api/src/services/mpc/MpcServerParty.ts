@@ -14,7 +14,7 @@ import {
 import { publicKeyToAddress } from "viem/utils"
 import { encryptShare, decryptShare, type ShareContext } from "./serverShareStore.js"
 import { assembleEthSignature, SECP256K1_N, type EthSignature } from "./signature.js"
-import { db, mpcKeys, mpcServerShares } from "@walty/db"
+import { db, mpcKeys, mpcServerShares, addresses } from "@walty/db"
 import { eq } from "drizzle-orm"
 
 export interface RoundStep {
@@ -277,35 +277,53 @@ export class MpcServerKeygen {
   }
 }
 
-/** Persist the DKG result: mpc_keys row + encrypted share in mpc_server_shares. Returns the keyId. */
+/**
+ * Persist the DKG result atomically: the mpc_keys row, the KMS-encrypted share
+ * in mpc_server_shares, and — since the server co-generated the key and knows
+ * its address — the owner's receiving address in `addresses` (replacing the
+ * nonce+signMessage /wallet/link proof the mnemonic flow used). The address is
+ * only registered if the user has none yet, so re-running DKG for a legacy
+ * mnemonic owner never adds a second receiving address. Returns the keyId.
+ */
 export async function persistServerKey(
   userId: number,
   dkg: { keyshareBytes: Buffer; pubkey: string; address: string },
 ): Promise<{ keyId: string }> {
-  const [keyRow] = await db
-    .insert(mpcKeys)
-    .values({
-      userId,
-      pubkey: dkg.pubkey,
-      address: dkg.address,
-      status: "active",
-      version: 1,
+  const ctx: ShareContext = { userId, keyId: "", pubkey: dkg.pubkey, version: 1 }
+  // Encrypt outside the transaction (KMS round-trip, no DB) — keyId is patched in.
+
+  return db.transaction(async (tx) => {
+    const [keyRow] = await tx
+      .insert(mpcKeys)
+      .values({
+        userId,
+        pubkey: dkg.pubkey,
+        address: dkg.address,
+        status: "active",
+        version: 1,
+      })
+      .returning()
+
+    const keyId = keyRow.id
+    const enc = await encryptShare({ ...ctx, keyId }, dkg.keyshareBytes)
+
+    await tx.insert(mpcServerShares).values({
+      keyId,
+      ciphertext: enc.ciphertext,
+      nonce: enc.nonce,
+      wrappedDek: enc.wrappedDek,
+      version: enc.version,
     })
-    .returning()
 
-  const keyId = keyRow.id
-  const ctx: ShareContext = { userId, keyId, pubkey: dkg.pubkey, version: 1 }
-  const enc = await encryptShare(ctx, dkg.keyshareBytes)
+    const existing = await tx.query.addresses.findFirst({
+      where: eq(addresses.userId, userId),
+    })
+    if (!existing) {
+      await tx.insert(addresses).values({ userId, address: dkg.address }).onConflictDoNothing()
+    }
 
-  await db.insert(mpcServerShares).values({
-    keyId,
-    ciphertext: enc.ciphertext,
-    nonce: enc.nonce,
-    wrappedDek: enc.wrappedDek,
-    version: enc.version,
+    return { keyId }
   })
-
-  return { keyId }
 }
 
 /** Load and decrypt the server share for a keyId, with the ShareContext used to encrypt it. */

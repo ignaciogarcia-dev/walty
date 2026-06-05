@@ -32,15 +32,27 @@ import {
   createWalletSecurityManager,
   type WalletSecurityManager,
 } from "@/lib/wallet/WalletSecurityManager";
+import {
+  createMpcSecurityManager,
+  type MpcSecurityManager,
+} from "@/lib/mpc/MpcSecurityManager";
+import { getDeviceShareMeta } from "@/lib/mpc/deviceShareStore";
 import { createWalletSessionManager } from "@/lib/wallet/WalletSessionManager";
 import { attestDevice } from "@/lib/wallet/attestDevice";
 
 export type WalletStatus = "loading" | "unlocked" | InitialWalletStatus;
 
+/** Which custody backs the currently-unlocked session. */
+export type WalletCustody = "mnemonic" | "mpc" | null;
+
 export interface UseWalletLifecycleResult {
   status: WalletStatus;
   address: string | null;
   security: WalletSecurityManager;
+  /** MPC-custody unlock manager (shares the same PIN refs as `security`). */
+  mpcSecurity: MpcSecurityManager;
+  /** Which custody unlocked this session — null until unlocked. */
+  custody: WalletCustody;
   create: (pin: string) => Promise<void>;
   unlock: (pin: string) => Promise<void>;
   lock: () => void;
@@ -61,12 +73,17 @@ const LOCK_TIMEOUT_MS = 2 * 60 * 1000;
 export function useWalletLifecycle(): UseWalletLifecycleResult {
   const [status, setStatus] = useState<WalletStatus>("loading");
   const [address, setAddress] = useState<string | null>(null);
+  const [custody, setCustody] = useState<WalletCustody>(null);
 
   const pinRef = useRef<string | null>(null);
   const lastUnlockRef = useRef<number>(0);
 
   const [security] = useState(() =>
     createWalletSecurityManager(pinRef, lastUnlockRef, 30_000),
+  );
+  // Shares the same PIN refs as `security`, so one PIN entry drives whichever custody exists.
+  const [mpcSecurity] = useState(() =>
+    createMpcSecurityManager(pinRef, lastUnlockRef, 30_000),
   );
 
   // ── Check wallet status on mount ────────────────────────────────────────
@@ -78,6 +95,7 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
   const lock = useCallback(() => {
     security.clearPin();
     setAddress(null);
+    setCustody(null);
     setStatus("locked");
   }, [security]);
 
@@ -160,6 +178,7 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
       setAddress(addr);
       pinRef.current = pin;
       lastUnlockRef.current = Date.now();
+      setCustody("mnemonic");
       setStatus("unlocked");
       void attestDevice(security).catch(() => {});
     },
@@ -169,22 +188,38 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
   // ── Unlock ──────────────────────────────────────────────────────────────
   const unlock = useCallback(async (pin: string) => {
     const stored = await getStoredWallet();
-    if (!stored) throw new Error("No wallet found");
 
-    if (stored.encrypted.version !== 3) {
-      throw new Error(
-        "Unsupported wallet version — please recover your wallet",
-      );
+    // Mnemonic custody.
+    if (stored) {
+      if (stored.encrypted.version !== 3) {
+        throw new Error(
+          "Unsupported wallet version — please recover your wallet",
+        );
+      }
+      await decryptSeedV3(stored.encrypted, pin);
+      setAddress(stored.address);
+      pinRef.current = pin;
+      lastUnlockRef.current = Date.now();
+      setCustody("mnemonic");
+      setStatus("unlocked");
+      void attestDevice(security).catch(() => {});
+      return;
     }
 
-    await decryptSeedV3(stored.encrypted, pin);
-
-    setAddress(stored.address);
-    pinRef.current = pin;
-    lastUnlockRef.current = Date.now();
+    // MPC custody: validate the PIN by loading (decrypting) the device share.
+    const meta = await getDeviceShareMeta();
+    if (!meta) throw new Error("No wallet found");
+    mpcSecurity.setPin(pin);
+    try {
+      await mpcSecurity.withDeviceShare(async () => {});
+    } catch (e) {
+      mpcSecurity.clearPin();
+      throw e;
+    }
+    setAddress(meta.address);
+    setCustody("mpc");
     setStatus("unlocked");
-    void attestDevice(security).catch(() => {});
-  }, [security]);
+  }, [security, mpcSecurity]);
 
   // ── Export ──────────────────────────────────────────────────────────────
   const exportWallet = useCallback(() => {
@@ -268,6 +303,8 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
     status,
     address,
     security,
+    mpcSecurity,
+    custody,
     create,
     unlock,
     lock,

@@ -34,7 +34,7 @@ export function proxy(request: NextRequest) {
   const csp = isDev
     ? [
         `default-src 'self'`,
-        `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`, // 'unsafe-eval' needed for Next.js dev
+        `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' 'wasm-unsafe-eval'`, // 'unsafe-eval' for Next.js dev; 'wasm-unsafe-eval' for the MPC DKLS wasm
         `style-src 'self' 'unsafe-inline'`,
         `img-src 'self' data: https://assets.coingecko.com https://coin-images.coingecko.com https://static.coingecko.com`,
         `connect-src 'self' https://*.alchemy.com https://rpc.ankr.com https://ethereum.publicnode.com https://polygon-bor.publicnode.com https://arb1.arbitrum.io https://mainnet.base.org https://mainnet.optimism.io ws://localhost:* http://localhost:*`, // WebSocket for HMR
@@ -44,7 +44,7 @@ export function proxy(request: NextRequest) {
       ].join("; ")
     : [
         `default-src 'self'`,
-        `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+        `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'`, // 'wasm-unsafe-eval' for the MPC DKLS wasm (does not permit JS eval)
         `style-src 'self' 'unsafe-inline'`,
         `img-src 'self' data: https://assets.coingecko.com https://coin-images.coingecko.com https://static.coingecko.com`,
         `connect-src 'self' https://*.alchemy.com https://rpc.ankr.com https://ethereum.publicnode.com https://polygon-bor.publicnode.com https://arb1.arbitrum.io https://mainnet.base.org https://mainnet.optimism.io`,

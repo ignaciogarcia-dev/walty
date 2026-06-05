@@ -75,6 +75,7 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
     if (nextBase === "/onboarding/create-wallet") {
       ;[
         "/onboarding/create-wallet",
+        "/onboarding/recovery-kit",
         "/onboarding/recovery-phrase",
         "/onboarding/confirm-recovery",
         "/onboarding/create-pin",

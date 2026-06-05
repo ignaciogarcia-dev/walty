@@ -17,6 +17,10 @@ import {
   type RefreshResult,
   type SignResult,
 } from "../../lib/mpc/MpcDeviceParty"
+// esbuild's `--loader:.wasm=file` resolves this to a URL and emits the asset
+// alongside the bundle (run.ts asserts the emission). The lib no longer imports
+// the wasm itself, so the esbuild-specific import lives here in the harness.
+import wasmUrl from "@silencelaboratories/dkls-wasm-ll-web/dkls-wasm-ll-web_bg.wasm"
 
 type InMsg =
   | { id: number; type: "init"; wasmUrl?: string }
@@ -47,7 +51,7 @@ function post(msg: unknown): void {
 async function handle(msg: InMsg): Promise<void> {
   switch (msg.type) {
     case "init": {
-      await initMpcWasm(msg.wasmUrl)
+      await initMpcWasm(msg.wasmUrl ?? (wasmUrl as unknown as string))
       post({ id: msg.id, type: "ready" })
       return
     }
