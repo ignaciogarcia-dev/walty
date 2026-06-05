@@ -22,6 +22,7 @@ import {
   getOperatorTokenBalances,
   operatorHasBalance,
 } from "@walty/shared/business/operatorBalance"
+import { getActiveMpcKey, isMpcBusiness } from "@walty/shared/business/mpcStatus"
 import { Permission } from "@walty/shared/permissions"
 import {
   canDeleteInvitation,
@@ -78,12 +79,17 @@ businessRouter.get(
     const businessName =
       businessSetting?.name ?? businessUser?.email ?? "Business"
 
+    // businessId is the owner's userId (for a cashier too), so this reflects the
+    // owner's custody — drives the keyless-cashier UI branches on the client.
+    const isMpc = await isMpcBusiness(business.businessId)
+
     res.json({
       isOwner: business.isOwner,
       role: business.role,
       businessId: business.businessId,
       merchantWalletAddress,
       businessName,
+      isMpc,
     })
   }),
 )
@@ -213,28 +219,44 @@ businessRouter.post(
     if (!VALID_ROLES.includes(role as MemberRole)) {
       throw new ValidationError("role must be cashier")
     }
-    if (!walletAddress || !isAddress(walletAddress)) {
-      throw new ValidationError("valid walletAddress is required")
-    }
-    if (
-      !derivationIndex ||
-      typeof derivationIndex !== "number" ||
-      derivationIndex < 1
-    ) {
-      throw new ValidationError(
-        "valid derivationIndex is required (must be >= 1)",
-      )
-    }
 
-    const indexTaken = await db.query.businessMembers.findFirst({
-      where: and(
-        eq(businessMembers.businessId, business.businessId),
-        eq(businessMembers.derivationIndex, derivationIndex),
-      ),
-      columns: { id: true },
-    })
-    if (indexTaken) {
-      throw new ValidationError("derivation index already in use for this business")
+    // MPC business: cashiers are keyless. The owner can't HD-derive a per-operator
+    // address (no seed), so the member receives to the business MPC address and
+    // carries no derivationIndex. Legacy mnemonic businesses keep the HD path.
+    const mpcKey = await getActiveMpcKey(business.businessId)
+    let memberWalletAddress: string
+    let memberDerivationIndex: number | null
+
+    if (mpcKey) {
+      memberWalletAddress = mpcKey.address
+      memberDerivationIndex = null
+    } else {
+      if (!walletAddress || !isAddress(walletAddress)) {
+        throw new ValidationError("valid walletAddress is required")
+      }
+      if (
+        !derivationIndex ||
+        typeof derivationIndex !== "number" ||
+        derivationIndex < 1
+      ) {
+        throw new ValidationError(
+          "valid derivationIndex is required (must be >= 1)",
+        )
+      }
+
+      const indexTaken = await db.query.businessMembers.findFirst({
+        where: and(
+          eq(businessMembers.businessId, business.businessId),
+          eq(businessMembers.derivationIndex, derivationIndex),
+        ),
+        columns: { id: true },
+      })
+      if (indexTaken) {
+        throw new ValidationError("derivation index already in use for this business")
+      }
+
+      memberWalletAddress = walletAddress
+      memberDerivationIndex = derivationIndex
     }
 
     const days = Math.min(Math.max(Number(expiresInDays) || 7, 1), 30)
@@ -251,8 +273,8 @@ businessRouter.post(
           inviteEmail: inviteEmail ?? null,
           invitedBy: auth.userId,
           expiresAt,
-          derivationIndex,
-          walletAddress,
+          derivationIndex: memberDerivationIndex,
+          walletAddress: memberWalletAddress,
         })
         .returning()
     } catch (err) {
@@ -275,8 +297,8 @@ businessRouter.post(
         memberId: member.id,
         role,
         inviteEmail: inviteEmail ?? null,
-        derivationIndex,
-        walletAddress,
+        derivationIndex: member.derivationIndex,
+        walletAddress: member.walletAddress,
       },
       ip,
     )
@@ -357,7 +379,12 @@ businessRouter.patch(
     }
 
     if (action === "revoke") {
-      if (member.walletAddress) {
+      // For an MPC business the member's walletAddress IS the business treasury
+      // address (always funded), so the per-operator balance guard doesn't apply —
+      // there's no sweepable operator wallet and no lingering key. Revoke is a
+      // pure status flip. Mnemonic businesses keep the guard.
+      const mpcKey = await getActiveMpcKey(business.businessId)
+      if (!mpcKey && member.walletAddress) {
         const hasBal = await operatorHasBalance(member.walletAddress)
         if (hasBal) {
           logSecurityEvent({

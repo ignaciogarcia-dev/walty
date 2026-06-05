@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm"
+import { and, desc, eq, inArray, isNotNull } from "drizzle-orm"
 import { Router } from "express"
 import { isAddress, isHex, type Hex } from "viem"
 import {
@@ -296,11 +296,15 @@ refundRequestsRouter.patch(
         throw new NotFoundError("original payment request not found")
       }
 
+      // Only HD operators carry a derivationIndex. Keyless MPC cashiers share the
+      // business address (derivationIndex null), so scoping to non-null keeps the
+      // MPC refund unambiguously owner-signed.
       const operatorMember = payment.merchantWalletAddress
         ? await db.query.businessMembers.findFirst({
             where: and(
               eq(businessMembers.businessId, business.businessId),
               eq(businessMembers.walletAddress, payment.merchantWalletAddress),
+              isNotNull(businessMembers.derivationIndex),
             ),
             columns: { derivationIndex: true },
           })
