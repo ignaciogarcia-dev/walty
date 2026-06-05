@@ -15,12 +15,15 @@ import { formatUnits, parseUnits } from "viem";
 import type { Token } from "@walty/shared/tokens/tokenRegistry";
 import { getPublicClient } from "@walty/shared/rpc/getPublicClient";
 import { signIntent } from "@/lib/transactions/signIntent";
+import { signIntentMpc } from "@/lib/transactions/signIntentMpc";
 import {
   createTxIntent,
   broadcastTxIntent,
   confirmTxIntent,
 } from "@/lib/tx-intents/client";
 import type { WalletSecurityManager } from "@/lib/wallet/WalletSecurityManager";
+import type { MpcSecurityManager } from "@/lib/mpc/MpcSecurityManager";
+import type { WalletCustody } from "@/hooks/useWalletLifecycle";
 import { PAYMENT_CHAIN_ID_POLYGON } from "@/lib/wallet/OperatorWalletManager";
 
 export type CollectStatus =
@@ -50,6 +53,8 @@ export function useOperatorWalletCollection(
   address: string | null,
   security: WalletSecurityManager,
   loadBalance: (addr: string) => Promise<void>,
+  mpcSecurity: MpcSecurityManager,
+  custody: WalletCustody,
 ): UseOperatorWalletCollectionResult {
   const [collectStatus, setCollectStatus] = useState<CollectStatus>("idle");
   const [collectTxHash, setCollectTxHash] = useState<string | null>(null);
@@ -60,6 +65,19 @@ export function useOperatorWalletCollection(
     setCollectTxHash(null);
     setCollectError(null);
   }, []);
+
+  // Sign by custody. Under MPC, an operator collection (derivationIndex>=1) signs
+  // at the cashier's child path m/index; the owner's gas top-up (no index) signs
+  // at master. Legacy custody HD-derives from the seed.
+  const signOne = useCallback(
+    (intentId: string, derivationIndex?: number) => {
+      if (custody === "mpc") {
+        return signIntentMpc(intentId, mpcSecurity, derivationIndex ?? 0);
+      }
+      return signIntent(intentId, security, address!, derivationIndex);
+    },
+    [custody, mpcSecurity, security, address],
+  );
 
   // ── deriveOperatorAddress ──────────────────────────────────────────────
   const deriveOperatorAddress = useCallback(
@@ -142,7 +160,7 @@ export function useOperatorWalletCollection(
             "gas_funding",
           );
 
-          await signIntent(gasIntent.id, security, address);
+          await signOne(gasIntent.id);
           const gasBroadcasted = await broadcastTxIntent(gasIntent.id);
           const gasHash = gasBroadcasted.txHash!;
 
@@ -196,12 +214,7 @@ export function useOperatorWalletCollection(
           "collection",
         );
 
-        await signIntent(
-          collectIntent.id,
-          security,
-          address,
-          derivationIndex,
-        );
+        await signOne(collectIntent.id, derivationIndex);
 
         const collectBroadcasted = await broadcastTxIntent(collectIntent.id);
         const collectHash = collectBroadcasted.txHash!;
@@ -238,6 +251,7 @@ export function useOperatorWalletCollection(
       address,
       security,
       loadBalance,
+      signOne,
     ],
   );
 

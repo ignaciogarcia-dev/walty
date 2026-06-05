@@ -25,6 +25,7 @@ import type { MpcSecurityManager } from "@/lib/mpc/MpcSecurityManager"
 export async function signIntentMpc(
   intentId: string,
   mpcSecurity: MpcSecurityManager,
+  derivationIndex = 0,
 ): Promise<{ token: Token; payload: TxIntentPayload }> {
   let intent = await getTxIntent(intentId)
   if (intent.status === "failed") {
@@ -46,7 +47,11 @@ export async function signIntentMpc(
   }
 
   const signedRaw = await mpcSecurity.withDeviceShare(async ({ shareBytes, meta }) => {
-    if (getAddress(meta.address) !== from) {
+    // The owner (master, index 0) signs from its own address. A cashier tx
+    // (derivationIndex>=1) signs from the HD child address m/index, which the
+    // device share meta doesn't carry — the recoverAddress check below verifies
+    // the signature recovers `from` instead.
+    if (derivationIndex === 0 && getAddress(meta.address) !== from) {
       throw new Error(
         "The unlocked wallet does not match the account that must sign this transaction",
       )
@@ -70,7 +75,12 @@ export async function signIntentMpc(
     const client = getMpcClient()
     try {
       await client.connect()
-      const { serverSignature } = await client.runSign(meta.keyId, shareBytes, signHash)
+      const { serverSignature } = await client.runSign(
+        meta.keyId,
+        shareBytes,
+        signHash,
+        derivationIndex,
+      )
       if (!serverSignature) {
         throw new Error("MPC ceremony returned no signature")
       }

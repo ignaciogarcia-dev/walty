@@ -10,6 +10,8 @@ export type BusinessContextData = {
   businessId: number
   merchantWalletAddress: string | null
   businessName: string
+  /** True when the business owner is on MPC custody — cashiers get HD child addresses. */
+  isMpc: boolean
 }
 
 export const BUSINESS_CONTEXT_QUERY_KEY = ["business-context"] as const

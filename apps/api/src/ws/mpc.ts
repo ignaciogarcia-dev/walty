@@ -162,6 +162,8 @@ export function registerMpcNamespace(
           ceremonyType: input.ceremonyType as MpcCeremonyType,
           keyId: input.keyId,
           signHash: input.signHash as `0x${string}` | undefined,
+          derivationIndex: input.derivationIndex,
+          derive: input.derive,
         })
         state.ceremonies.set(ceremony.ceremonyId, ceremony)
         // Reserve the per-user slot; the one-shot teardown hook releases it +

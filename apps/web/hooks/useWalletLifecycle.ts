@@ -37,6 +37,7 @@ import {
   type MpcSecurityManager,
 } from "@/lib/mpc/MpcSecurityManager";
 import { getDeviceShareMeta } from "@/lib/mpc/deviceShareStore";
+import { getMpcClient } from "@/lib/mpc/getMpcClient";
 import { createWalletSessionManager } from "@/lib/wallet/WalletSessionManager";
 import { attestDevice } from "@/lib/wallet/attestDevice";
 
@@ -62,6 +63,8 @@ export interface UseWalletLifecycleResult {
   importWallet: (file: File) => Promise<void>;
   createBackup: (pin: string) => Promise<void>;
   recoverWallet: (pin: string, newPin: string) => Promise<void>;
+  /** MPC custody: derive cashier `index`'s HD child address (m/index). */
+  deriveCashierAddress: (index: number) => Promise<string>;
   linkWallet: (
     addr: string,
     walletClient: ReturnType<typeof getWalletClient>,
@@ -299,6 +302,24 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
     [security],
   );
 
+  // ── Derive a cashier's HD child address (MPC custody) ────────────────────
+  // Runs the derive ceremony at m/index via the owner's MPC quorum; the cashier
+  // stays keyless. Requires the device share unlocked (PIN).
+  const deriveCashierAddress = useCallback(
+    async (index: number): Promise<string> => {
+      return mpcSecurity.withDeviceShare(async ({ shareBytes, meta }) => {
+        const client = getMpcClient();
+        try {
+          await client.connect();
+          return await client.deriveChildAddress(meta.keyId, shareBytes, index);
+        } finally {
+          await client.close();
+        }
+      });
+    },
+    [mpcSecurity],
+  );
+
   return {
     status,
     address,
@@ -315,5 +336,6 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
     createBackup,
     recoverWallet,
     linkWallet,
+    deriveCashierAddress,
   };
 }

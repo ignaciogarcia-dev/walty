@@ -12,8 +12,8 @@
 // One submitRound call per protocol step. Payload is base64(JSON(string[])) of
 // base64 wire frames. Never logs payloads or share bytes.
 
-import { eq } from "drizzle-orm"
-import { db, mpcKeys, mpcServerShares } from "@walty/db"
+import { and, eq } from "drizzle-orm"
+import { db, mpcKeys, mpcServerShares, mpcChildAddresses } from "@walty/db"
 import { randomUUID } from "node:crypto"
 import type { MpcCeremonyType } from "@walty/shared/mpc/messages"
 import {
@@ -107,6 +107,19 @@ export interface CeremonyInit {
   keyId?: string
   /** For sign: the 32-byte message hash (0x-prefixed) to be signed. */
   signHash?: `0x${string}`
+  /**
+   * HD-under-MPC index for sign: omit/0 = owner master ("m"); i>=1 = cashier i's
+   * child key ("m/i"). A child index must already be registered in
+   * mpc_child_addresses (so the server knows the address to assemble against),
+   * unless `derive` is set.
+   */
+  derivationIndex?: number
+  /**
+   * Derive mode: sign at m/i purely to learn the child address (the client
+   * recovers it from the device [R,S]). The server skips assembly and does not
+   * require the address to be registered. Only valid with derivationIndex>=1.
+   */
+  derive?: boolean
 }
 
 type Engine =
@@ -119,6 +132,9 @@ type Engine =
       hash: `0x${string}`
       address: string
       lastSent: boolean
+      /** Derive mode: signing at m/i only to LEARN the child address (the client
+       *  recovers it from the device [R,S]); the server skips assembly. */
+      derive: boolean
     }
 
 export class Ceremony {
@@ -253,14 +269,41 @@ export class Ceremony {
         where: eq(mpcKeys.id, init.keyId),
       })
       if (!keyRow) throw new CeremonyError("ownership", "key not found")
-      const party = new MpcServerSign(loaded.keyshareBytes)
+
+      // HD path + the address we'll assemble/verify against. Master ("m") is the
+      // owner; a child ("m/i") is a cashier's derived key. In DERIVE mode we sign
+      // at m/i only to let the client learn the address (it recovers it from the
+      // device [R,S]); the server skips assembly and the address need not exist
+      // yet. In normal mode a child address must already be registered.
+      const index = init.derivationIndex ?? 0
+      const derive = init.derive === true && index > 0
+      let path = "m"
+      let signAddress = keyRow.address
+      if (index > 0) {
+        path = `m/${index}`
+        if (!derive) {
+          const child = await db.query.mpcChildAddresses.findFirst({
+            where: and(
+              eq(mpcChildAddresses.keyId, init.keyId),
+              eq(mpcChildAddresses.derivationIndex, index),
+            ),
+          })
+          if (!child) {
+            throw new CeremonyError("invalid_payload", `child address not registered for index ${index}`)
+          }
+          signAddress = child.address
+        }
+      }
+
+      const party = new MpcServerSign(loaded.keyshareBytes, path)
       ceremony.engine = {
         kind: "sign",
         party,
         keyId: init.keyId,
         hash: init.signHash,
-        address: keyRow.address,
+        address: signAddress,
         lastSent: false,
+        derive,
       }
       const firstOutbound = encodeBundle(party.firstMessage())
       ceremony.status = "running"
@@ -491,6 +534,13 @@ export class Ceremony {
 
     // step 4: inbound is the peer's last message(s) to combine
     if (eng.lastSent) {
+      // Derive mode: the device already produced its own [R,S] (the client uses
+      // it to recover the child address). The server has nothing to assemble — it
+      // doesn't know the address yet — so just complete.
+      if (eng.derive) {
+        this.teardown("completed")
+        return { outbound: encodeBundle([]), done: true, expiresAt: this.deadline }
+      }
       const sig = await party.combineAndAssemble(
         inbound,
         eng.hash,

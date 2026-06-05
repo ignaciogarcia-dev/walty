@@ -39,6 +39,8 @@ export function useWallet() {
     lifecycle.address,
     lifecycle.security,
     history.loadBalance,
+    lifecycle.mpcSecurity,
+    lifecycle.custody,
   );
 
   return {
@@ -55,6 +57,7 @@ export function useWallet() {
     importWallet: lifecycle.importWallet,
     createBackup: lifecycle.createBackup,
     recoverWallet: lifecycle.recoverWallet,
+    deriveCashierAddress: lifecycle.deriveCashierAddress,
 
     // Transfer — used by signAndBroadcastIntent (refund flow)
     txStatus: transfer.txStatus,

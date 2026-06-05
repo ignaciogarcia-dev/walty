@@ -22,6 +22,8 @@ import {
   getOperatorTokenBalances,
   operatorHasBalance,
 } from "@walty/shared/business/operatorBalance"
+import { getActiveMpcKey, isMpcBusiness } from "@walty/shared/business/mpcStatus"
+import { registerChildAddress } from "../services/mpc/MpcServerParty.js"
 import { Permission } from "@walty/shared/permissions"
 import {
   canDeleteInvitation,
@@ -78,12 +80,17 @@ businessRouter.get(
     const businessName =
       businessSetting?.name ?? businessUser?.email ?? "Business"
 
+    // businessId is the owner's userId (even for a cashier), so this reflects the
+    // owner's custody — drives the MPC vs mnemonic invite flow on the client.
+    const isMpc = await isMpcBusiness(business.businessId)
+
     res.json({
       isOwner: business.isOwner,
       role: business.role,
       businessId: business.businessId,
       merchantWalletAddress,
       businessName,
+      isMpc,
     })
   }),
 )
@@ -265,6 +272,15 @@ businessRouter.post(
         throw new ValidationError("derivation-index-conflict")
       }
       throw err
+    }
+
+    // MPC business: the walletAddress is an HD child (m/derivationIndex) the owner
+    // derived via the MPC quorum. Register it so the sign ceremony can assemble a
+    // child signature for this cashier's refunds. (A wrong address would only break
+    // signing for this index — sign won't recover it — so trusting the owner is safe.)
+    const mpcKey = await getActiveMpcKey(business.businessId)
+    if (mpcKey) {
+      await registerChildAddress(mpcKey.keyId, derivationIndex, walletAddress)
     }
 
     writeAuditLog(
