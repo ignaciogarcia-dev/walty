@@ -25,6 +25,11 @@ vi.mock("@walty/shared/business/operatorBalance", () => ({
   getOperatorSingleTokenBalance: vi.fn(async () => 0n),
 }))
 
+vi.mock("@walty/shared/business/mpcStatus", () => ({
+  getActiveMpcKey: vi.fn(async () => null),
+  isMpcBusiness: vi.fn(async () => false),
+}))
+
 vi.mock("@walty/db", () => ({
   db: {
     query: {
