@@ -32,6 +32,8 @@ export function useWallet() {
     lifecycle.security,
     history.loadTxHistory,
     history.loadBalance,
+    lifecycle.mpcSecurity,
+    lifecycle.custody,
   );
   const collection = useOperatorWalletCollection(
     lifecycle.address,
