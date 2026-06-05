@@ -394,6 +394,20 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
     expect(row!.status).toBe("active")
   })
 
+  it("DKG registers the MPC address as the owner's linked address", async () => {
+    userId = await createTestUser()
+    const dkg = await runDkgCeremony(userId)
+
+    const keyRow = await db.query.mpcKeys.findFirst({
+      where: (k, { eq }) => eq(k.id, dkg.keyId),
+    })
+    const addrRow = await db.query.addresses.findFirst({
+      where: (a, { eq }) => eq(a.userId, userId),
+    })
+    expect(addrRow).toBeTruthy()
+    expect(addrRow!.address.toLowerCase()).toBe(keyRow!.address.toLowerCase())
+  })
+
   it("sign (device+server) yields a signature recovering the DKG address", async () => {
     userId = await createTestUser()
     const dkg = await runDkgCeremony(userId)
