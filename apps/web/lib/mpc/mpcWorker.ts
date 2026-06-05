@@ -48,6 +48,8 @@ type InMsg =
       ceremony: "sign"
       deviceShareBytes: Uint8Array
       hash: Uint8Array
+      /** HD chain path: "m" (owner) or "m/i" (cashier i). */
+      path?: string
     }
   | { id: number; type: "round"; serverBundle: string }
   | { id: number; type: "free" }
@@ -86,7 +88,7 @@ async function handle(msg: InMsg): Promise<void> {
       } else if (msg.ceremony === "refresh") {
         outboundBundle = party.startRefresh(msg.deviceShareBytes, msg.backupShareBytes)
       } else {
-        outboundBundle = party.startSign(msg.deviceShareBytes, msg.hash)
+        outboundBundle = party.startSign(msg.deviceShareBytes, msg.hash, msg.path)
       }
       post({ id: msg.id, type: "outbound", outboundBundle })
       return

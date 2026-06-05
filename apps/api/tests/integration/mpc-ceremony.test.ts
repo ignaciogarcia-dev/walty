@@ -22,11 +22,13 @@ process.env.MPC_KMS_DEV_KEK =
 import { beforeAll, describe, expect, it } from "vitest"
 import {
   KeygenSession,
+  Keyshare,
   Message,
   SignSession,
 } from "@silencelaboratories/dkls-wasm-ll-node"
-import { keccak256, toHex, recoverAddress, type Hex } from "viem"
-import { db, users, mpcKeys } from "@walty/db"
+import { keccak256, toHex, recoverAddress, recoverPublicKey, type Hex } from "viem"
+import { publicKeyToAddress } from "viem/utils"
+import { db, users, mpcKeys, mpcChildAddresses } from "@walty/db"
 import { randomUUID } from "node:crypto"
 import { Ceremony, CeremonyError } from "../../src/services/mpc/ceremony.js"
 
@@ -114,6 +116,57 @@ function freeAll(objs: Array<{ free(): void } | null | undefined>): void {
 }
 
 const NOW_PLUS = () => Date.now() + 20_000
+
+// --- HD child-address derivation (pure local, mirrors mpc-hd-spike.ts) --------
+
+const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n
+const HALF_N = SECP256K1_N / 2n
+function bytesToBig(u: Uint8Array): bigint {
+  return BigInt(u8ToHex(u))
+}
+function hashOf(msg: string): { hex: Hex; bytes: Uint8Array } {
+  const hex = keccak256(toHex(msg))
+  const bytes = Uint8Array.from((hex.slice(2).match(/.{2}/g) as string[]).map((h) => parseInt(h, 16)))
+  return { hex, bytes }
+}
+/** Raw 2-party sign over share buffers at `path`, routed by real partyId. */
+function localSign(shareBuffers: Buffer[], hash: Uint8Array, path: string): { r: Uint8Array; s: Uint8Array } {
+  const ks = shareBuffers.map((b) => Keyshare.fromBytes(b))
+  const ids = ks.map((k) => k.partyId)
+  const parties = ks.map((k) => new SignSession(k, path))
+  const m1 = parties.map((p) => p.createFirstMessage())
+  const m2 = parties.flatMap((p, i) => p.handleMessages(filter(m1, ids[i])))
+  const m3 = parties.flatMap((p, i) => p.handleMessages(select(m2, ids[i])))
+  parties.forEach((p, i) => p.handleMessages(select(m3, ids[i])))
+  const m4 = parties.map((p) => p.lastMessage(hash))
+  const sigs = parties.map((p, i) => p.combine(filter(m4, ids[i])))
+  const [R, S] = sigs[0] as [Uint8Array, Uint8Array]
+  return { r: R, s: S }
+}
+async function candidatePubkeys(r: Uint8Array, s: Uint8Array, hash: Hex): Promise<Set<string>> {
+  let sBig = bytesToBig(s)
+  if (sBig > HALF_N) sBig = SECP256K1_N - sBig
+  const rHex = u8ToHex(r)
+  const sHex = ("0x" + sBig.toString(16).padStart(64, "0")) as Hex
+  const out = new Set<string>()
+  for (const yParity of [0, 1] as const) {
+    try { out.add(await recoverPublicKey({ hash, signature: { r: rHex, s: sHex, yParity } })) } catch { /* skip */ }
+  }
+  return out
+}
+/** Learn a child address from signatures alone (two hashes, intersect pubkeys). */
+async function deriveChildLocal(shareBuffers: Buffer[], index: number): Promise<string> {
+  const path = `m/${index}`
+  const h1 = hashOf("hd-derive-1")
+  const h2 = hashOf("hd-derive-2")
+  const sig1 = localSign(shareBuffers, h1.bytes, path)
+  const sig2 = localSign(shareBuffers, h2.bytes, path)
+  const c1 = await candidatePubkeys(sig1.r, sig1.s, h1.hex)
+  const c2 = await candidatePubkeys(sig2.r, sig2.s, h2.hex)
+  const common = [...c1].filter((p) => c2.has(p))
+  if (common.length !== 1) throw new Error(`ambiguous child pubkey (${common.length})`)
+  return publicKeyToAddress(common[0] as Hex)
+}
 
 async function createTestUser(): Promise<number> {
   const [u] = await db
@@ -264,15 +317,17 @@ async function runSignCeremony(
   keyId: string,
   deviceShareBytes: Buffer,
   hashHex: Hex,
+  derivationIndex = 0,
 ): Promise<{ r: Hex; s: Hex; yParity: 0 | 1 }> {
   const hashBytes = Uint8Array.from(
     (hashHex.slice(2).match(/.{2}/g) as string[]).map((h) => parseInt(h, 16)),
   )
+  const path = derivationIndex > 0 ? `m/${derivationIndex}` : "m"
   const deviceSign = new SignSession(
     (await import("@silencelaboratories/dkls-wasm-ll-node")).Keyshare.fromBytes(
       deviceShareBytes,
     ),
-    "m",
+    path,
   )
 
   const { ceremony, firstOutbound } = await Ceremony.create({
@@ -280,6 +335,7 @@ async function runSignCeremony(
     ceremonyType: "sign",
     keyId,
     signHash: hashHex,
+    derivationIndex,
   })
 
   // R1
@@ -558,6 +614,50 @@ describe("MPC Ceremony orchestrator (real WASM + real DB)", () => {
       signature: { r: sig.r, s: sig.s, yParity: sig.yParity },
     })
     expect(recovered.toLowerCase()).toBe(after!.address.toLowerCase())
+  })
+
+  // --- HD-under-MPC child signing ------------------------------------------
+
+  it("sign at m/1 recovers the registered child address (not the master)", async () => {
+    userId = await createTestUser()
+    const dkg = await runDkgCeremony(userId)
+    const masterRow = await db.query.mpcKeys.findFirst({
+      where: (k, { eq }) => eq(k.id, dkg.keyId),
+    })
+    const masterAddr = masterRow!.address
+
+    // Derive cashier-1's child address (device+backup quorum, local) and register it.
+    const childAddr = await deriveChildLocal(
+      [dkg.deviceShareBytes, dkg.backupShareBytes],
+      1,
+    )
+    expect(childAddr.toLowerCase()).not.toBe(masterAddr.toLowerCase())
+    await db
+      .insert(mpcChildAddresses)
+      .values({ keyId: dkg.keyId, derivationIndex: 1, address: childAddr })
+
+    // Sign at m/1 through the real ceremony — must recover the child address.
+    const hashHex = keccak256(toHex("hd-child-sign"))
+    const sig = await runSignCeremony(userId, dkg.keyId, dkg.deviceShareBytes, hashHex, 1)
+    const recovered = await recoverAddress({
+      hash: hashHex,
+      signature: { r: sig.r, s: sig.s, yParity: sig.yParity },
+    })
+    expect(recovered.toLowerCase()).toBe(childAddr.toLowerCase())
+  })
+
+  it("rejects a child sign whose index is not registered", async () => {
+    userId = await createTestUser()
+    const dkg = await runDkgCeremony(userId)
+    await expect(
+      Ceremony.create({
+        userId,
+        ceremonyType: "sign",
+        keyId: dkg.keyId,
+        signHash: keccak256(toHex("unregistered")),
+        derivationIndex: 7,
+      }),
+    ).rejects.toMatchObject({ reason: "invalid_payload" })
   })
 
   // --- Protocol guards -----------------------------------------------------

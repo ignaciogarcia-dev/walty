@@ -285,3 +285,16 @@ export const mpcServerShares = pgTable("mpc_server_shares", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
+// HD-under-MPC child addresses for a key. derivationIndex 0 = master (owner);
+// i>=1 = cashier i's child key ("m/i"). Server-authoritative: a row is written
+// when the address is derived (server intersects its own sign [R,S]); the sign
+// ceremony looks it up to assemble/verify a child signature.
+export const mpcChildAddresses = pgTable("mpc_child_addresses", {
+  keyId: uuid("key_id").notNull().references(() => mpcKeys.id, { onDelete: "cascade" }),
+  derivationIndex: integer("derivation_index").notNull(),
+  address: text("address").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  uq: uniqueIndex("mpc_child_addresses_key_index_uq").on(t.keyId, t.derivationIndex),
+}))
+

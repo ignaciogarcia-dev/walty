@@ -12,8 +12,8 @@
 // One submitRound call per protocol step. Payload is base64(JSON(string[])) of
 // base64 wire frames. Never logs payloads or share bytes.
 
-import { eq } from "drizzle-orm"
-import { db, mpcKeys, mpcServerShares } from "@walty/db"
+import { and, eq } from "drizzle-orm"
+import { db, mpcKeys, mpcServerShares, mpcChildAddresses } from "@walty/db"
 import { randomUUID } from "node:crypto"
 import type { MpcCeremonyType } from "@walty/shared/mpc/messages"
 import {
@@ -107,6 +107,12 @@ export interface CeremonyInit {
   keyId?: string
   /** For sign: the 32-byte message hash (0x-prefixed) to be signed. */
   signHash?: `0x${string}`
+  /**
+   * HD-under-MPC index for sign: omit/0 = owner master ("m"); i>=1 = cashier i's
+   * child key ("m/i"). A child index must already be registered in
+   * mpc_child_addresses (so the server knows the address to assemble against).
+   */
+  derivationIndex?: number
 }
 
 type Engine =
@@ -253,13 +259,34 @@ export class Ceremony {
         where: eq(mpcKeys.id, init.keyId),
       })
       if (!keyRow) throw new CeremonyError("ownership", "key not found")
-      const party = new MpcServerSign(loaded.keyshareBytes)
+
+      // HD path + the address we'll assemble/verify the signature against. The
+      // master ("m") is the owner; a child ("m/i") is a cashier's derived key,
+      // whose address must already be registered in mpc_child_addresses.
+      const index = init.derivationIndex ?? 0
+      let path = "m"
+      let signAddress = keyRow.address
+      if (index > 0) {
+        const child = await db.query.mpcChildAddresses.findFirst({
+          where: and(
+            eq(mpcChildAddresses.keyId, init.keyId),
+            eq(mpcChildAddresses.derivationIndex, index),
+          ),
+        })
+        if (!child) {
+          throw new CeremonyError("invalid_payload", `child address not registered for index ${index}`)
+        }
+        path = `m/${index}`
+        signAddress = child.address
+      }
+
+      const party = new MpcServerSign(loaded.keyshareBytes, path)
       ceremony.engine = {
         kind: "sign",
         party,
         keyId: init.keyId,
         hash: init.signHash,
-        address: keyRow.address,
+        address: signAddress,
         lastSent: false,
       }
       const firstOutbound = encodeBundle(party.firstMessage())

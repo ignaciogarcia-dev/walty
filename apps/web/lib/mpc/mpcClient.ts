@@ -307,15 +307,21 @@ export class MpcClient {
     keyId: string,
     deviceShareBytes: Uint8Array,
     signHash: `0x${string}`,
+    derivationIndex = 0,
   ): Promise<SignCeremonyResult> {
     const hash = hashBytesFromSignHash(signHash)
+    // HD path: 0 = owner master ("m"), i>=1 = cashier i's child ("m/i"). Device
+    // and server must agree on the path, so we send the index to the ceremony
+    // and the matching path to the worker.
+    const path = derivationIndex > 0 ? `m/${derivationIndex}` : "m"
     const deviceStart = await this.startDevice({
       type: "start",
       ceremony: "sign",
       deviceShareBytes,
       hash,
+      path,
     })
-    const out = await this.runCeremony("sign", keyId, signHash, deviceStart)
+    const out = await this.runCeremony("sign", keyId, signHash, deviceStart, derivationIndex)
     return {
       keyId: out.keyId,
       result: out.result as SignResult,
@@ -355,6 +361,7 @@ export class MpcClient {
     keyId: string | undefined,
     signHash: `0x${string}` | undefined,
     deviceStart: string,
+    derivationIndex = 0,
   ): Promise<{
     keyId: string
     result: DkgResult | RefreshResult | SignResult
@@ -365,7 +372,7 @@ export class MpcClient {
       throw new MpcClientError("not_connected", "socket not connected")
     }
 
-    const started = await this.startServerCeremony(ceremonyType, keyId, signHash)
+    const started = await this.startServerCeremony(ceremonyType, keyId, signHash, derivationIndex)
     const ceremonyId = started.ceremonyId
     // Round messages need a stable keyId. sign/refresh use the bound keyId; DKG
     // has none until completion, so pick a placeholder uuid the server pins from
@@ -436,6 +443,7 @@ export class MpcClient {
     ceremonyType: "dkg" | "sign" | "refresh",
     keyId: string | undefined,
     signHash: `0x${string}` | undefined,
+    derivationIndex = 0,
   ): Promise<CeremonyStarted> {
     const socket = this.socket!
     return new Promise<CeremonyStarted>((resolve, reject) => {
@@ -462,6 +470,7 @@ export class MpcClient {
         ceremonyType,
         ...(keyId ? { keyId } : {}),
         ...(signHash ? { signHash } : {}),
+        ...(derivationIndex > 0 ? { derivationIndex } : {}),
       })
     })
   }
