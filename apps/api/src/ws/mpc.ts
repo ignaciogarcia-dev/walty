@@ -230,7 +230,7 @@ export function registerMpcNamespace(
         if (result.done) {
           state.ceremonies.delete(ceremony.ceremonyId)
           // DKG/refresh completion proves the device holds the keyshare — trust the session.
-          if (ceremony.ceremonyType === "dkg" || ceremony.ceremonyType === "refresh") {
+          if (ceremony.ceremonyType === "dkg" || ceremony.ceremonyType === "refresh" || ceremony.ceremonyType === "recover") {
             const sid = socket.data.sid as string | undefined
             if (sid) {
               void markSessionTrusted(sid).catch((err) =>

@@ -18,6 +18,7 @@ import { recoverPublicKey, keccak256, toHex, type Hex } from "viem"
 import { publicKeyToAddress } from "viem/utils"
 import type {
   DkgResult,
+  RecoverResult,
   RefreshResult,
   SignResult,
 } from "./MpcDeviceParty"
@@ -54,6 +55,11 @@ export interface RefreshCeremonyResult {
   result: RefreshResult
 }
 
+export interface RecoverCeremonyResult {
+  keyId: string
+  result: RecoverResult
+}
+
 export interface SignCeremonyResult {
   keyId: string
   result: SignResult
@@ -65,7 +71,7 @@ interface WorkerReply {
   id: number
   type: "ready" | "outbound" | "result" | "error"
   outboundBundle?: string
-  result?: DkgResult | RefreshResult | SignResult
+  result?: DkgResult | RecoverResult | RefreshResult | SignResult
   error?: string
 }
 
@@ -304,6 +310,20 @@ export class MpcClient {
     this.workerReady = false
   }
 
+  /**
+   * Recover the lost device share using the user's backup share file.
+   * The server auto-resolves the keyId from the user's account.
+   */
+  async runRecover(backupShareBytes: Uint8Array): Promise<RecoverCeremonyResult> {
+    const deviceStart = await this.startDevice({
+      type: "start",
+      ceremony: "recover",
+      backupShareBytes,
+    })
+    const out = await this.runCeremony("recover", undefined, undefined, deviceStart)
+    return { keyId: out.keyId, result: out.result as RecoverResult }
+  }
+
   /** Run a full DKG. Resolves with the new keyId + the device-side result. */
   async runDkg(): Promise<DkgCeremonyResult> {
     const deviceStart = await this.startDevice({ type: "start", ceremony: "dkg" })
@@ -403,7 +423,7 @@ export class MpcClient {
 
   private deviceRound(
     serverBundle: string,
-  ): Promise<{ outboundBundle: string; done: boolean; result?: DkgResult | RefreshResult | SignResult }> {
+  ): Promise<{ outboundBundle: string; done: boolean; result?: DkgResult | RecoverResult | RefreshResult | SignResult }> {
     if (!this.channel) throw new MpcClientError("not_connected", "worker not started")
     return this.channel
       .call({ type: "round", serverBundle })
@@ -420,7 +440,7 @@ export class MpcClient {
    * server-assigned keyId (and server signature for sign).
    */
   private async runCeremony(
-    ceremonyType: "dkg" | "sign" | "refresh",
+    ceremonyType: "dkg" | "sign" | "refresh" | "recover",
     keyId: string | undefined,
     signHash: `0x${string}` | undefined,
     deviceStart: string,
@@ -428,7 +448,7 @@ export class MpcClient {
     derive = false,
   ): Promise<{
     keyId: string
-    result: DkgResult | RefreshResult | SignResult
+    result: DkgResult | RecoverResult | RefreshResult | SignResult
     serverSignature?: { r: `0x${string}`; s: `0x${string}`; yParity: 0 | 1 }
   }> {
     const socket = this.socket
@@ -451,7 +471,7 @@ export class MpcClient {
       | { r: `0x${string}`; s: `0x${string}`; yParity: 0 | 1 }
       | undefined
     let resolvedKeyId = keyId ?? wireKeyId
-    let deviceResult: DkgResult | RefreshResult | SignResult | undefined
+    let deviceResult: DkgResult | RecoverResult | RefreshResult | SignResult | undefined
 
     // Ceilings real ceremonies (4 rounds) never hit; surfaces stalls vs hang.
     const MAX_ROUNDS = 8
@@ -504,7 +524,7 @@ export class MpcClient {
   }
 
   private startServerCeremony(
-    ceremonyType: "dkg" | "sign" | "refresh",
+    ceremonyType: "dkg" | "sign" | "refresh" | "recover",
     keyId: string | undefined,
     signHash: `0x${string}` | undefined,
     derivationIndex = 0,
@@ -552,7 +572,7 @@ export class MpcClient {
     msg: {
       ceremonyId: string
       keyId: string
-      ceremonyType: "dkg" | "sign" | "refresh"
+      ceremonyType: "dkg" | "sign" | "refresh" | "recover"
       round: number
       sequence: number
       payload: string

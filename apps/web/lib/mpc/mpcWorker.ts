@@ -27,6 +27,7 @@ import {
   MpcDeviceParty,
   initMpcWasm,
   type DkgResult,
+  type RecoverResult,
   type RefreshResult,
   type SignResult,
 } from "./MpcDeviceParty"
@@ -51,6 +52,12 @@ type InMsg =
       /** HD chain path: "m" (owner) or "m/i" (cashier i). */
       path?: string
     }
+  | {
+      id: number
+      type: "start"
+      ceremony: "recover"
+      backupShareBytes: Uint8Array
+    }
   | { id: number; type: "round"; serverBundle: string }
   | { id: number; type: "free" }
 
@@ -61,7 +68,7 @@ type OutMsg =
       id: number
       type: "result"
       outboundBundle: string
-      result: DkgResult | RefreshResult | SignResult
+      result: DkgResult | RefreshResult | RecoverResult | SignResult
     }
   | { id: number; type: "error"; error: string }
 
@@ -87,6 +94,8 @@ async function handle(msg: InMsg): Promise<void> {
         outboundBundle = party.startDkg()
       } else if (msg.ceremony === "refresh") {
         outboundBundle = party.startRefresh(msg.deviceShareBytes, msg.backupShareBytes)
+      } else if (msg.ceremony === "recover") {
+        outboundBundle = party.startRecover(msg.backupShareBytes)
       } else {
         outboundBundle = party.startSign(msg.deviceShareBytes, msg.hash, msg.path)
       }

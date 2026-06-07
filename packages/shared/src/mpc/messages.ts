@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-export const CEREMONY_TYPES = ["dkg", "sign", "refresh"] as const
+export const CEREMONY_TYPES = ["dkg", "sign", "refresh", "recover"] as const
 export const mpcCeremonyType = z.enum(CEREMONY_TYPES)
 export type MpcCeremonyType = z.infer<typeof mpcCeremonyType>
 

@@ -20,6 +20,7 @@ import {
   MpcServerKeygen,
   MpcServerSign,
   MpcServerRefresh,
+  MpcServerRecover,
   loadServerKeyshare,
   persistServerKey,
 } from "./MpcServerParty.js"
@@ -125,6 +126,7 @@ export interface CeremonyInit {
 type Engine =
   | { kind: "dkg"; party: MpcServerKeygen }
   | { kind: "refresh"; party: MpcServerRefresh; keyId: string; ctx: ShareContext }
+  | { kind: "recover"; party: MpcServerRecover; keyId: string; ctx: ShareContext }
   | {
       kind: "sign"
       party: MpcServerSign
@@ -241,6 +243,36 @@ export class Ceremony {
     if (init.ceremonyType === "dkg") {
       const party = new MpcServerKeygen(PARTICIPANTS, THRESHOLD, SERVER_PARTY_ID)
       ceremony.engine = { kind: "dkg", party }
+      const firstOutbound = encodeBundle(party.firstMessage())
+      ceremony.status = "running"
+      ceremony.step = 1
+      ceremony.deadline = Date.now() + roundTimeoutMs()
+      return { ceremony, firstOutbound, expiresAt: ceremony.deadline }
+    }
+
+    if (init.ceremonyType === "recover") {
+      // keyId optional: look up the user's key if not provided (each user has one).
+      let resolvedKeyId = init.keyId
+      if (!resolvedKeyId) {
+        const key = await db.query.mpcKeys.findFirst({
+          where: eq(mpcKeys.userId, init.userId),
+        })
+        if (!key) throw new CeremonyError("key_required", "no MPC key found for user")
+        resolvedKeyId = key.id
+      }
+      await ceremony.assertKeyOwnership(resolvedKeyId)
+      ceremony.keyId = resolvedKeyId
+
+      let loaded
+      try {
+        loaded = await loadServerKeyshare(resolvedKeyId)
+      } catch {
+        throw new CeremonyError("internal", "unable to load server keyshare")
+      }
+
+      const LOST_SHARES = new Uint8Array([0]) // party 0 (device) is lost
+      const party = new MpcServerRecover(loaded.keyshareBytes, LOST_SHARES)
+      ceremony.engine = { kind: "recover", party, keyId: resolvedKeyId, ctx: loaded.ctx }
       const firstOutbound = encodeBundle(party.firstMessage())
       ceremony.status = "running"
       ceremony.step = 1
@@ -414,7 +446,9 @@ export class Ceremony {
           ? await this.stepDkg(inbound)
           : this.ceremonyType === "refresh"
             ? await this.stepRefresh(inbound)
-            : await this.stepSign(inbound)
+            : this.ceremonyType === "recover"
+              ? await this.stepRecover(inbound)
+              : await this.stepSign(inbound)
 
       // advance guard state only after the engine accepted the step, so a
       // rejected message doesn't burn the sequence
@@ -430,6 +464,8 @@ export class Ceremony {
         this.abort("engine_error")
       }
       if (err instanceof CeremonyError) throw err
+      // Log the raw error before wrapping so we can diagnose WASM failures
+      console.error("[ceremony] engine error at step", this.step, "type", this.ceremonyType, ":", err instanceof Error ? err.message : err)
       throw new CeremonyError("internal", "ceremony step failed")
     }
   }
@@ -498,6 +534,53 @@ export class Ceremony {
       const nextVersion = ctx.version + 1
       const newCtx: ShareContext = { ...ctx, version: nextVersion }
       const enc = await encryptShare(newCtx, refreshed.keyshareBytes)
+      await db
+        .update(mpcServerShares)
+        .set({
+          ciphertext: enc.ciphertext,
+          nonce: enc.nonce,
+          wrappedDek: enc.wrappedDek,
+          version: enc.version,
+        })
+        .where(eq(mpcServerShares.keyId, keyId))
+      await db
+        .update(mpcKeys)
+        .set({ version: nextVersion })
+        .where(eq(mpcKeys.id, keyId))
+    } finally {
+      this.teardown("completed")
+    }
+    return {
+      outbound: encodeBundle([]),
+      done: true,
+      keyId,
+      expiresAt: this.deadline,
+    }
+  }
+
+  private async stepRecover(inbound: Uint8Array[]): Promise<CeremonyStepResult> {
+    if (this.engine?.kind !== "recover") throw new CeremonyError("internal")
+    const { party, keyId, ctx } = this.engine
+    const stepResult = party.handle(inbound)
+
+    if (!stepResult.done) {
+      const outFrames = [...stepResult.outbound]
+      if (this.step === 1) {
+        outFrames.push(party.getCommitmentWire())
+      }
+      return {
+        outbound: encodeBundle(outFrames),
+        done: false,
+        expiresAt: this.deadline,
+      }
+    }
+
+    // Re-persist the server share under the same keyId (share may be refreshed).
+    const recovered = party.finish()
+    try {
+      const nextVersion = ctx.version + 1
+      const newCtx: ShareContext = { ...ctx, version: nextVersion }
+      const enc = await encryptShare(newCtx, recovered.keyshareBytes)
       await db
         .update(mpcServerShares)
         .set({
