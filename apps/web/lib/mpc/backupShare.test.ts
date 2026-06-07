@@ -52,6 +52,19 @@ describe("exportBackupShare / importBackupShare", () => {
     expect(exp.format).toBe("walty-backup-share-v1")
   })
 
+  it("with meta produces a v2 kit carrying keyId + generation", async () => {
+    const original = makeShare(64)
+    const exp = await exportBackupShare(original, RECOVERY_PASSWORD, {
+      keyId: "key-abc",
+      generation: 3,
+    })
+    expect(exp.format).toBe("walty-backup-share-v2")
+    expect(exp.keyId).toBe("key-abc")
+    expect(exp.generation).toBe(3)
+    const recovered = await importBackupShare(exp, RECOVERY_PASSWORD)
+    expect(recovered).toEqual(original)
+  })
+
   it("export has non-empty iv, salt, ciphertext", async () => {
     const original = makeShare(64)
     const exp = await exportBackupShare(original, RECOVERY_PASSWORD)
