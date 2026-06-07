@@ -19,6 +19,14 @@ export type OnboardingMpc = {
   backupShareBytes: Uint8Array | null
   pubkey: string
   address: string
+  /** DKLS polynomial generation (= mpc_keys.version) for the kit being exported. */
+  generation: number
+  /**
+   * Ack-then-commit token from /mpc-recover (recovery flow only). The server
+   * holds the advanced share staged until create-pin calls /mpc-recover/commit,
+   * after the new device share is saved and the new kit downloaded.
+   */
+  recoverToken?: string
 }
 
 type OnboardingState = {

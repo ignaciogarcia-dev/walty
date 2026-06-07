@@ -1,8 +1,8 @@
 "use client"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { mnemonicToAccount } from "viem/accounts"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,25 +16,31 @@ import { fetchLinkedAddresses, isAddressLinked } from "@/lib/wallet-status"
 import { unwrap } from "@/lib/api/unwrap"
 import { usePairing } from "@/hooks/usePairing"
 import { getDeviceShareMeta } from "@/lib/mpc/deviceShareStore"
+import { importBackupShare, type BackupExport } from "@/lib/mpc/backupShare"
+import { useOnboarding } from "../context"
 
-type RecoveryMode = "pin" | "seed"
+type RecoveryMode = "pin" | "seed" | "kit"
 
 export default function RecoverPage() {
   const { t } = useTranslation()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const invalidLocal = searchParams.get("reason") === "invalid-local"
   const [mode, setMode] = useState<RecoveryMode>("pin")
   const [pin, setPin] = useState("")
   const [mnemonic, setMnemonic] = useState("")
+  const [kitFile, setKitFile] = useState<File | null>(null)
+  const [kitPassword, setKitPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { state: pairingState, requestPairing } = usePairing()
+  const { setMpc } = useOnboarding()
+
   const { data: backupData, isLoading: checkingBackup } = useQuery({
     queryKey: ["wallet-backup-check"],
     queryFn: async () => {
       const res = await fetch("/api/wallet/backup")
-      // 403 = a backup exists but this device must be paired first; still
-      // offer PIN recovery (it drives the pairing flow).
       if (res.status === 403) return "gated"
       if (!res.ok) return null
       return unwrap<unknown>(await res.json()) ?? null
@@ -44,9 +50,6 @@ export default function RecoverPage() {
   })
   const hasBackup = backupData !== null && backupData !== undefined
 
-  // MPC wallet owners have no mnemonic phrase — their device share is already
-  // in IndexedDB. If we detect a local MPC share with no server backup the user
-  // should unlock via the lock screen, not import a seed.
   const { data: localMpcShare, isLoading: checkingLocalShare } = useQuery({
     queryKey: ["local-mpc-share-check"],
     queryFn: () => getDeviceShareMeta(),
@@ -55,21 +58,27 @@ export default function RecoverPage() {
   })
   const hasMpcShareLocally = localMpcShare !== null && localMpcShare !== undefined
 
+  const { data: mpcKeyData, isLoading: checkingMpcKey } = useQuery({
+    queryKey: ["wallet-mpc-key-check"],
+    queryFn: async () => {
+      const res = await fetch("/api/mpc-key")
+      if (!res.ok) return null
+      return unwrap<{ keyId: string | null; address: string | null }>(await res.json())
+    },
+    staleTime: Infinity,
+    retry: false,
+  })
+  const hasMpcKey = !!mpcKeyData?.keyId
+
   async function persistRecoveredWallet(seedPhrase: string, address: string) {
     if (pin.length < 6) {
       throw new Error(t("pin-too-short"))
     }
-
-    // Encrypt with v3 (DK+KEK) and save to IndexedDB
     const encrypted = await encryptSeedV3(seedPhrase, pin)
     await saveWallet({ encrypted, address } satisfies StoredWalletV3)
-    // Force a hard navigation so the app remounts with the new local wallet state.
-    // User will be prompted to unlock explicitly on the dashboard.
     window.location.assign("/dashboard")
   }
 
-  // Pulls the encrypted backup and persists it locally. Returns "gated" if the
-  // server requires this device to be paired first (HTTP 403).
   async function pullBackupAndPersist(): Promise<"done" | "gated"> {
     const backupRes = await fetch("/api/wallet/backup")
     if (backupRes.status === 403) return "gated"
@@ -89,7 +98,6 @@ export default function RecoverPage() {
     setLoading(true)
     try {
       if ((await pullBackupAndPersist()) === "gated") {
-        // New device: ask a trusted device to approve, then retry.
         const approved = await requestPairing()
         if (!approved) {
           setError(t("pairing-not-approved"))
@@ -130,7 +138,94 @@ export default function RecoverPage() {
     }
   }
 
-  if (checkingBackup || checkingLocalShare) {
+  const handleRecoverWithKit = async () => {
+    setError(null)
+    if (!kitFile) {
+      setError(t("recovery-kit-no-file"))
+      return
+    }
+    if (!kitPassword) {
+      setError(t("recovery-kit-no-password"))
+      return
+    }
+    setLoading(true)
+    try {
+      // Parse and decrypt the recovery kit file
+      const text = await kitFile.text()
+      let kitExport: BackupExport
+      try {
+        kitExport = JSON.parse(text) as BackupExport
+      } catch {
+        throw new Error(t("recovery-kit-invalid-file"))
+      }
+      if (!kitExport.format?.startsWith("walty-backup-share")) {
+        throw new Error(t("recovery-kit-invalid-file"))
+      }
+
+      let backupShareBytes: Uint8Array
+      try {
+        backupShareBytes = await importBackupShare(kitExport, kitPassword)
+      } catch {
+        throw new Error(t("recovery-kit-wrong-password"))
+      }
+
+      // Server runs all 3 DKLS parties locally (avoids web→node WASM incompatibility)
+      let _b64str = ""
+      for (let i = 0; i < backupShareBytes.length; i++) _b64str += String.fromCharCode(backupShareBytes[i])
+      const backupB64 = btoa(_b64str)
+      const res = await fetch("/api/mpc-recover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // Forward the kit's generation (v2 kits) so the server can reject a stale
+        // kit up front; undefined for legacy v1 kits.
+        body: JSON.stringify({ backupShare: backupB64, generation: kitExport.generation }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        // Map known error codes to localized copy; never surface raw internal
+        // server messages (e.g. "No MPC key found for this user") to the user.
+        if (body?.message === "recovery_kit_outdated") {
+          throw new Error(t("recovery-kit-outdated"))
+        }
+        throw new Error(t("error-recovering-wallet"))
+      }
+      // Recovery advanced the polynomial: the server returns a NEW device share
+      // and a NEW backup share (the uploaded kit is now stale). We must re-issue
+      // the kit before finishing, so route through recovery-kit, not create-pin.
+      const {
+        keyId,
+        deviceShare,
+        backupShare: newBackupShare,
+        generation: newGen,
+        commitToken,
+        pubkey,
+        address,
+      } = await res.json()
+      const deviceShareBytes = Uint8Array.from(atob(deviceShare), (c) => c.charCodeAt(0))
+      const newBackupShareBytes = Uint8Array.from(atob(newBackupShare), (c) => c.charCodeAt(0))
+
+      // The server staged the advanced share; it's committed only after the new
+      // kit is downloaded (recovery-kit) and the device share saved (create-pin).
+      setMpc({
+        keyId,
+        deviceShareBytes,
+        backupShareBytes: newBackupShareBytes,
+        pubkey,
+        address,
+        generation: newGen,
+        recoverToken: commitToken,
+      })
+      router.push("/onboarding/recovery-kit")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t("error-recovering-wallet")
+      const reason = (err as { reason?: string }).reason
+      setError(reason ? `${msg} [${reason}]` : msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (checkingBackup || checkingLocalShare || checkingMpcKey) {
     return (
       <OnboardingShell>
         <div className="flex flex-col items-center gap-4 py-4">
@@ -141,8 +236,7 @@ export default function RecoverPage() {
     )
   }
 
-  // MPC wallet — device share already stored locally. The user should unlock
-  // with their PIN via the dashboard lock screen, not import a seed phrase.
+  // MPC device share already stored locally — user should unlock via lock screen.
   if (hasMpcShareLocally) {
     return (
       <OnboardingShell>
@@ -159,6 +253,68 @@ export default function RecoverPage() {
         >
           {t("go-to-dashboard")}
         </Button>
+      </OnboardingShell>
+    )
+  }
+
+  // MPC user without local share → recovery kit is the right path.
+  if (hasMpcKey) {
+    return (
+      <OnboardingShell>
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">{t("onboarding-recover-title")}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t("recovery-kit-description")}</p>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label>{t("recovery-kit-file-label")}</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null
+                setKitFile(f)
+                setError(null)
+              }}
+            />
+            <Button
+              variant="outline"
+              className="w-full rounded-xl justify-start font-normal"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading}
+            >
+              {kitFile ? kitFile.name : t("recovery-kit-choose-file")}
+            </Button>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="kit-password">{t("recovery-kit-password-label")}</Label>
+            <Input
+              id="kit-password"
+              type="password"
+              placeholder="••••••••••••"
+              value={kitPassword}
+              onChange={(e) => { setKitPassword(e.target.value); setError(null) }}
+              disabled={loading}
+              className="rounded-xl"
+            />
+          </div>
+
+          {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+
+          <Button
+            className="w-full rounded-xl"
+            onClick={handleRecoverWithKit}
+            disabled={loading || !kitFile || !kitPassword}
+          >
+            {loading
+              ? <><Spinner className="mr-2" />{t("recovering")}</>
+              : t("recover-wallet")}
+          </Button>
+        </div>
       </OnboardingShell>
     )
   }

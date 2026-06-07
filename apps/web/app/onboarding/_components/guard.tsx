@@ -84,7 +84,14 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
         "/onboarding/complete",
       ].forEach((p) => allowedBases.add(p))
     } else if (nextBase === "/onboarding/recover") {
-      allowedBases.add("/onboarding/recover")
+      // MPC kit recovery re-issues a fresh kit and sets a new PIN before the
+      // device share lands in IndexedDB, so walletStatus stays "recoverable"
+      // across these sub-steps — allow them or the guard bounces back to recover.
+      ;[
+        "/onboarding/recover",
+        "/onboarding/recovery-kit",
+        "/onboarding/create-pin",
+      ].forEach((p) => allowedBases.add(p))
     } else if (nextBase === "/onboarding/setup-business") {
       allowedBases.add("/onboarding/setup-business")
     } else {

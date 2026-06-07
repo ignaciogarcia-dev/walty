@@ -38,6 +38,7 @@ export default function CreateWalletPage() {
           backupShareBytes: result.backupShareBytes,
           pubkey: result.pubkey,
           address: result.address,
+          generation: 1, // fresh DKG → mpc_keys.version starts at 1
         })
         router.replace("/onboarding/recovery-kit")
       } finally {
