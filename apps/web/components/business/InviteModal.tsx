@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useWalletContext } from "@/components/wallet/context"
+import { useBusinessContext } from "@/hooks/useBusinessContext"
 import { useUnlockFlow } from "@/hooks/useUnlockFlow"
 import { truncateLink } from "@/utils/url"
 import { unwrap } from "@/lib/api/unwrap"
@@ -24,7 +25,8 @@ type Props = {
 
 export function InviteModal({ open, onOpenChange, onInviteCreated }: Props) {
   const { t } = useTranslation()
-  const { deriveOperatorAddress } = useWalletContext()
+  const { deriveOperatorAddress, deriveCashierAddress } = useWalletContext()
+  const { isMpc } = useBusinessContext()
   const { ensureUnlocked, unlockDialog } = useUnlockFlow()
 
   const [inviteUrl, setInviteUrl] = useState("")
@@ -48,7 +50,7 @@ export function InviteModal({ open, onOpenChange, onInviteCreated }: Props) {
     setLoading(true)
 
     try {
-      // Gate: wallet must be unlocked to derive the operator address
+      // Gate: wallet must be unlocked to derive the cashier's address
       const unlocked = await ensureUnlocked()
       if (!unlocked) {
         setLoading(false)
@@ -60,8 +62,11 @@ export function InviteModal({ open, onOpenChange, onInviteCreated }: Props) {
       if (!indexRes.ok) throw new Error(t("error-creating-invite"))
       const { nextIndex } = unwrap<{ nextIndex: number }>(await indexRes.json())
 
-      // Step 2: derive operator address client-side from owner's seed
-      const walletAddress = await deriveOperatorAddress(nextIndex)
+      // Step 2: derive the cashier's receiving address. MPC custody derives an
+      // HD child (m/index) via the owner's quorum; legacy derives from the seed.
+      const walletAddress = isMpc
+        ? await deriveCashierAddress(nextIndex)
+        : await deriveOperatorAddress(nextIndex)
 
       // Step 3: create invite with wallet already assigned
       const inviteRes = await fetch("/api/business/members/invite", {

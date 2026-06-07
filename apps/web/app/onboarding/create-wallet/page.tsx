@@ -5,26 +5,17 @@ import { Spinner } from "@/components/ui/spinner"
 import { OnboardingShell } from "../_components/shell"
 import { useOnboarding } from "../context"
 import { useTranslation } from "@/hooks/useTranslation"
-import { createWallet } from "@/lib/wallet"
+import { getMpcClient } from "@/lib/mpc/getMpcClient"
 
 export default function CreateWalletPage() {
   const { t } = useTranslation()
   const router = useRouter()
-  const { mnemonic, setWallet, clear } = useOnboarding()
+  const { mpc, setMpc } = useOnboarding()
   const hasGenerated = useRef(false)
-  /** True once wallet is committed to context for the recovery-phrase step — skip clear on unmount. */
-  const handedOffRef = useRef(false)
-
-  useEffect(() => {
-    return () => {
-      if (!handedOffRef.current) clear()
-    }
-  }, [clear])
 
   useEffect(() => {
     if (hasGenerated.current) return
-    if (mnemonic) return // already generated — idempotent
-
+    if (mpc) return // already ran — idempotent
     hasGenerated.current = true
 
     async function run() {
@@ -34,17 +25,31 @@ export default function CreateWalletPage() {
         router.replace("/onboarding/welcome")
         return
       }
-      const wallet = createWallet()
-      handedOffRef.current = true
-      setWallet({ mnemonic: wallet.mnemonic, address: wallet.address })
-      router.replace("/onboarding/recovery-phrase")
+
+      // Run the 2-of-3 DKG: device(0)+backup(2) in the worker, server(1) over /mpc.
+      // The server persists its share + registers the MPC address (no seed exists).
+      const client = getMpcClient()
+      try {
+        await client.connect()
+        const { keyId, result } = await client.runDkg()
+        setMpc({
+          keyId,
+          deviceShareBytes: result.deviceShareBytes,
+          backupShareBytes: result.backupShareBytes,
+          pubkey: result.pubkey,
+          address: result.address,
+        })
+        router.replace("/onboarding/recovery-kit")
+      } finally {
+        await client.close()
+      }
     }
 
     run().catch(() => {
       hasGenerated.current = false
       router.replace("/onboarding/welcome")
     })
-  }, [mnemonic, setWallet, router])
+  }, [mpc, setMpc, router])
 
   return (
     <OnboardingShell>

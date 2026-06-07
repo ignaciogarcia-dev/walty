@@ -85,7 +85,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      <p role="alert" className="text-xs text-destructive">{error ?? ''}</p>
 
       <Button onClick={handleSubmit} disabled={loading || !email || !password} className="w-full rounded-xl">
         {loading ? <><Spinner className="mr-2" />{t("logging-in")}</> : t("login")}
@@ -95,7 +95,7 @@ export default function LoginPage() {
         type="button"
         variant="ghost"
         className="w-full rounded-xl text-xs text-muted-foreground hover:text-foreground"
-        onClick={() => router.push(`/onboarding/register${next ? `?next=${next}` : ""}`)}
+        onClick={() => router.push(`/onboarding/register${next ? `?next=${encodeURIComponent(next)}` : ""}`)}
       >
         {t("go-to-register")}
       </Button>

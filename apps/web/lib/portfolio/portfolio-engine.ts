@@ -2,7 +2,16 @@ import { formatUnits } from "viem"
 import { getEVMNetworks } from "@walty/shared/networks/networks"
 import { getAdapter } from "@/lib/chainAdapters/adapterRegistry"
 import { TOKEN_REGISTRY, type Token } from "@walty/shared/tokens/tokenRegistry"
-import { getPrices } from "@walty/shared/providers/pricing/pricingRouter"
+
+async function fetchPricesBySymbol(): Promise<Record<string, number>> {
+  try {
+    const res = await fetch("/api/prices")
+    if (!res.ok) return {}
+    return (await res.json()) as Record<string, number>
+  } catch {
+    return {}
+  }
+}
 
 export type TokenPosition = {
   token: Token
@@ -32,17 +41,8 @@ export async function getPortfolio(
     })
   )
 
-  // 2. Collect all unique coingeckoIds for a single price fetch
-  const allCoingeckoIds = new Set<string>()
-  for (const network of networks) {
-    const tokens = TOKEN_REGISTRY[network.id] ?? []
-    for (const token of tokens) {
-      allCoingeckoIds.add(token.coingeckoId)
-    }
-  }
-
-  // 3. Fetch prices (deduped by coingeckoId)
-  const pricesByCoingeckoId = await getPrices([...allCoingeckoIds])
+  // 2. Fetch prices by symbol from the API (server handles CoinGecko + caching)
+  const pricesBySymbol = await fetchPricesBySymbol()
 
   // 4. Build positions
   const positions: TokenPosition[] = []
@@ -56,7 +56,7 @@ export async function getPortfolio(
     for (const token of tokens) {
       const balanceRaw = balances.get(token.symbol) ?? 0n
       const balance = formatUnits(balanceRaw, token.decimals)
-      const priceUsd = pricesByCoingeckoId[token.coingeckoId] ?? 0
+      const priceUsd = pricesBySymbol[token.symbol] ?? 0
       const valueUsd = parseFloat(balance) * priceUsd
 
       positions.push({

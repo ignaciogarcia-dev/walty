@@ -28,6 +28,7 @@ import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent"
 import { asyncHandler } from "../middleware/asyncHandler.js"
 import { authed } from "../middleware/typedHandlers.js"
 import { withAuth } from "../middleware/withAuth.js"
+import { markSessionTrusted } from "../services/deviceSessions.js"
 
 export const joinRouter: Router = Router()
 
@@ -172,6 +173,12 @@ joinRouter.post(
       { memberId: member.id, role: member.role },
       ip,
     )
+
+    // Joining proves the cashier is who they claim to be (invite token validated,
+    // session authenticated). Mark the session trusted so the device shows as
+    // active rather than "Pending Pairing" — cashiers have no MPC key and no
+    // mnemonic, so the normal attestation paths are unavailable to them.
+    if (auth.sid) void markSessionTrusted(auth.sid).catch(() => {})
 
     res.json({ ok: true, businessId: member.businessId, role: member.role })
   }),

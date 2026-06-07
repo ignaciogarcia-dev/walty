@@ -20,6 +20,9 @@ const eslintConfig = defineConfig([
   },
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    // MPC spike / proof harnesses — standalone eval tooling (tsx/esbuild/Playwright),
+    // not part of the app build or lint.
+    "scripts/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

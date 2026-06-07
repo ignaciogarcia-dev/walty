@@ -52,6 +52,8 @@ export const en = {
   calculating: "Calculating…",
   cancel: "Cancel",
   "confirm-send": "Confirm send",
+  sending: "Sending…",
+  tokens: "Tokens",
   "confirm-pay": "Confirm payment",
   "transaction-pending": "Transaction pending…",
   "on-network-waiting": "On network — waiting for confirmation",
@@ -143,6 +145,10 @@ export const en = {
   "local-wallet-mismatch-title": "A different local wallet was detected",
   "local-wallet-mismatch-description":
     "The wallet stored on this device does not match your current account. Restore the correct wallet to continue.",
+  "recovery-mpc-local-title": "Your wallet is already on this device",
+  "recovery-mpc-local-description":
+    "This is an MPC wallet — your device share is stored locally. Enter your PIN on the dashboard to unlock it.",
+  "go-to-dashboard": "Go to dashboard",
 
   // Onboarding
   "onboarding-create-new": "Create new wallet",
@@ -153,6 +159,20 @@ export const en = {
   "onboarding-login-title": "Welcome back",
   "onboarding-login-description": "Sign in to access your wallet.",
   "onboarding-creating-wallet": "Creating your wallet…",
+  "onboarding-recovery-kit-title": "Your recovery kit",
+  "onboarding-recovery-kit-description":
+    "Your key is split into three shares and never reassembled. Export your encrypted backup share and keep it offline — it's how you recover your wallet if you lose this device.",
+  "onboarding-recovery-password": "Recovery password",
+  "onboarding-recovery-password-confirm": "Confirm password",
+  "onboarding-recovery-password-hint":
+    "A long passphrase (at least 12 characters), different from your PIN. It protects your backup file. We never store it.",
+  "onboarding-recovery-password-too-short":
+    "The recovery password must be at least 12 characters.",
+  "onboarding-recovery-password-mismatch": "Passwords do not match.",
+  "onboarding-download-kit": "Download recovery kit",
+  "onboarding-kit-saved-warning":
+    "Save the file somewhere safe and offline (password manager, USB). If you lose both this device and the file, your funds cannot be recovered.",
+  "onboarding-kit-saved-continue": "I've saved it, continue",
   "onboarding-recovery-phrase-title": "Your recovery phrase",
   "onboarding-recovery-phrase-description":
     "Write all 24 words down in order and keep them safe. They are the only way to recover your wallet if you lose access.",
@@ -289,6 +309,12 @@ export const en = {
   "invalid-address": "Invalid address",
   "failed-save-contact": "Failed to save contact",
   "error-saving-contact": "Error saving contact",
+  recipient: "Recipient",
+  "send-max": "Max",
+  "send-invalid-address": "Invalid EVM address",
+  "send-amount-too-low": "Amount must be greater than 0",
+  "send-amount-exceeds-balance": "Amount exceeds your balance",
+  "transfer-sent": "Transfer sent",
 
   // CollectModal (POS)
   "collect-title": "Collect",

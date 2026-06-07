@@ -130,7 +130,7 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
           </div>
 
           {/* Error Message */}
-          {state.error && <p className="text-xs text-destructive">{state.error}</p>}
+          <p role="alert" className="text-xs text-destructive">{state.error ?? ''}</p>
 
           {/* Lockout Timer */}
           {isLocked && (

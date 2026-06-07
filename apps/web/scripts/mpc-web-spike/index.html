@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>DKLS23 -web build browser spike</title>
+  </head>
+  <body>
+    <pre id="status">spawning worker…</pre>
+    <script type="module">
+      // Module worker so esbuild's ESM output + import.meta.url wasm fetch work.
+      const worker = new Worker("./worker.bundle.js", { type: "module" });
+      const status = document.getElementById("status");
+      worker.onmessage = (e) => {
+        if (e.data.type === "done") {
+          window.__SPIKE_RESULT__ = e.data.result;
+          status.textContent =
+            "DONE pass=" + e.data.result.pass;
+        } else if (e.data.type === "error") {
+          window.__SPIKE_RESULT__ = { pass: false, error: e.data.error };
+          status.textContent = "WORKER ERROR:\n" + e.data.error;
+        }
+      };
+      worker.onerror = (e) => {
+        window.__SPIKE_RESULT__ = {
+          pass: false,
+          error: "worker.onerror: " + (e.message || String(e)),
+        };
+        status.textContent = "WORKER ONERROR: " + (e.message || String(e));
+      };
+    </script>
+  </body>
+</html>

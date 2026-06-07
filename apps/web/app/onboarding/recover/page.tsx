@@ -15,6 +15,7 @@ import { saveWallet, type StoredWalletV3 } from "@/lib/wallet-store"
 import { fetchLinkedAddresses, isAddressLinked } from "@/lib/wallet-status"
 import { unwrap } from "@/lib/api/unwrap"
 import { usePairing } from "@/hooks/usePairing"
+import { getDeviceShareMeta } from "@/lib/mpc/deviceShareStore"
 
 type RecoveryMode = "pin" | "seed"
 
@@ -42,6 +43,17 @@ export default function RecoverPage() {
     retry: false,
   })
   const hasBackup = backupData !== null && backupData !== undefined
+
+  // MPC wallet owners have no mnemonic phrase — their device share is already
+  // in IndexedDB. If we detect a local MPC share with no server backup the user
+  // should unlock via the lock screen, not import a seed.
+  const { data: localMpcShare, isLoading: checkingLocalShare } = useQuery({
+    queryKey: ["local-mpc-share-check"],
+    queryFn: () => getDeviceShareMeta(),
+    staleTime: Infinity,
+    retry: false,
+  })
+  const hasMpcShareLocally = localMpcShare !== null && localMpcShare !== undefined
 
   async function persistRecoveredWallet(seedPhrase: string, address: string) {
     if (pin.length < 6) {
@@ -118,13 +130,35 @@ export default function RecoverPage() {
     }
   }
 
-  if (checkingBackup) {
+  if (checkingBackup || checkingLocalShare) {
     return (
       <OnboardingShell>
         <div className="flex flex-col items-center gap-4 py-4">
           <Spinner className="size-8" />
           <p className="text-sm text-muted-foreground">{t("checking")}</p>
         </div>
+      </OnboardingShell>
+    )
+  }
+
+  // MPC wallet — device share already stored locally. The user should unlock
+  // with their PIN via the dashboard lock screen, not import a seed phrase.
+  if (hasMpcShareLocally) {
+    return (
+      <OnboardingShell>
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">{t("onboarding-recover-title")}</h2>
+        </div>
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-300">
+          <p className="font-medium">{t("recovery-mpc-local-title")}</p>
+          <p className="mt-1 text-xs">{t("recovery-mpc-local-description")}</p>
+        </div>
+        <Button
+          className="w-full rounded-xl"
+          onClick={() => window.location.assign("/dashboard")}
+        >
+          {t("go-to-dashboard")}
+        </Button>
       </OnboardingShell>
     )
   }
@@ -181,7 +215,7 @@ export default function RecoverPage() {
 
               {pairingState === "waiting" && (
                 <div className="flex flex-col gap-2">
-                  <p className="text-xs text-muted-foreground">
+                  <p role="status" data-testid="pairing-wait" className="text-xs text-muted-foreground">
                     {t("pairing-waiting")}
                   </p>
                   <button
@@ -299,7 +333,7 @@ export default function RecoverPage() {
         </div>
       )}
 
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      <p role="alert" className="text-xs text-destructive">{error ?? ''}</p>
     </OnboardingShell>
   )
 }

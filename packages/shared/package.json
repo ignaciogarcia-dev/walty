@@ -28,7 +28,8 @@
     "./security/*": "./src/security/*.ts",
     "./activity/*": "./src/activity/*.ts",
     "./transactions/*": "./src/transactions/*.ts",
-    "./tx/*": "./src/tx/*.ts"
+    "./tx/*": "./src/tx/*.ts",
+    "./mpc/*": "./src/mpc/*.ts"
   },
   "scripts": {
     "test": "vitest",
@@ -38,7 +39,8 @@
     "@walty/db": "workspace:*",
     "bcrypt": "^6.0.0",
     "drizzle-orm": "^0.45.1",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
     "next": "^16.0.0",

@@ -95,7 +95,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 	// authenticated it stays mounted and listening regardless of wallet state.
 	let body: React.ReactNode
 
-	if (status === "loading" || userLoading || route.type !== "allow") {
+	if (status === "loading" || userLoading || (route.type !== "allow" && !pathname.startsWith("/dashboard/access-"))) {
 		// Show spinner while loading user/wallet data or while redirecting
 		body = (
 			<div className="min-h-screen flex items-center justify-center">

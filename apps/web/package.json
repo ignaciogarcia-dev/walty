@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "copy:wasm": "node -e \"const fs=require('fs');fs.mkdirSync('public/mpc',{recursive:true});fs.copyFileSync(require.resolve('@silencelaboratories/dkls-wasm-ll-web/dkls-wasm-ll-web_bg.wasm'),'public/mpc/dkls-wasm-ll-web_bg.wasm')\"",
+    "build:mpc-worker": "node scripts/build-mpc-worker.mjs",
+    "predev": "pnpm copy:wasm && pnpm build:mpc-worker",
+    "prebuild": "pnpm copy:wasm && pnpm build:mpc-worker",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -12,6 +16,7 @@
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
+    "@silencelaboratories/dkls-wasm-ll-web": "^1.2.0",
     "@splinetool/react-spline": "^4.1.0",
     "@tanstack/react-query": "^5.95.0",
     "@walty/db": "workspace:*",
@@ -46,9 +51,12 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "esbuild": "^0.25.12",
     "eslint-config-next": "16.1.6",
     "jsdom": "^29.0.1",
+    "playwright": "^1.58.2",
     "tailwindcss": "^4.2.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   }

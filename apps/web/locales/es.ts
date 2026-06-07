@@ -51,6 +51,8 @@ export const es = {
   calculating: "Calculando…",
   cancel: "Cancelar",
   "confirm-send": "Confirmar envío",
+  sending: "Enviando…",
+  tokens: "Tokens",
   "confirm-pay": "Confirmar pago",
   "transaction-pending": "Transacción pendiente…",
   "on-network-waiting": "En la red — esperando confirmación",
@@ -143,6 +145,10 @@ export const es = {
   "local-wallet-mismatch-title": "Detectamos una wallet local distinta",
   "local-wallet-mismatch-description":
     "La wallet guardada en este dispositivo no coincide con tu cuenta actual. Para continuar, restaura la wallet correcta.",
+  "recovery-mpc-local-title": "Tu wallet ya está en este dispositivo",
+  "recovery-mpc-local-description":
+    "Esta es una wallet MPC — tu clave de dispositivo ya está guardada localmente. Ingresa tu PIN en el dashboard para desbloquearla.",
+  "go-to-dashboard": "Ir al dashboard",
 
   // Onboarding
   "onboarding-create-new": "Crear nueva wallet",
@@ -153,6 +159,20 @@ export const es = {
   "onboarding-login-title": "Bienvenido de vuelta",
   "onboarding-login-description": "Inicia sesión para acceder a tu wallet.",
   "onboarding-creating-wallet": "Creando tu wallet…",
+  "onboarding-recovery-kit-title": "Tu kit de recuperación",
+  "onboarding-recovery-kit-description":
+    "Tu clave se reparte en tres partes y nunca se reconstruye. Exportá tu parte de respaldo cifrada y guardala fuera de línea: es tu forma de recuperar la wallet si perdés este dispositivo.",
+  "onboarding-recovery-password": "Contraseña de recuperación",
+  "onboarding-recovery-password-confirm": "Confirmar contraseña",
+  "onboarding-recovery-password-hint":
+    "Una frase larga (mínimo 12 caracteres), distinta de tu PIN. Protege tu archivo de respaldo. No la guardamos en ningún lado.",
+  "onboarding-recovery-password-too-short":
+    "La contraseña de recuperación debe tener al menos 12 caracteres.",
+  "onboarding-recovery-password-mismatch": "Las contraseñas no coinciden.",
+  "onboarding-download-kit": "Descargar kit de recuperación",
+  "onboarding-kit-saved-warning":
+    "Guardá el archivo en un lugar seguro y fuera de línea (gestor de contraseñas, USB). Si perdés este dispositivo y el archivo, no hay forma de recuperar tus fondos.",
+  "onboarding-kit-saved-continue": "Lo guardé, continuar",
   "onboarding-recovery-phrase-title": "Tu frase de recuperación",
   "onboarding-recovery-phrase-description":
     "Anota las 24 palabras en orden y guárdalas en un lugar seguro. Son la única forma de recuperar tu wallet si pierdes el acceso.",
@@ -288,6 +308,12 @@ export const es = {
   "invalid-address": "Dirección inválida",
   "failed-save-contact": "Error al guardar contacto",
   "error-saving-contact": "Error al guardar contacto",
+  recipient: "Destinatario",
+  "send-max": "Máx",
+  "send-invalid-address": "Dirección EVM inválida",
+  "send-amount-too-low": "El monto debe ser mayor que 0",
+  "send-amount-exceeds-balance": "El monto supera tu saldo",
+  "transfer-sent": "Transferencia enviada",
 
   // CollectModal (POS)
   "collect-title": "Cobrar",

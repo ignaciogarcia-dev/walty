@@ -12,6 +12,7 @@ import { useCallback, useRef, useState } from "react";
 import { parseUnits } from "viem";
 import type { Token } from "@walty/shared/tokens/tokenRegistry";
 import { signIntent } from "@/lib/transactions/signIntent";
+import { signIntentMpc } from "@/lib/transactions/signIntentMpc";
 import {
   createTxIntent,
   broadcastTxIntent,
@@ -22,6 +23,8 @@ import { getPublicClient } from "@walty/shared/rpc/getPublicClient";
 import { getTxUrl } from "@/lib/explorer/getTxUrl";
 import { toast } from "@/hooks/useToast";
 import type { WalletSecurityManager } from "@/lib/wallet/WalletSecurityManager";
+import type { MpcSecurityManager } from "@/lib/mpc/MpcSecurityManager";
+import type { WalletCustody } from "@/hooks/useWalletLifecycle";
 import { PAYMENT_CHAIN_ID_POLYGON } from "@/lib/wallet/OperatorWalletManager";
 
 export type TxStatus =
@@ -53,6 +56,8 @@ export function useWalletTransfer(
   security: WalletSecurityManager,
   loadTxHistory: () => Promise<void>,
   loadBalance: (addr: string) => Promise<void>,
+  mpcSecurity: MpcSecurityManager,
+  custody: WalletCustody,
 ): UseWalletTransferResult {
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -60,6 +65,19 @@ export function useWalletTransfer(
 
   const sendLockRef = useRef(false);
   const txIntentKeyRef = useRef<string | null>(null);
+
+  // Pick the signer by custody. Under MPC, an operator tx (derivationIndex>=1)
+  // signs at the cashier's HD child path m/index via the owner's quorum; the
+  // owner (no index) signs at master. Legacy custody HD-derives from the seed.
+  const signOne = useCallback(
+    (intentId: string, derivationIndex?: number) => {
+      if (custody === "mpc") {
+        return signIntentMpc(intentId, mpcSecurity, derivationIndex ?? 0);
+      }
+      return signIntent(intentId, security, address!, derivationIndex);
+    },
+    [custody, mpcSecurity, security, address],
+  );
 
   const resetTx = useCallback(() => {
     setTxStatus("idle");
@@ -195,7 +213,9 @@ export function useWalletTransfer(
         const derivationIndex = intent.payload.derivationIndex;
         const fromAddress = intent.payload.from;
 
-        // Gas funding for operator wallets on Polygon
+        // Gas funding for operator wallets on Polygon. The cashier's address
+        // (legacy HD or MPC child) pays gas for its own refund/collection tx, so
+        // the owner tops it up first if low. The owner signs this top-up (master).
         if (
           derivationIndex != null &&
           intent.payload.chainId === PAYMENT_CHAIN_ID_POLYGON
@@ -236,7 +256,7 @@ export function useWalletTransfer(
               "gas_funding",
             );
 
-            await signIntent(gasIntent.id, security, address);
+            await signOne(gasIntent.id);
             const gasBroadcasted = await broadcastTxIntent(gasIntent.id);
             const gasHash = gasBroadcasted.txHash!;
 
@@ -259,12 +279,7 @@ export function useWalletTransfer(
           }
         }
 
-        const { token, payload } = await signIntent(
-          intentId,
-          security,
-          address,
-          derivationIndex,
-        );
+        const { token, payload } = await signOne(intentId, derivationIndex);
         await broadcastIntentInternal(intentId, token, payload);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Unknown error";
@@ -276,7 +291,7 @@ export function useWalletTransfer(
         sendLockRef.current = false;
       }
     },
-    [address, security, broadcastIntentInternal],
+    [address, security, signOne, broadcastIntentInternal],
   );
 
   // ── executeTransfer ────────────────────────────────────────────────────
@@ -330,11 +345,7 @@ export function useWalletTransfer(
           "transfer",
         );
 
-        const { token: resolvedToken, payload } = await signIntent(
-          intent.id,
-          security,
-          address,
-        );
+        const { token: resolvedToken, payload } = await signOne(intent.id);
         await broadcastIntentInternal(intent.id, resolvedToken, payload);
       } catch (err: unknown) {
         setTxStatus("error");
@@ -346,7 +357,7 @@ export function useWalletTransfer(
         sendLockRef.current = false;
       }
     },
-    [address, security, broadcastIntentInternal],
+    [address, security, signOne, broadcastIntentInternal],
   );
 
   return {

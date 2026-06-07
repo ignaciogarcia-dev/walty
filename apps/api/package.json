@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch --env-file=.env src/server.ts",
     "start": "node --import tsx/esm src/server.ts",
     "test": "vitest",
     "test:run": "vitest run",
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@safe-global/protocol-kit": "^7.2.0",
+    "@silencelaboratories/dkls-wasm-ll-node": "^1.2.0",
     "@walty/db": "workspace:*",
     "@walty/shared": "workspace:*",
     "bcrypt": "^6.0.0",
@@ -43,6 +44,7 @@
     "@types/pg": "^8.20.0",
     "@types/supertest": "^6.0.2",
     "@vitest/coverage-v8": "^4.1.0",
+    "socket.io-client": "^4.8.3",
     "supertest": "^7.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3",

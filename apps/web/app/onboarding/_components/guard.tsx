@@ -34,7 +34,9 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
       const hasLocalWallet = wallet.status === "locked"
 
       if (hasLocalWallet) {
-        const next = encodeURIComponent("/onboarding/recover?reason=local-wallet")
+        // Redirect to dashboard after login — the lock screen handles unlock
+        // for both mnemonic and MPC wallets. The recover page is not needed here.
+        const next = encodeURIComponent("/dashboard")
         if (!base.startsWith("/onboarding/login")) {
           router.replace(`/onboarding/login?next=${next}`)
         }
@@ -75,6 +77,7 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
     if (nextBase === "/onboarding/create-wallet") {
       ;[
         "/onboarding/create-wallet",
+        "/onboarding/recovery-kit",
         "/onboarding/recovery-phrase",
         "/onboarding/confirm-recovery",
         "/onboarding/create-pin",

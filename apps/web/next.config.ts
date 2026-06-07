@@ -35,6 +35,16 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async headers() {
+    return [
+      {
+        // The MPC worker is served from a stable unhashed URL; force revalidation
+        // so security patches reach browsers without a cache-bust URL change.
+        source: "/mpc/:path*",
+        headers: [{ key: "Cache-Control", value: "no-cache, must-revalidate" }],
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "assets.coingecko.com" },

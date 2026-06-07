@@ -1,5 +1,19 @@
 import { getStoredWallet, clearStoredWallet } from "./wallet-store";
+import { getDeviceShareMeta, clearDeviceShare } from "./mpc/deviceShareStore";
 import { unwrap } from "./api/unwrap";
+
+/**
+ * The local custody for this device, regardless of kind: a stored seed (mnemonic)
+ * or an MPC device share. Status logic only needs its receiving `address`, so an
+ * MPC user (no seed, device share present) is no longer mistaken for "new".
+ */
+async function getLocalCustody(): Promise<{ address: string } | null> {
+  const seed = await getStoredWallet();
+  if (seed) return { address: seed.address };
+  const share = await getDeviceShareMeta();
+  if (share) return { address: share.address };
+  return null;
+}
 
 export type LinkedAddress = {
   id: number;
@@ -92,7 +106,7 @@ export async function determineWalletStatus(
   inFlightStatusPromise = (async () => {
     try {
       const [stored, linkedResult] = await Promise.all([
-        getStoredWallet(),
+        getLocalCustody(),
         fetchLinkedAddresses(),
       ]);
 
@@ -112,6 +126,7 @@ export async function determineWalletStatus(
       if (!hasLinkedAddresses) {
         // Authenticated user with no linked addresses is the only true "new" case.
         await clearStoredWallet();
+        await clearDeviceShare();
         cachedStatus = {
           value: "new",
           expiresAt: Date.now() + STATUS_CACHE_TTL_MS,
@@ -141,7 +156,7 @@ export async function determineWalletStatus(
       };
       return "recoverable";
     } catch {
-      const stored = await getStoredWallet().catch(() => null);
+      const stored = await getLocalCustody().catch(() => null);
       const status = stored ? "locked" : "new";
       cachedStatus = {
         value: status,

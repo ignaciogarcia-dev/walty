@@ -1,7 +1,7 @@
 /**
  * WalletSessionManager
  *
- * Manages auto-lock timers and activity listeners.
+ * Manages auto-lock: 2-min idle timer + visibility-change lock (prod only).
  * Pure service — no React state, no hooks.
  */
 
@@ -55,9 +55,23 @@ export class WalletSessionManager {
   private attachVisibilityListener(): () => void {
     if (!this.config.isProd) return () => {};
 
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
     const handleVisibility = () => {
       if (document.hidden) {
-        this.config.onLock();
+        // Lock only after staying hidden for 3s — prevents spurious re-locks
+        // from transient hides (OS notifications, quick tab switches).
+        if (!hideTimer) {
+          hideTimer = setTimeout(() => {
+            hideTimer = null;
+            this.config.onLock();
+          }, 3_000);
+        }
+      } else {
+        if (hideTimer) {
+          clearTimeout(hideTimer);
+          hideTimer = null;
+        }
       }
     };
 
@@ -65,6 +79,10 @@ export class WalletSessionManager {
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
+      if (hideTimer) {
+        clearTimeout(hideTimer);
+        hideTimer = null;
+      }
     };
   }
 
