@@ -615,3 +615,205 @@ export class MpcServerRefresh {
     try { this.session.free() } catch { /* already freed */ }
   }
 }
+
+/**
+ * Run the full DKLS23 share recovery ceremony locally using only node WASM.
+ * All three parties execute in-process: party 0 (new device share to return),
+ * party 1 (existing server share), party 2 (backup share from client).
+ * The public key is unchanged; all three party shares are re-randomized.
+ *
+ * Security: the server transiently holds all three shares during this call.
+ * backupShareBytes are not stored after the function returns.
+ */
+export async function runLocalRecover(
+  serverKeyshareBytes: Buffer,
+  backupShareBytes: Buffer,
+): Promise<{
+  newDeviceShareBytes: Buffer
+  newServerShareBytes: Buffer
+  newBackupShareBytes: Buffer
+  pubkey: string
+  address: string
+}> {
+  const serverShare = Keyshare.fromBytes(serverKeyshareBytes)
+  const backupShare = Keyshare.fromBytes(backupShareBytes)
+  const pk = new Uint8Array(serverShare.publicKey)
+  const lost = new Uint8Array([0])
+
+  // sessions[i] has partyId = i, so coms[i] = party i's commitment (correct WASM ordering)
+  const party0 = KeygenSession.initLostShareRecovery(3, 2, 0, pk, lost)
+  const party1 = KeygenSession.initKeyRecovery(serverShare, lost)
+  const party2 = KeygenSession.initKeyRecovery(backupShare, lost)
+  const sessions = [party0, party1, party2]
+  const freeAll = () => {
+    // keyshare() consumes a session; free() on a consumed/freed handle throws —
+    // swallow so cleanup is idempotent on both the success and error paths.
+    for (const s of sessions) { try { s.free() } catch { /* already consumed */ } }
+    try { serverShare.free() } catch { /* noop */ }
+    try { backupShare.free() } catch { /* noop */ }
+  }
+
+  try {
+    // Round 1: all parties generate a broadcast
+    const r1 = sessions.map(s => serializeMessage(s.createFirstMessage()))
+
+    // Handle round 1: each party receives broadcasts from the other two
+    const r2 = sessions.map((s, i) => {
+      const msgs = r1.filter(w => w[0] !== i).map(deserializeMessage)
+      return s.handleMessages(msgs).map(serializeMessage)
+    })
+    const coms = sessions.map(s => s.calculateChainCodeCommitment())
+
+    // Handle round 2: P2P (select by to_id)
+    const r2flat = r2.flat()
+    const r3 = sessions.map((s, i) => {
+      const msgs = r2flat.filter(w => w[1] === i).map(deserializeMessage)
+      return s.handleMessages(msgs).map(serializeMessage)
+    })
+
+    // Handle round 3: P2P + chain-code commitments indexed by partyId
+    const r3flat = r3.flat()
+    const r4 = sessions.map((s, i) => {
+      const msgs = r3flat.filter(w => w[1] === i).map(deserializeMessage)
+      return s.handleMessages(msgs, coms).map(serializeMessage)
+    })
+
+    // Handle round 4: final broadcast filter
+    const r4flat = r4.flat()
+    sessions.forEach((s, i) => {
+      const remaining = s.handleMessages(r4flat.filter(w => w[0] !== i).map(deserializeMessage))
+      remaining.forEach(m => m.free())
+    })
+
+    const ks0 = sessions[0].keyshare()
+    const ks1 = sessions[1].keyshare()
+    const ks2 = sessions[2].keyshare()
+    try {
+      const pubkeyBytes = ks0.publicKey
+      const pubkey = u8ToHex(pubkeyBytes)
+      const address = compressedPubkeyToAddress(pubkeyBytes)
+      const newDeviceShareBytes = Buffer.from(ks0.toBytes())
+      const newServerShareBytes = Buffer.from(ks1.toBytes())
+      // The refreshed backup share (party 2) must be re-exported into a fresh kit:
+      // the old kit is on the previous polynomial generation and is now unusable.
+      const newBackupShareBytes = Buffer.from(ks2.toBytes())
+      return { newDeviceShareBytes, newServerShareBytes, newBackupShareBytes, pubkey, address }
+    } finally {
+      ks0.free()
+      ks1.free()
+      ks2.free()
+    }
+  } finally {
+    freeAll()
+  }
+}
+
+// initKeyRecovery(serverShare, lostShares) — server helps recover party 0.
+// Same 4-round protocol as MpcServerRefresh; only initialization differs.
+export class MpcServerRecover {
+  private session: KeygenSession
+  private readonly partyId: number
+  private round: number = 0
+  private _commitment: Uint8Array | null = null
+
+  constructor(serverKeyshareBytes: Buffer, lostShares: Uint8Array) {
+    const share = Keyshare.fromBytes(serverKeyshareBytes)
+    this.partyId = share.partyId
+    this.session = KeygenSession.initKeyRecovery(share, lostShares)
+  }
+
+  firstMessage(): Uint8Array[] {
+    if (this.round !== 0) throw new Error("MpcServerRecover: firstMessage already called")
+    const msg = this.session.createFirstMessage()
+    this.round = 1
+    return [serializeMessage(msg)]
+  }
+
+  getCommitmentWire(): Uint8Array {
+    if (this.round < 2 || !this._commitment)
+      throw new Error("MpcServerRecover: commitment not available — call handle() for round 1 first")
+    return encodeCommitment(this.partyId, this._commitment)
+  }
+
+  handle(inbound: Uint8Array[]): RoundStep {
+    if (this.round === 1) {
+      const { messages } = splitInbound(inbound)
+      try {
+        const filtered = filterMessages(messages, this.partyId)
+        const r2 = this.session.handleMessages(filtered)
+        this._commitment = this.session.calculateChainCodeCommitment()
+        this.round = 2
+        return { outbound: r2.map(serializeMessage), done: false }
+      } finally {
+        messages.forEach((m) => { try { m.free() } catch { /* already freed */ } })
+      }
+    }
+
+    if (this.round === 2) {
+      const { messages } = splitInbound(inbound)
+      try {
+        const selected = selectMessages(messages, this.partyId)
+        const r3 = this.session.handleMessages(selected)
+        this.round = 3
+        return { outbound: r3.map(serializeMessage), done: false }
+      } finally {
+        messages.forEach((m) => { try { m.free() } catch { /* already freed */ } })
+      }
+    }
+
+    if (this.round === 3) {
+      const { messages, commitments: peerCommitments } = splitInbound(inbound)
+      try {
+        const selected = selectMessages(messages, this.partyId)
+        const commitMap = new Map<number, Uint8Array>(peerCommitments)
+        if (!this._commitment)
+          throw new Error("MpcServerRecover: internal error — commitment missing in round 3")
+        commitMap.set(this.partyId, this._commitment)
+
+        const maxPartyId = Math.max(...commitMap.keys())
+        const allCommitments: Uint8Array[] = []
+        for (let i = 0; i <= maxPartyId; i++) {
+          const c = commitMap.get(i)
+          if (!c) throw new Error(`MpcServerRecover: missing commitment for party ${i}`)
+          allCommitments.push(c)
+        }
+
+        const r4 = this.session.handleMessages(selected, allCommitments)
+        this.round = 4
+        return { outbound: r4.map(serializeMessage), done: false }
+      } finally {
+        messages.forEach((m) => { try { m.free() } catch { /* already freed */ } })
+      }
+    }
+
+    if (this.round === 4) {
+      const { messages } = splitInbound(inbound)
+      try {
+        const filtered = filterMessages(messages, this.partyId)
+        this.session.handleMessages(filtered)
+        this.round = 5
+        return { outbound: [], done: true }
+      } finally {
+        messages.forEach((m) => { try { m.free() } catch { /* already freed */ } })
+      }
+    }
+
+    throw new Error(`MpcServerRecover: unexpected call to handle() in round ${this.round}`)
+  }
+
+  finish(): { keyshareBytes: Buffer; pubkey: string; address: string } {
+    if (this.round !== 5)
+      throw new Error("MpcServerRecover: not done yet — call handle() until done=true")
+    const keyshare = this.session.keyshare()
+    const pubkeyBytes = keyshare.publicKey
+    const pubkey = u8ToHex(pubkeyBytes)
+    const address = compressedPubkeyToAddress(pubkeyBytes)
+    const keyshareBytes = Buffer.from(keyshare.toBytes())
+    keyshare.free()
+    return { keyshareBytes, pubkey, address }
+  }
+
+  free(): void {
+    try { this.session.free() } catch { /* already freed */ }
+  }
+}
