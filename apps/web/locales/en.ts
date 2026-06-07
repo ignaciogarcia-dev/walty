@@ -52,8 +52,6 @@ export const en = {
   calculating: "Calculating…",
   cancel: "Cancel",
   "confirm-send": "Confirm send",
-  sending: "Sending…",
-  tokens: "Tokens",
   "confirm-pay": "Confirm payment",
   "transaction-pending": "Transaction pending…",
   "on-network-waiting": "On network — waiting for confirmation",
@@ -149,6 +147,17 @@ export const en = {
   "recovery-mpc-local-description":
     "This is an MPC wallet — your device share is stored locally. Enter your PIN on the dashboard to unlock it.",
   "go-to-dashboard": "Go to dashboard",
+  "recovery-kit-description":
+    "Upload your walty-recovery-kit.json file and enter your recovery password to restore your wallet on this device.",
+  "recovery-kit-file-label": "Recovery kit file",
+  "recovery-kit-choose-file": "Choose walty-recovery-kit.json…",
+  "recovery-kit-password-label": "Recovery password",
+  "recovery-kit-no-file": "Please choose your recovery kit file.",
+  "recovery-kit-no-password": "Please enter your recovery password.",
+  "recovery-kit-invalid-file": "Invalid recovery kit file. Make sure you selected the correct walty-recovery-kit.json.",
+  "recovery-kit-wrong-password": "Wrong recovery password. Check the password and try again.",
+  "recovery-kit-outdated": "This recovery kit is outdated — your wallet was refreshed after it was created. Use your most recent recovery kit to restore access.",
+  "recovery-session-expired": "Recovery took too long to finish. Nothing was changed — please start the recovery again with your recovery kit.",
 
   // Onboarding
   "onboarding-create-new": "Create new wallet",
