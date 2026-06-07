@@ -19,6 +19,10 @@ export class RateLimitError extends Error {
 }
 
 async function rateLimit(key: string, limit: number, windowMs: number) {
+  // Test/e2e escape hatch: the parallel e2e suite makes many auth calls from one
+  // IP and would trip the per-IP limits. Only active in NODE_ENV=test.
+  if (process.env.NODE_ENV === "test" && process.env.E2E_RATE_LIMIT_DISABLED === "true") return
+
   const now = new Date()
   const expiresAt = new Date(now.getTime() + windowMs)
 

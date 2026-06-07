@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "copy:wasm": "node -e \"const fs=require('fs');fs.mkdirSync('public/mpc',{recursive:true});fs.copyFileSync(require.resolve('@silencelaboratories/dkls-wasm-ll-web/dkls-wasm-ll-web_bg.wasm'),'public/mpc/dkls-wasm-ll-web_bg.wasm')\"",
-    "predev": "pnpm copy:wasm",
-    "prebuild": "pnpm copy:wasm",
+    "build:mpc-worker": "node scripts/build-mpc-worker.mjs",
+    "predev": "pnpm copy:wasm && pnpm build:mpc-worker",
+    "prebuild": "pnpm copy:wasm && pnpm build:mpc-worker",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

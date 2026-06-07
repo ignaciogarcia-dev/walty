@@ -1,8 +1,12 @@
-// Spawns the MPC device worker. The `new URL("./mpcWorker.ts", import.meta.url)`
-// form is what makes the bundler (Turbopack here, esbuild in the e2e harness) emit
-// the worker chunk as a separate same-origin entry.
+// Spawns the MPC device worker from the pre-bundled static asset — consistent
+// with defaultCreateWorker() in mpcClient.ts. Do NOT use import.meta.url here:
+// Turbopack emits the raw .ts chunk as video/mp2t which module workers refuse.
 export { MPC_WASM_URL } from "./wasmUrl"
 
 export function createMpcWorker(): Worker {
-  return new Worker(new URL("./mpcWorker.ts", import.meta.url), { type: "module" })
+  const url =
+    typeof window !== "undefined"
+      ? new URL("/mpc/mpcWorker.js", window.location.origin).href
+      : "/mpc/mpcWorker.js"
+  return new Worker(url, { type: "module" })
 }

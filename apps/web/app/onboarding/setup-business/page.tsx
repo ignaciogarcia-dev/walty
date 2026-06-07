@@ -65,12 +65,13 @@ export default function SetupBusinessPage() {
           maxLength={80}
           autoFocus
         />
-        {error && <p className="text-xs text-destructive">{error}</p>}
+        <p role="alert" className="text-xs text-destructive">{error ?? ''}</p>
       </div>
 
       <Button className="w-full rounded-xl" onClick={handleSubmit} disabled={!canSubmit}>
         {loading ? <><Spinner className="mr-2" />{t("continue")}</> : t("continue")}
       </Button>
+
     </OnboardingShell>
   )
 }

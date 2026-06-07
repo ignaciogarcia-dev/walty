@@ -32,8 +32,8 @@ export interface MpcClientOptions {
    */
   token?: string
   /**
-   * Factory for the device Web Worker. Defaults to mpcWorker.ts; the e2e
-   * harness overrides this to point at its esbuild-bundled worker.
+   * Factory for the device Web Worker. Defaults to the bundled /mpc/mpcWorker.js
+   * (scripts/build-mpc-worker.mjs); a test harness may override it.
    */
   createWorker?: () => Worker
   /** Optional explicit wasm asset URL forwarded to the worker `init`. */
@@ -88,7 +88,8 @@ class WorkerChannel {
       else p.resolve(reply)
     }
     this.worker.onerror = (e: ErrorEvent) => {
-      const err = new Error("worker crashed: " + e.message)
+      const hint = !e.message ? " (worker file missing? run: pnpm --filter @walty/web predev)" : ""
+      const err = new Error(`worker crashed: ${e.message}${hint}`)
       for (const [, p] of this.pending) p.reject(err)
       this.pending.clear()
     }
@@ -112,11 +113,16 @@ class WorkerChannel {
 }
 
 function defaultCreateWorker(): Worker {
-  // This form makes the bundler emit the worker chunk + its wasm asset. The
-  // e2e harness overrides createWorker instead.
-  return new Worker(new URL("./mpcWorker.ts", import.meta.url), {
-    type: "module",
-  })
+  // Load the worker from the pre-bundled static asset at /mpc/mpcWorker.js
+  // (scripts/build-mpc-worker.mjs, staged like the wasm by copy:wasm). We do NOT
+  // use `new Worker(new URL("./mpcWorker.ts", import.meta.url))` because Turbopack's
+  // `next build` emits that as a raw .ts served with a non-JS MIME (video/mp2t),
+  // which a module worker refuses to execute. The e2e harness overrides createWorker.
+  const url =
+    typeof window !== "undefined"
+      ? new URL("/mpc/mpcWorker.js", window.location.origin).href
+      : "/mpc/mpcWorker.js"
+  return new Worker(url, { type: "module" })
 }
 
 // Server message shapes (subset we consume).
@@ -241,6 +247,9 @@ export class MpcClient {
     const socket = io(url, {
       transports: ["websocket"],
       forceNew: true,
+      // One-shot: connect() resolves/rejects on the first attempt; don't let
+      // socket.io background-retry after the promise has settled.
+      reconnection: false,
       withCredentials: true,
       // Browsers can't set WS headers, so the token rides in `auth`. In node we
       // also pass extraHeaders; browsers ignore those and fall back to the
@@ -515,13 +524,19 @@ export class MpcClient {
         cleanup()
         reject(new MpcClientError(err.reason, err.message))
       }
+      const onDisconnect = () => {
+        cleanup()
+        reject(new MpcClientError("disconnected", "WebSocket disconnected mid-ceremony"))
+      }
       const cleanup = () => {
         clearTimeout(timer)
         socket.off("ceremony:started", onStarted)
         socket.off("ceremony:error", onError)
+        socket.off("disconnect", onDisconnect)
       }
       socket.once("ceremony:started", onStarted)
       socket.once("ceremony:error", onError)
+      socket.once("disconnect", onDisconnect)
       socket.emit("ceremony:start", {
         ceremonyType,
         ...(keyId ? { keyId } : {}),
@@ -563,15 +578,21 @@ export class MpcClient {
         cleanup()
         reject(new MpcClientError("aborted", "ceremony aborted"))
       }
+      const onDisconnect = () => {
+        cleanup()
+        reject(new MpcClientError("disconnected", "WebSocket disconnected mid-round"))
+      }
       const cleanup = () => {
         clearTimeout(timer)
         socket.off("ceremony:message", onMessage)
         socket.off("ceremony:error", onError)
         socket.off("ceremony:aborted", onAborted)
+        socket.off("disconnect", onDisconnect)
       }
       socket.on("ceremony:message", onMessage)
       socket.on("ceremony:error", onError)
       socket.on("ceremony:aborted", onAborted)
+      socket.once("disconnect", onDisconnect)
       socket.emit("ceremony:round", {
         ceremonyId: msg.ceremonyId,
         keyId: msg.keyId,

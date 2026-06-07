@@ -51,6 +51,8 @@ export const es = {
   calculating: "Calculando…",
   cancel: "Cancelar",
   "confirm-send": "Confirmar envío",
+  sending: "Enviando…",
+  tokens: "Tokens",
   "confirm-pay": "Confirmar pago",
   "transaction-pending": "Transacción pendiente…",
   "on-network-waiting": "En la red — esperando confirmación",
@@ -143,6 +145,10 @@ export const es = {
   "local-wallet-mismatch-title": "Detectamos una wallet local distinta",
   "local-wallet-mismatch-description":
     "La wallet guardada en este dispositivo no coincide con tu cuenta actual. Para continuar, restaura la wallet correcta.",
+  "recovery-mpc-local-title": "Tu wallet ya está en este dispositivo",
+  "recovery-mpc-local-description":
+    "Esta es una wallet MPC — tu clave de dispositivo ya está guardada localmente. Ingresa tu PIN en el dashboard para desbloquearla.",
+  "go-to-dashboard": "Ir al dashboard",
 
   // Onboarding
   "onboarding-create-new": "Crear nueva wallet",
@@ -302,6 +308,12 @@ export const es = {
   "invalid-address": "Dirección inválida",
   "failed-save-contact": "Error al guardar contacto",
   "error-saving-contact": "Error al guardar contacto",
+  recipient: "Destinatario",
+  "send-max": "Máx",
+  "send-invalid-address": "Dirección EVM inválida",
+  "send-amount-too-low": "El monto debe ser mayor que 0",
+  "send-amount-exceeds-balance": "El monto supera tu saldo",
+  "transfer-sent": "Transferencia enviada",
 
   // CollectModal (POS)
   "collect-title": "Cobrar",

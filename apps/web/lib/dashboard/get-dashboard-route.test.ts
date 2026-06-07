@@ -87,16 +87,23 @@ describe("getDashboardRoute", () => {
   })
 
   describe("priority order", () => {
-    it("prioritizes onboarding over status redirects", () => {
+    it("prioritizes business status over the onboarding step", () => {
+      // A revoked/suspended member has hasActiveBusiness=false, which would
+      // otherwise resolve to an onboarding step (welcome) and leave the access
+      // pages unreachable. The status redirect must win so a locked-out member
+      // sees access-revoked/suspended instead of being funneled into onboarding.
       const route = getDashboardRoute({
         ...baseContext,
         walletStatus: "new",
         user: {
           ...baseContext.user,
+          isOwner: false,
+          hasActiveBusiness: false,
+          hasBusinessSettings: false,
           businessStatus: "revoked" as const,
         },
       })
-      expect(route.type).toBe("onboarding")
+      expect(route.type).toBe("access-revoked")
     })
 
     it("prioritizes business status over operator confinement", () => {

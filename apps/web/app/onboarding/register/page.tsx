@@ -41,8 +41,6 @@ export default function RegisterPage() {
         let target: string
         if (data.hasActiveBusiness) {
           target = "/dashboard/business/home"
-        } else if (data.requiresUsername) {
-          target = "/onboarding/username"
         } else {
           target = next ?? "/dashboard"
         }
@@ -65,7 +63,7 @@ export default function RegisterPage() {
 
   function handleGoToLogin() {
     if (invite) {
-      router.push(`/onboarding/login?next=/join/${invite}`)
+      router.push(`/onboarding/login?next=${encodeURIComponent(`/join/${invite}`)}`)
     } else {
       router.push(`/onboarding/login${next ? `?next=${encodeURIComponent(next)}` : ""}`)
     }
@@ -107,7 +105,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      <p role="alert" className="text-xs text-destructive">{error ?? ''}</p>
 
       <Button onClick={handleSubmit} disabled={loading || !email || password.length < 8} className="w-full rounded-xl">
         {loading ? <><Spinner className="mr-2" />{t("registering")}</> : t("register")}

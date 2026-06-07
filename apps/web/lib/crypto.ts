@@ -39,7 +39,15 @@ export type EncryptedSeedV3 = {
 // ---------------------------------------------------------------------------
 
 function toBase64(bytes: Uint8Array) {
-  return btoa(String.fromCharCode(...bytes))
+  // Process in 8 KB chunks: avoids both the call-stack overflow of the spread
+  // form and the O(n²) string concatenation of a per-byte loop (the MPC device
+  // share is ~200 KB). Matches lib/mpc/deviceShareStore.ts.
+  const CHUNK = 8192
+  let s = ""
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK) as unknown as number[])
+  }
+  return btoa(s)
 }
 
 function fromBase64(base64: string): Uint8Array<ArrayBuffer> {
@@ -176,50 +184,10 @@ export async function decryptSeedV3(encrypted: EncryptedSeedV3, pin: string): Pr
   }
 }
 
-/**
- * Re-wrap the Device Key with a new PIN without decrypting the seed.
- * Used for PIN rotation.
- */
-export async function reEncryptDK(
-  encrypted: EncryptedSeedV3,
-  oldPin: string,
-  newPin: string,
-): Promise<EncryptedSeedV3> {
-  const oldSalt = fromBase64(encrypted.salt)
-  const dkIv = fromBase64(encrypted.dkIv)
-  const encryptedDK = fromBase64(encrypted.encryptedDK)
-
-  // Unwrap DK with old PIN
-  const oldKEK = await deriveKEK(oldPin, oldSalt)
-  const dk = await crypto.subtle.unwrapKey(
-    "raw",
-    encryptedDK,
-    oldKEK,
-    { name: "AES-GCM", iv: dkIv },
-    { name: "AES-GCM", length: 256 },
-    true, // extractable to re-wrap
-    ["encrypt", "decrypt"],
-  )
-
-  // Wrap DK with new PIN
-  const newSalt = crypto.getRandomValues(new Uint8Array(16)) as Uint8Array<ArrayBuffer>
-  const newDkIv = crypto.getRandomValues(new Uint8Array(12))
-  const newKEK = await deriveKEK(newPin, newSalt)
-
-  const newEncryptedDK = await crypto.subtle.wrapKey(
-    "raw",
-    dk,
-    newKEK,
-    { name: "AES-GCM", iv: newDkIv },
-  )
-
-  return {
-    ...encrypted,
-    encryptedDK: toBase64(new Uint8Array(newEncryptedDK)),
-    dkIv: toBase64(newDkIv),
-    salt: toBase64(newSalt),
-  }
-}
+// TODO(PIN-rotation): reEncryptDK — re-wrap only the Device Key (not the full
+// seed) for cheaper PIN rotation. Not called yet; the current PIN rotation flow
+// re-encrypts the seed via encryptSeedV3. Wire this up when the settings page
+// ships PIN change.
 
 // ---------------------------------------------------------------------------
 // V1: legacy local encryption (kept for migration)

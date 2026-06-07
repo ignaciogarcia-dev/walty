@@ -25,6 +25,7 @@ export function useDevices() {
   const refetch = useCallback(async () => {
     try {
       const res = await fetch("/api/devices");
+      if (res.status === 401) return;
       if (!res.ok) throw new Error("devices-fetch-failed");
       const body = unwrap<DevicesResponse>(await res.json());
       setDevices(body.devices ?? []);

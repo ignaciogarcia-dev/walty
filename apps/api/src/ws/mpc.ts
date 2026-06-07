@@ -15,6 +15,7 @@ import {
 import { rateLimitByUser, RateLimitError } from "@walty/shared/rate-limit"
 import { logger } from "../config/logger.js"
 import { Ceremony, CeremonyError } from "../services/mpc/ceremony.js"
+import { markSessionTrusted } from "../services/deviceSessions.js"
 import { isSocketSessionLive } from "./io.js"
 
 // Rate-limit ceremony starts per user. Each start counts once; per-round
@@ -228,6 +229,17 @@ export function registerMpcNamespace(
         })
         if (result.done) {
           state.ceremonies.delete(ceremony.ceremonyId)
+          // DKG/refresh completion proves the device holds the keyshare — trust the session.
+          if (ceremony.ceremonyType === "dkg" || ceremony.ceremonyType === "refresh") {
+            const sid = socket.data.sid as string | undefined
+            if (sid) {
+              void markSessionTrusted(sid).catch((err) =>
+                logger.error({ err, sid, ceremonyType: ceremony.ceremonyType }, "markSessionTrusted failed after ceremony"),
+              )
+            } else {
+              logger.error({ userId, ceremonyType: ceremony.ceremonyType }, "markSessionTrusted skipped: sid missing from socket")
+            }
+          }
         }
       } catch (err) {
         const reason = err instanceof CeremonyError ? err.reason : "internal"

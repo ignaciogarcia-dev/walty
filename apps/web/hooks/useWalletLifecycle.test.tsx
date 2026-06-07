@@ -170,7 +170,7 @@ describe("useWalletLifecycle", () => {
     });
 
     const treasuryCall = fetchSpy.mock.calls.find(
-      ([url]: [string]) => typeof url === "string" && url.includes("/api/treasury/deploy"),
+      ([url]: unknown[]) => typeof url === "string" && url.includes("/api/treasury/deploy"),
     );
     expect(treasuryCall).toBeDefined();
 

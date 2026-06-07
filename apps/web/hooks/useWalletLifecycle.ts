@@ -39,7 +39,7 @@ import {
 import { getDeviceShareMeta } from "@/lib/mpc/deviceShareStore";
 import { getMpcClient } from "@/lib/mpc/getMpcClient";
 import { createWalletSessionManager } from "@/lib/wallet/WalletSessionManager";
-import { attestDevice } from "@/lib/wallet/attestDevice";
+import { attestDevice, attestDeviceMpc } from "@/lib/wallet/attestDevice";
 
 export type WalletStatus = "loading" | "unlocked" | InitialWalletStatus;
 
@@ -222,6 +222,7 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
     setAddress(meta.address);
     setCustody("mpc");
     setStatus("unlocked");
+    void attestDeviceMpc(mpcSecurity).catch(() => {});
   }, [security, mpcSecurity]);
 
   // ── Export ──────────────────────────────────────────────────────────────

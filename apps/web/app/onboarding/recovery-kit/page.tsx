@@ -119,7 +119,7 @@ export default function RecoveryKitPage() {
             </div>
           </div>
 
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          <p role="alert" className="text-xs text-destructive">{error ?? ''}</p>
 
           <Button
             className="w-full rounded-xl"
