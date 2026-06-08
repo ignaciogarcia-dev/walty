@@ -48,7 +48,12 @@ export default function RecoveryKitPage() {
     setLoading(true)
     try {
       // export → verify → zeroize the in-memory backup share, then download it.
-      const exported = await finalizeBackupShare(mpc.backupShareBytes, password)
+      // Tag the kit with its keyId + polynomial generation so a later recovery
+      // can reject a stale kit instead of failing cryptically.
+      const exported = await finalizeBackupShare(mpc.backupShareBytes, password, {
+        keyId: mpc.keyId,
+        generation: mpc.generation,
+      })
       const blob = new Blob([JSON.stringify(exported, null, 2)], {
         type: "application/json",
       })

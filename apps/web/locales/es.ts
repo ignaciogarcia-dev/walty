@@ -51,8 +51,6 @@ export const es = {
   calculating: "Calculando…",
   cancel: "Cancelar",
   "confirm-send": "Confirmar envío",
-  sending: "Enviando…",
-  tokens: "Tokens",
   "confirm-pay": "Confirmar pago",
   "transaction-pending": "Transacción pendiente…",
   "on-network-waiting": "En la red — esperando confirmación",
@@ -149,6 +147,17 @@ export const es = {
   "recovery-mpc-local-description":
     "Esta es una wallet MPC — tu clave de dispositivo ya está guardada localmente. Ingresa tu PIN en el dashboard para desbloquearla.",
   "go-to-dashboard": "Ir al dashboard",
+  "recovery-kit-description":
+    "Sube tu archivo walty-recovery-kit.json e ingresa tu contraseña de recuperación para restaurar tu wallet en este dispositivo.",
+  "recovery-kit-file-label": "Archivo del kit de recuperación",
+  "recovery-kit-choose-file": "Seleccionar walty-recovery-kit.json…",
+  "recovery-kit-password-label": "Contraseña de recuperación",
+  "recovery-kit-no-file": "Por favor selecciona tu archivo de kit de recuperación.",
+  "recovery-kit-no-password": "Por favor ingresa tu contraseña de recuperación.",
+  "recovery-kit-invalid-file": "Archivo de kit de recuperación inválido. Asegúrate de haber seleccionado el walty-recovery-kit.json correcto.",
+  "recovery-kit-wrong-password": "Contraseña de recuperación incorrecta. Verifica la contraseña e intenta de nuevo.",
+  "recovery-kit-outdated": "Este kit de recuperación está desactualizado — tu wallet se actualizó después de crearlo. Usá tu kit de recuperación más reciente para restaurar el acceso.",
+  "recovery-session-expired": "La recuperación tardó demasiado en completarse. No se cambió nada — volvé a empezar la recuperación con tu kit.",
 
   // Onboarding
   "onboarding-create-new": "Crear nueva wallet",

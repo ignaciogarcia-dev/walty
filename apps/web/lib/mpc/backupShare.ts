@@ -12,6 +12,13 @@
 
 // Serialisable encrypted blob carrying the backup share (party 2). Byte arrays
 // are base64url so it's safe for JSON, QR codes, or printed paper backups.
+//
+// v2 adds keyId + generation: every refresh/recover advances the DKLS polynomial
+// (all three shares re-randomize, group pubkey unchanged), which silently makes
+// any previously-exported kit incompatible. Tagging the generation lets the
+// server reject a stale kit with a clear "outdated" error instead of a cryptic
+// "Invalid key refresh" crash, and forces a fresh kit to be re-issued on every
+// advance. v1 kits (no generation) are still importable for backward compat.
 export interface BackupExport {
   /** AES-GCM ciphertext of the raw backup share bytes, base64url. */
   ciphertext: string
@@ -20,7 +27,17 @@ export interface BackupExport {
   /** 16-byte PBKDF2 salt, base64url. */
   salt: string
   /** Format tag — callers should reject unknown formats. */
-  format: "walty-backup-share-v1"
+  format: "walty-backup-share-v1" | "walty-backup-share-v2"
+  /** MPC key this backup share belongs to (v2+). */
+  keyId?: string
+  /** DKLS polynomial generation = mpc_keys.version this share was minted at (v2+). */
+  generation?: number
+}
+
+/** Provenance written into a v2 kit so a stale kit can be detected on recovery. */
+export interface BackupMeta {
+  keyId: string
+  generation: number
 }
 
 const BACKUP_KDF_ITERATIONS = 600_000
@@ -74,10 +91,13 @@ async function deriveBackupKey(
  *
  * @param backupShareBytes  Raw serialised backup(2) keyshare bytes.
  * @param recoveryPassword  Recovery passphrase chosen by the user.
+ * @param meta  keyId + generation; when present a v2 kit is written so a stale
+ *   kit can be detected on recovery. Omit only for legacy/test callers.
  */
 export async function exportBackupShare(
   backupShareBytes: Uint8Array,
   recoveryPassword: string,
+  meta?: BackupMeta,
 ): Promise<BackupExport> {
   const salt = crypto.getRandomValues(new Uint8Array(16)) as Uint8Array<ArrayBuffer>
   const iv = crypto.getRandomValues(new Uint8Array(12)) as Uint8Array<ArrayBuffer>
@@ -87,12 +107,14 @@ export async function exportBackupShare(
     key,
     backupShareBytes as Uint8Array<ArrayBuffer>,
   )
-  return {
+  const base = {
     ciphertext: toBase64url(new Uint8Array(ciphertextBuf)),
     iv: toBase64url(iv),
     salt: toBase64url(salt),
-    format: "walty-backup-share-v1",
   }
+  return meta
+    ? { ...base, format: "walty-backup-share-v2", keyId: meta.keyId, generation: meta.generation }
+    : { ...base, format: "walty-backup-share-v1" }
 }
 
 /**
@@ -106,7 +128,7 @@ export async function importBackupShare(
   exp: BackupExport,
   recoveryPassword: string,
 ): Promise<Uint8Array> {
-  if (exp.format !== "walty-backup-share-v1") {
+  if (exp.format !== "walty-backup-share-v1" && exp.format !== "walty-backup-share-v2") {
     throw new Error(`importBackupShare: unknown format "${exp.format}"`)
   }
   const salt = fromBase64url(exp.salt)
@@ -167,8 +189,9 @@ export function zeroizeShare(buf: Uint8Array): void {
 export async function finalizeBackupShare(
   backupShareBytes: Uint8Array,
   recoveryPassword: string,
+  meta?: BackupMeta,
 ): Promise<BackupExport> {
-  const exported = await exportBackupShare(backupShareBytes, recoveryPassword)
+  const exported = await exportBackupShare(backupShareBytes, recoveryPassword, meta)
 
   let verified: boolean
   try {

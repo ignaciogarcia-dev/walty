@@ -11,6 +11,8 @@ import {
   db,
   addresses,
   devicePairingRequests,
+  mpcKeys,
+  mpcServerShares,
   walletBackups,
   walletNonces,
 } from "@walty/db"
@@ -23,6 +25,9 @@ import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import { validateBackup as validateBackupShape } from "@walty/shared/wallet-backup/validation"
 import { authed } from "../middleware/typedHandlers.js"
 import { withAuth } from "../middleware/withAuth.js"
+import { loadServerKeyshare, runLocalRecover } from "../services/mpc/MpcServerParty.js"
+import { encryptShare } from "../services/mpc/serverShareStore.js"
+import { stageRecovery, takeRecovery, markConsumed } from "../services/mpc/recoverStaging.js"
 
 export const walletRouter: Router = Router()
 
@@ -199,6 +204,18 @@ walletRouter.get(
 )
 
 walletRouter.get(
+  "/mpc-key",
+  withAuth,
+  authed(async (req, res) => {
+    const { auth } = req
+    const key = await db.query.mpcKeys.findFirst({
+      where: eq(mpcKeys.userId, auth.userId),
+    })
+    res.json({ keyId: key?.id ?? null, address: key?.address ?? null })
+  }),
+)
+
+walletRouter.get(
   "/addresses",
   withAuth,
   authed(async (req, res) => {
@@ -208,5 +225,134 @@ walletRouter.get(
       .from(addresses)
       .where(eq(addresses.userId, auth.userId))
     res.json({ addresses: result })
+  }),
+)
+
+// Server-side MPC recovery: runs all three DKLS parties locally (node WASM only)
+// to avoid the web→node WASM incompatibility in initLostShareRecovery round 2.
+// The server transiently holds all three shares during recovery.
+walletRouter.post(
+  "/mpc-recover",
+  withAuth,
+  authed(async (req, res) => {
+    const { auth } = req
+    await rateLimitByUser(auth.userId, "mpc-recover", 20, 3_600_000)
+
+    const { backupShare, generation } = req.body ?? {}
+    if (typeof backupShare !== "string" || !backupShare) {
+      throw new ValidationError("Missing backupShare")
+    }
+
+    const backupShareBytes = Buffer.from(backupShare, "base64")
+
+    const keyRow = await db.query.mpcKeys.findFirst({
+      where: eq(mpcKeys.userId, auth.userId),
+    })
+    if (!keyRow) throw new ValidationError("No MPC key found for this user")
+
+    // A v2 kit carries the polynomial generation it was minted at. Every
+    // refresh/recover advances mpc_keys.version; a kit from an older generation
+    // can never recombine with the current server share (DKLS "Invalid key
+    // refresh"). Reject it up front with an actionable error instead of running
+    // the doomed ceremony. (Legacy v1 kits send no generation — see the catch
+    // below, which maps the WASM failure to the same outcome.)
+    if (typeof generation === "number" && generation !== keyRow.version) {
+      throw new ValidationError("recovery_kit_outdated")
+    }
+
+    const { keyshareBytes: serverShareBytes, ctx } = await loadServerKeyshare(keyRow.id)
+
+    let recovered: Awaited<ReturnType<typeof runLocalRecover>>
+    try {
+      recovered = await runLocalRecover(serverShareBytes, backupShareBytes)
+    } catch (err) {
+      // DKLS throws this when the two surviving shares are from different
+      // polynomial generations — i.e. the uploaded kit is stale.
+      if (err instanceof Error && /invalid key refresh/i.test(err.message)) {
+        throw new ValidationError("recovery_kit_outdated")
+      }
+      throw err
+    }
+    const { newDeviceShareBytes, newServerShareBytes, newBackupShareBytes, pubkey, address } =
+      recovered
+
+    // Recovery re-randomised all three shares onto the next polynomial generation.
+    // DO NOT overwrite the live server share yet: stage it (ack-then-commit) and
+    // leave the DB at gen N. The old kit + gen-N share stay a valid recovery pair
+    // until the client confirms it saved the new device share AND downloaded the
+    // re-issued kit (gen N+1) by calling /mpc-recover/commit. An abandoned flow is
+    // then retryable, never bricking.
+    const nextVersion = keyRow.version + 1
+    const enc = await encryptShare({ ...ctx, version: nextVersion }, newServerShareBytes)
+    const commitToken = stageRecovery(auth.userId, keyRow.id, enc, nextVersion)
+
+    res.json({
+      keyId: keyRow.id,
+      deviceShare: newDeviceShareBytes.toString("base64"),
+      // The refreshed backup share — the client MUST re-export it into a fresh
+      // kit (generation = nextVersion); the uploaded kit is now stale.
+      backupShare: newBackupShareBytes.toString("base64"),
+      generation: nextVersion,
+      commitToken,
+      pubkey,
+      address,
+    })
+  }),
+)
+
+// Commit phase of the ack-then-commit recovery: the client calls this only after
+// it has durably saved the new device share and downloaded the re-issued kit.
+// Only here do we overwrite the live server share + bump the key version.
+walletRouter.post(
+  "/mpc-recover/commit",
+  withAuth,
+  authed(async (req, res) => {
+    const { auth } = req
+    await rateLimitByUser(auth.userId, "mpc-recover-commit", 40, 3_600_000)
+
+    const { commitToken } = req.body ?? {}
+    if (typeof commitToken !== "string" || !commitToken) {
+      throw new ValidationError("Missing commitToken")
+    }
+
+    const result = takeRecovery(auth.userId, commitToken)
+    if (result.status === "not_found") {
+      // Expired/unknown token — nothing was committed, the live share is still at
+      // the old generation, so the user's previous kit remains valid for a retry.
+      throw new ValidationError("recovery_session_expired")
+    }
+    if (result.status === "already_committed") {
+      res.json({ ok: true, alreadyCommitted: true })
+      return
+    }
+
+    const { staged } = result
+    const baseVersion = staged.nextVersion - 1
+
+    // Conditional on the key still being at the base generation. If another
+    // recovery already advanced it (concurrent/duplicate commit), this affects 0
+    // rows: we must NOT install a server share that no longer matches the kit +
+    // device the user kept. Bail without writing — the live share stays valid for
+    // a fresh recovery.
+    const bumped = await db
+      .update(mpcKeys)
+      .set({ version: staged.nextVersion })
+      .where(and(eq(mpcKeys.id, staged.keyId), eq(mpcKeys.version, baseVersion)))
+      .returning({ id: mpcKeys.id })
+    if (bumped.length !== 1) {
+      throw new ValidationError("recovery_session_expired")
+    }
+    await db
+      .update(mpcServerShares)
+      .set({
+        ciphertext: staged.enc.ciphertext,
+        nonce: staged.enc.nonce,
+        wrappedDek: staged.enc.wrappedDek,
+        version: staged.enc.version,
+      })
+      .where(eq(mpcServerShares.keyId, staged.keyId))
+    markConsumed(commitToken)
+
+    res.json({ ok: true, generation: staged.nextVersion })
   }),
 )

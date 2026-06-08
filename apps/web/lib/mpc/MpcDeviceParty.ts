@@ -246,6 +246,14 @@ export interface RefreshResult {
   address: string
 }
 
+export interface RecoverResult {
+  /** New device(0) keyshare bytes. Backup share is unchanged — old kit file still valid. */
+  deviceShareBytes: Uint8Array
+  /** UNCHANGED from the original key. */
+  pubkey: `0x${string}`
+  address: string
+}
+
 export interface DeviceStep<R> {
   /** Bundle of client wire frames bound for the server (relay verbatim). */
   outboundBundle: string
@@ -468,6 +476,7 @@ class LocalKeygenDriver {
 type DeviceEngine =
   | { kind: "dkg"; driver: LocalKeygenDriver }
   | { kind: "refresh"; driver: LocalKeygenDriver }
+  | { kind: "recover"; driver: LocalKeygenDriver }
   | {
       kind: "sign"
       session: SignSession
@@ -488,6 +497,28 @@ export class MpcDeviceParty {
       backup: new KeygenSession(PARTICIPANTS, THRESHOLD, BACKUP_PARTY_ID),
     }))
     this.engine = { kind: "dkg", driver }
+    return driver.start()
+  }
+
+  /**
+   * Recover the lost device share (party 0) using the backup share (party 2).
+   * The server contributes its share (party 1) over the WebSocket.
+   * Result: a new device share with the SAME public key; backup kit file remains valid.
+   */
+  startRecover(backupShareBytes: Uint8Array): string {
+    if (this.engine) throw new Error("MpcDeviceParty: ceremony already started")
+    const lostShares = new Uint8Array([DEVICE_PARTY_ID])
+    const driver = new LocalKeygenDriver(() => {
+      const backupOld = Keyshare.fromBytes(backupShareBytes)
+      // Copy pk before initKeyRecovery consumes (frees) backupOld.
+      const pkCopy = new Uint8Array(backupOld.publicKey)
+      const backup = KeygenSession.initKeyRecovery(backupOld, lostShares)
+      const device = KeygenSession.initLostShareRecovery(
+        PARTICIPANTS, THRESHOLD, DEVICE_PARTY_ID, pkCopy, lostShares,
+      )
+      return { device, backup }
+    })
+    this.engine = { kind: "recover", driver }
     return driver.start()
   }
 
@@ -545,10 +576,10 @@ export class MpcDeviceParty {
    */
   handleServerBundle(
     serverBundle: string,
-  ): DeviceStep<DkgResult | RefreshResult | SignResult> {
+  ): DeviceStep<DkgResult | RecoverResult | RefreshResult | SignResult> {
     if (!this.engine) throw new Error("MpcDeviceParty: no ceremony in progress")
 
-    if (this.engine.kind === "dkg" || this.engine.kind === "refresh") {
+    if (this.engine.kind === "dkg" || this.engine.kind === "refresh" || this.engine.kind === "recover") {
       const stepKind = this.engine.kind
       const driver = this.engine.driver
       const out = driver.step(serverBundle)
@@ -566,7 +597,9 @@ export class MpcDeviceParty {
       const result =
         stepKind === "dkg"
           ? ({ deviceShareBytes, backupShareBytes, pubkey, address } as DkgResult)
-          : ({ deviceShareBytes, backupShareBytes, pubkey, address } as RefreshResult)
+          : stepKind === "recover"
+            ? ({ deviceShareBytes, pubkey, address } as RecoverResult)
+            : ({ deviceShareBytes, backupShareBytes, pubkey, address } as RefreshResult)
       return { outboundBundle: out.outboundBundle, done: true, result }
     }
 

@@ -49,6 +49,31 @@ export default function CreatePinPage() {
       // address was already registered server-side during the DKG, so there is
       // no nonce/link/backup dance here.
       if (mpc) {
+        // Recovery flow: commit the staged server share FIRST, while no local
+        // device share exists yet. The re-issued kit (gen N+1) was already
+        // downloaded in the recovery-kit step, so once the commit lands
+        // {kit, server} are a valid pair at N+1. Only then persist the device
+        // share. If the commit fails we never save a local share, so walletStatus
+        // stays "recoverable" and the user can retry kit recovery — committing
+        // before the save is what keeps a failure a safe retry instead of a
+        // dead-end (a saved share would flip status to "locked" with no in-app
+        // path back to kit recovery).
+        if (mpc.recoverToken) {
+          const commitRes = await fetch("/api/mpc-recover/commit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ commitToken: mpc.recoverToken }),
+          })
+          if (!commitRes.ok) {
+            const body = await commitRes.json().catch(() => ({}))
+            throw new Error(
+              body?.message === "recovery_session_expired"
+                ? t("recovery-session-expired")
+                : t("error-recovering-wallet"),
+            )
+          }
+        }
+
         await saveDeviceShare(mpc.deviceShareBytes, pin, {
           keyId: mpc.keyId,
           pubkey: mpc.pubkey,
