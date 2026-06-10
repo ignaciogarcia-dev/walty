@@ -55,7 +55,7 @@ describe("tx-intents (real db)", () => {
   it("idempotency: same key + same payload returns the original intent", async () => {
     const app = createApp()
     const cookie = await authedCookie(app)
-    const recipient = makeEoa().account.address
+    const recipient = makeEoa().account.address as `0x${string}`
     const sender = makeEoa().account.address
     const payload = {
       to: recipient,
@@ -123,7 +123,7 @@ describe("tx-intents (real db)", () => {
     const cookie = await authedCookie(app)
     const { pk, account } = makeEoa()
     const authorized = makeEoa().account.address
-    const attacker = makeEoa().account.address
+    const attacker = makeEoa().account.address as `0x${string}`
 
     const create = await request(app)
       .post("/tx-intents")
@@ -158,7 +158,7 @@ describe("tx-intents (real db)", () => {
     const app = createApp()
     const cookie = await authedCookie(app)
     const { pk, account } = makeEoa()
-    const recipient = makeEoa().account.address
+    const recipient = makeEoa().account.address as `0x${string}`
 
     const create = await request(app)
       .post("/tx-intents")
@@ -193,7 +193,7 @@ describe("tx-intents (real db)", () => {
     const app = createApp()
     const cookie = await authedCookie(app)
     const { pk, account } = makeEoa()
-    const recipient = makeEoa().account.address
+    const recipient = makeEoa().account.address as `0x${string}`
 
     const create = await request(app)
       .post("/tx-intents")
@@ -293,7 +293,7 @@ describe("tx-intents (real db)", () => {
     const app = createApp()
     const cookie = await authedCookie(app)
     const { pk, account } = makeEoa()
-    const recipient = makeEoa().account.address
+    const recipient = makeEoa().account.address as `0x${string}`
     const create = await request(app)
       .post("/tx-intents")
       .set("Cookie", cookie)
