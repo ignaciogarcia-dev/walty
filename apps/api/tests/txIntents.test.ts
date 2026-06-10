@@ -79,6 +79,19 @@ function authed() {
   return `token=${signSessionToken({ userId: 1, sid: "test-sid" })}`
 }
 
+const validPayload = {
+  to: "0x" + "1".repeat(40),
+  from: "0x" + "2".repeat(40),
+  amount: "1.5",
+  chainId: 137,
+  token: {
+    symbol: "USDC",
+    address: "0x" + "3".repeat(40),
+    type: "erc20",
+    decimals: 6,
+  },
+}
+
 describe("tx-intents routes", () => {
   it("POST /tx-intents requires auth", async () => {
     const app = createApp()
@@ -102,12 +115,33 @@ describe("tx-intents routes", () => {
       .post("/tx-intents")
       .set("Cookie", authed())
       .send({
-        payload: { chainId: 137, foo: "bar" },
+        payload: validPayload,
         type: "transfer",
       })
     expect(res.status).toBe(200)
     expect(res.body.id).toBe("intent-1")
     expect(res.body.status).toBe("pending")
+  })
+
+  it("POST /tx-intents rejects a structurally-invalid payload", async () => {
+    const app = createApp()
+    const { to, ...noTo } = validPayload
+    const res = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", authed())
+      .send({ payload: noTo, type: "transfer" })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe("validation_error")
+  })
+
+  it("POST /tx-intents rejects an unknown intent type", async () => {
+    const app = createApp()
+    const res = await request(app)
+      .post("/tx-intents")
+      .set("Cookie", authed())
+      .send({ payload: validPayload, type: "bogus" })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe("validation_error")
   })
 
   it("POST /tx-intents/:id/sign rejects malformed signedRaw", async () => {

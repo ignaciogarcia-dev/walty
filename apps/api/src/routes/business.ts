@@ -1,7 +1,8 @@
 import { and, eq, isNotNull, sql } from "drizzle-orm"
 import { Router } from "express"
 import { DatabaseError } from "pg"
-import { formatUnits, isAddress } from "viem"
+import { formatUnits } from "viem"
+import { z } from "zod"
 import {
   db,
   addresses,
@@ -23,6 +24,11 @@ import {
   operatorHasBalance,
 } from "@walty/shared/business/operatorBalance"
 import { getActiveMpcKey, isMpcBusiness } from "@walty/shared/business/mpcStatus"
+import {
+  businessSettingsBody,
+  memberInviteBody,
+  memberPatchBody,
+} from "@walty/shared/business/schemas"
 import { registerChildAddress } from "../services/mpc/MpcServerParty.js"
 import { Permission } from "@walty/shared/permissions"
 import {
@@ -32,6 +38,7 @@ import {
 import { rateLimitByUser } from "@walty/shared/rate-limit"
 import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent"
 import { authed, businessed } from "../middleware/typedHandlers.js"
+import { validateBody } from "../middleware/validateBody.js"
 import { withAuth } from "../middleware/withAuth.js"
 import { withBusinessAuth } from "../middleware/withBusiness.js"
 
@@ -113,15 +120,12 @@ businessRouter.get(
 businessRouter.post(
   "/business/settings",
   withAuth,
+  validateBody(businessSettingsBody),
   authed(async (req, res) => {
     const { auth } = req
     await rateLimitByUser(auth.userId, "business-settings", 10, 60_000)
 
-    const body = req.body ?? {}
-    const name = typeof body?.name === "string" ? body.name.trim() : ""
-    if (name.length < 2 || name.length > 80) {
-      throw new ValidationError("business name must be 2-80 characters")
-    }
+    const { name } = req.body as z.infer<typeof businessSettingsBody>
 
     const [membership] = await db
       .select({ id: businessMembers.id })
@@ -210,28 +214,13 @@ businessRouter.get(
 businessRouter.post(
   "/business/members/invite",
   ...withBusinessAuth(Permission.MEMBER_INVITE),
+  validateBody(memberInviteBody),
   businessed(async (req, res) => {
     const { auth, business } = req
     const ip = req.clientIp
 
     const { role, inviteEmail, expiresInDays, walletAddress, derivationIndex } =
-      req.body ?? {}
-
-    if (!VALID_ROLES.includes(role as MemberRole)) {
-      throw new ValidationError("role must be cashier")
-    }
-    if (!walletAddress || !isAddress(walletAddress)) {
-      throw new ValidationError("valid walletAddress is required")
-    }
-    if (
-      !derivationIndex ||
-      typeof derivationIndex !== "number" ||
-      derivationIndex < 1
-    ) {
-      throw new ValidationError(
-        "valid derivationIndex is required (must be >= 1)",
-      )
-    }
+      req.body as z.infer<typeof memberInviteBody>
 
     const indexTaken = await db.query.businessMembers.findFirst({
       where: and(
@@ -313,6 +302,7 @@ businessRouter.post(
 businessRouter.patch(
   "/business/members/:id",
   ...withBusinessAuth(Permission.MEMBER_MANAGE),
+  validateBody(memberPatchBody),
   businessed(async (req, res) => {
     const { auth, business, actor } = req
     const ip = req.clientIp
@@ -333,7 +323,7 @@ businessRouter.patch(
 
     if (!member) throw new NotFoundError("member not found")
 
-    const { action, role } = req.body ?? {}
+    const { action, role } = req.body as z.infer<typeof memberPatchBody>
 
     if (action === "change_role") {
       if (!VALID_ROLES.includes(role as MemberRole)) {

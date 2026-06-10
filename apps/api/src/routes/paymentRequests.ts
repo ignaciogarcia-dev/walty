@@ -1,6 +1,7 @@
 import { Router } from "express"
 import { and, asc, desc, eq, inArray } from "drizzle-orm"
-import { isAddress, parseUnits } from "viem"
+import { parseUnits } from "viem"
+import { z } from "zod"
 import {
   db,
   addresses,
@@ -30,6 +31,10 @@ import {
   toPublicPaymentRequestView,
 } from "@walty/shared/payments/paymentRequests"
 import { reconcilePendingPaymentRequests } from "@walty/shared/payments/reconcilePendingPaymentRequests"
+import {
+  paymentRequestCancelBody,
+  paymentRequestCreateBody,
+} from "@walty/shared/payments/schemas"
 import type { SplitPaymentContribution } from "@walty/shared/payments/types"
 import { Permission } from "@walty/shared/permissions"
 import { canCancelPayment } from "@walty/shared/policies/payment.policy"
@@ -38,6 +43,7 @@ import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent"
 import { asyncHandler } from "../middleware/asyncHandler.js"
 import { businessed } from "../middleware/typedHandlers.js"
+import { validateBody } from "../middleware/validateBody.js"
 import { withBusinessAuth } from "../middleware/withBusiness.js"
 import {
   emitBusinessActiveChanged,
@@ -76,12 +82,12 @@ paymentRequestsRouter.get(
 paymentRequestsRouter.patch(
   "/payment-requests",
   ...withBusinessAuth(Permission.PAYMENT_REQUEST_CANCEL),
+  validateBody(paymentRequestCancelBody),
   businessed(async (req, res) => {
     const { auth, business, actor } = req
     const ip = req.clientIp
 
-    const { id } = req.body ?? {}
-    if (!id || typeof id !== "string") throw new ValidationError("invalid id")
+    const { id } = req.body as z.infer<typeof paymentRequestCancelBody>
 
     const [request] = await db
       .select()
@@ -140,6 +146,7 @@ paymentRequestsRouter.patch(
 paymentRequestsRouter.post(
   "/payment-requests",
   ...withBusinessAuth(Permission.PAYMENT_REQUEST_CREATE),
+  validateBody(paymentRequestCreateBody),
   businessed(async (req, res) => {
     const { auth, business } = req
     const ip = req.clientIp
@@ -147,20 +154,17 @@ paymentRequestsRouter.post(
     await rateLimitByUser(auth.userId, "payment-request-create", 10)
 
     const { amountUsd, token, merchantWalletAddress, isSplitPayment } =
-      req.body ?? {}
+      req.body as z.infer<typeof paymentRequestCreateBody>
 
     if (!isPaymentTokenSymbol(token)) {
       throw new ValidationError("token must be USDC or USDT")
     }
     const amount = parseFloat(amountUsd)
-    if (!amountUsd || isNaN(amount) || amount <= 0) {
+    if (isNaN(amount) || amount <= 0) {
       throw new ValidationError("invalid amount")
     }
     if (amount > PAYMENT_MAX_AMOUNT_USD) {
       throw new ValidationError("amount exceeds maximum allowed")
-    }
-    if (!merchantWalletAddress || !isAddress(merchantWalletAddress)) {
-      throw new ValidationError("invalid merchant wallet address")
     }
 
     if (business.isOwner) {

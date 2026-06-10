@@ -121,6 +121,9 @@ describe("refund-requests routes", () => {
       .patch("/business/refund-requests/1")
       .set("Cookie", authed())
       .send({ action: "explode" })
-    expect(res.status).toBe(404)
+    // Structural validation now rejects the bad action at the boundary (400)
+    // before the refund is loaded — stricter than the old 404.
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe("validation_error")
   })
 })
