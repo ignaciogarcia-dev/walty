@@ -111,11 +111,18 @@ describe("mpcRoundMessage", () => {
       expect(() => mpcRoundMessage.parse(rest)).toThrow()
     })
 
-    it("covers all three valid ceremony types", () => {
+    it("covers all valid ceremony types", () => {
       expect(CEREMONY_TYPES).toContain("dkg")
       expect(CEREMONY_TYPES).toContain("sign")
       expect(CEREMONY_TYPES).toContain("refresh")
-      expect(CEREMONY_TYPES).toHaveLength(3)
+      expect(CEREMONY_TYPES).toContain("recover")
+      expect(CEREMONY_TYPES).toHaveLength(4)
+    })
+
+    it("accepts every declared ceremony type", () => {
+      for (const ceremonyType of CEREMONY_TYPES) {
+        expect(() => mpcRoundMessage.parse(validRound({ ceremonyType }))).not.toThrow()
+      }
     })
   })
 
