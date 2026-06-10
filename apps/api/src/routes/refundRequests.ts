@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm"
 import { Router } from "express"
-import { isAddress, isHex, type Hex } from "viem"
+import { isHex, type Hex } from "viem"
+import { z } from "zod"
 import {
   db,
   businessMembers,
@@ -25,6 +26,10 @@ import {
   canRejectRefund,
   canRequestRefund,
 } from "@walty/shared/policies/payment.policy"
+import {
+  refundCreateBody,
+  refundPatchBody,
+} from "@walty/shared/payments/refundSchemas"
 import { rateLimitByUser } from "@walty/shared/rate-limit"
 import {
   TxVerificationError,
@@ -33,6 +38,7 @@ import {
 import type { TxIntentPayload } from "@walty/shared/tx-intents/types"
 import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent"
 import { businessed } from "../middleware/typedHandlers.js"
+import { validateBody } from "../middleware/validateBody.js"
 import { withBusinessAuth } from "../middleware/withBusiness.js"
 import { emitTxIntentStatus } from "../ws/io.js"
 
@@ -128,6 +134,7 @@ refundRequestsRouter.get(
 refundRequestsRouter.post(
   "/business/refund-requests",
   ...withBusinessAuth(Permission.REFUND_REQUEST_CREATE),
+  validateBody(refundCreateBody),
   businessed(async (req, res) => {
     const { auth, business, actor } = req
     const ip = req.clientIp
@@ -140,17 +147,7 @@ refundRequestsRouter.post(
       reason,
       amountToken: overrideToken,
       amountUsd: overrideUsd,
-    } = req.body ?? {}
-
-    if (!paymentRequestId || typeof paymentRequestId !== "string") {
-      throw new ValidationError("paymentRequestId is required")
-    }
-    if (!destinationAddress || !isAddress(destinationAddress)) {
-      throw new ValidationError("invalid destination address")
-    }
-    if (!reason || typeof reason !== "string" || reason.trim().length === 0) {
-      throw new ValidationError("reason is required")
-    }
+    } = req.body as z.infer<typeof refundCreateBody>
 
     const [payment] = await db
       .select()
@@ -251,12 +248,13 @@ refundRequestsRouter.post(
 refundRequestsRouter.patch(
   "/business/refund-requests/:id",
   ...withBusinessAuth(Permission.REFUND_REVIEW),
+  validateBody(refundPatchBody),
   businessed(async (req, res) => {
     const { auth, business, actor } = req
     const ip = req.clientIp
 
     const { id } = req.params
-    const { action, txHash } = req.body ?? {}
+    const { action, txHash } = req.body as z.infer<typeof refundPatchBody>
 
     const [refund] = await db
       .select()

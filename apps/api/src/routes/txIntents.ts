@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto"
 import { and, desc, eq } from "drizzle-orm"
 import { Router } from "express"
+import { z } from "zod"
 import { db, txIntents } from "@walty/db"
 import {
   ConflictError,
@@ -18,12 +19,18 @@ import type {
   TxIntentPayload,
   TxIntentType,
 } from "@walty/shared/tx-intents/types"
+import {
+  createTxIntentBody,
+  patchTxIntentBody,
+  signTxIntentBody,
+} from "@walty/shared/tx-intents/schemas"
 import { validateAndNormalizePayload } from "@walty/shared/tx-intents/validate"
 import {
   assertSignedRawMatchesPayload,
   SignedTxMismatchError,
 } from "@walty/shared/tx-intents/verifySigned"
 import { authed } from "../middleware/typedHandlers.js"
+import { validateBody } from "../middleware/validateBody.js"
 import { withAuth } from "../middleware/withAuth.js"
 import {
   emitTxIntentStatus,
@@ -31,13 +38,6 @@ import {
 } from "../ws/io.js"
 
 export const txIntentsRouter: Router = Router()
-
-const VALID_TYPES: TxIntentType[] = [
-  "transfer",
-  "refund",
-  "gas_funding",
-  "collection",
-]
 
 const INTENT_TTL_MS = 5 * 60 * 1000
 
@@ -71,22 +71,14 @@ function hashPayload(payload: TxIntentPayload, type: TxIntentType): string {
 txIntentsRouter.post(
   "/tx-intents",
   withAuth,
+  validateBody(createTxIntentBody),
   authed(async (req, res) => {
     const { auth } = req
     await rateLimitByIp(`tx-create:${auth.userId}`, 10)
 
-    const body = req.body ?? {}
-    const { payload, idempotencyKey, type: rawType } = body as {
-      payload: TxIntentPayload
-      idempotencyKey?: string
-      type?: string
-    }
-    const intentType: TxIntentType =
-      rawType && VALID_TYPES.includes(rawType as TxIntentType)
-        ? (rawType as TxIntentType)
-        : "transfer"
-
-    if (!payload) throw new ValidationError("Missing payload")
+    const { payload: rawPayload, idempotencyKey, type: intentType } =
+      req.body as z.infer<typeof createTxIntentBody>
+    const payload = rawPayload as TxIntentPayload
 
     try {
       validateAndNormalizePayload(payload)
@@ -217,16 +209,13 @@ txIntentsRouter.get(
 txIntentsRouter.patch(
   "/tx-intents/:id",
   withAuth,
+  validateBody(patchTxIntentBody),
   authed(async (req, res) => {
     const { auth } = req
     const { id } = req.params
     await rateLimitByIp(`tx-confirm:${auth.userId}`, 10)
 
-    const status = (req.body ?? {}).status as string | undefined
-    if (!status || !["confirmed", "failed"].includes(status)) {
-      throw new ValidationError("Status must be 'confirmed' or 'failed'")
-    }
-    const finalStatus = status as "confirmed" | "failed"
+    const { status: finalStatus } = req.body as z.infer<typeof patchTxIntentBody>
 
     const [updated] = await db
       .update(txIntents)
@@ -264,15 +253,13 @@ txIntentsRouter.patch(
 txIntentsRouter.post(
   "/tx-intents/:id/sign",
   withAuth,
+  validateBody(signTxIntentBody),
   authed(async (req, res) => {
     const { auth } = req
     const { id } = req.params
     await rateLimitByIp(`tx-sign:${auth.userId}`, 10)
 
-    const { signedRaw } = (req.body ?? {}) as { signedRaw?: string }
-    if (!signedRaw || !/^0x([0-9a-fA-F]{2})+$/.test(signedRaw)) {
-      throw new ValidationError("Invalid signed transaction")
-    }
+    const { signedRaw } = req.body as z.infer<typeof signTxIntentBody>
 
     const [intent] = await db
       .select()
