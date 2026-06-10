@@ -2,6 +2,7 @@
 // for a cloud KMS (AWS/GCP/Vault) selected via env at startup.
 
 import { randomBytes, createCipheriv, createDecipheriv } from "crypto"
+import { AwsKms } from "./awsKms.js"
 
 export interface Kms {
   /** Wrap a 32-byte DEK under the KEK for this ctx; returns opaque bytes. */
@@ -69,19 +70,36 @@ export class LocalDevKms implements Kms {
 
 let _kmsInstance: Kms | null = null
 
-// Throws if no KEK is configured so misconfigured envs fail loudly at startup.
+// Throws if no provider/KEK is configured so misconfigured envs fail loudly at startup.
 export function getKms(): Kms {
   if (_kmsInstance) return _kmsInstance
 
-  // TODO: add cloud KMS factory branch here when MPC_KMS_PROVIDER is set,
-  // e.g.: if (process.env.MPC_KMS_PROVIDER === "aws") { return new AwsKms(...) }
+  const provider = process.env.MPC_KMS_PROVIDER
+
+  if (provider === "aws") {
+    const keyId = process.env.MPC_KMS_AWS_KEY_ID
+    if (!keyId) {
+      throw new Error(
+        "MPC_KMS_PROVIDER=aws but MPC_KMS_AWS_KEY_ID is not set. " +
+          "Set it to the KMS key ID, ARN, or alias used to wrap MPC share DEKs.",
+      )
+    }
+    _kmsInstance = new AwsKms(keyId)
+    return _kmsInstance
+  }
+
+  if (provider && provider !== "local") {
+    throw new Error(
+      `MPC_KMS_PROVIDER="${provider}" is not supported. Use "aws" or leave unset for LocalDevKms (dev only).`,
+    )
+  }
 
   const devKekB64 = process.env.MPC_KMS_DEV_KEK
   if (!devKekB64) {
     throw new Error(
       "MPC_KMS_DEV_KEK is not set. " +
         "For local dev: generate a key with `openssl rand -base64 32` and add it to .env. " +
-        "For production: configure a cloud KMS provider.",
+        "For production: set MPC_KMS_PROVIDER=aws and MPC_KMS_AWS_KEY_ID.",
     )
   }
 
