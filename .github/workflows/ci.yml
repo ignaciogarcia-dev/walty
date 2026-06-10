@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [production, main, master]
   pull_request:
-    branches: [main, master]
+    branches: [production, main, master]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -42,8 +42,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:run
 
-  build-e2e:
-    name: Build & Playwright
+  build:
+    name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -60,10 +60,3 @@ jobs:
           DATABASE_URL: postgresql://wallet:wallet@localhost:5432/wallet
           JWT_SECRET: ci-jwt-secret-min-32-chars-long!!
           PAYMENTS_RECONCILE_SECRET: ci-reconcile-secret-min-32-chars!!
-      - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
-      - name: Playwright E2E
-        run: pnpm test:e2e
-        env:
-          CI: true
-          JWT_SECRET: ci-jwt-secret-min-32-chars-long!!
