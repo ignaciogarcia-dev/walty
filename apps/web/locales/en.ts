@@ -586,4 +586,9 @@ export const en = {
   "devices-revoke-confirm": "Revoke",
   "devices-revoke-error": "Couldn't revoke. Try again.",
   "devices-revoked-banner": "Your access on this device was revoked.",
+  // Error boundaries
+  "error-title": "Something went wrong",
+  "error-description":
+    "An unexpected error occurred. You can try again; if it keeps happening, reload the page.",
+  "error-retry": "Try again",
 } as const;

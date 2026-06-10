@@ -586,4 +586,9 @@ export const es = {
   "devices-revoke-confirm": "Revocar",
   "devices-revoke-error": "No se pudo revocar. Intentá de nuevo.",
   "devices-revoked-banner": "Tu acceso desde este dispositivo fue revocado.",
+  // Error boundaries
+  "error-title": "Algo salió mal",
+  "error-description":
+    "Ocurrió un error inesperado. Podés reintentar; si sigue pasando, recargá la página.",
+  "error-retry": "Reintentar",
 } as const;
