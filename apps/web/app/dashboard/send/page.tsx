@@ -1,5 +1,5 @@
-import { SendForm } from "@/components/dashboard/SendForm"
+import { redirect } from "next/navigation"
 
 export default function SendPage() {
-	return <SendForm />
+  redirect("/dashboard/business/home")
 }
