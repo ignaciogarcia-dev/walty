@@ -8,16 +8,12 @@ import { Spinner } from "@/components/ui/spinner"
 import { OnboardingShell } from "../_components/shell"
 import { useOnboarding } from "../context"
 import { useTranslation } from "@/hooks/useTranslation"
-import { encryptSeedV3 } from "@/lib/crypto"
-import { saveWallet, type StoredWalletV3 } from "@/lib/wallet-store"
 import { saveDeviceShare } from "@/lib/mpc/deviceShareStore"
-import { getWalletClient } from "@/lib/rpc/getWalletClient"
-import { unwrap } from "@/lib/api/unwrap"
 
 export default function CreatePinPage() {
   const { t } = useTranslation()
   const router = useRouter()
-  const { mnemonic, address, mpc, clear, markCompleted, completed } = useOnboarding()
+  const { address, mpc, clear, markCompleted, completed } = useOnboarding()
   const [pin, setPin] = useState("")
   const [confirmPin, setConfirmPin] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -45,94 +41,39 @@ export default function CreatePinPage() {
 
     setLoading(true)
     try {
-      // MPC custody: encrypt + persist the device share under the PIN. The MPC
-      // address was already registered server-side during the DKG, so there is
-      // no nonce/link/backup dance here.
-      if (mpc) {
-        // Recovery flow: commit the staged server share FIRST, while no local
-        // device share exists yet. The re-issued kit (gen N+1) was already
-        // downloaded in the recovery-kit step, so once the commit lands
-        // {kit, server} are a valid pair at N+1. Only then persist the device
-        // share. If the commit fails we never save a local share, so walletStatus
-        // stays "recoverable" and the user can retry kit recovery — committing
-        // before the save is what keeps a failure a safe retry instead of a
-        // dead-end (a saved share would flip status to "locked" with no in-app
-        // path back to kit recovery).
-        if (mpc.recoverToken) {
-          const commitRes = await fetch("/api/mpc-recover/commit", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ commitToken: mpc.recoverToken }),
-          })
-          if (!commitRes.ok) {
-            const body = await commitRes.json().catch(() => ({}))
-            throw new Error(
-              body?.message === "recovery_session_expired"
-                ? t("recovery-session-expired")
-                : t("error-recovering-wallet"),
-            )
-          }
-        }
-
-        await saveDeviceShare(mpc.deviceShareBytes, pin, {
-          keyId: mpc.keyId,
-          pubkey: mpc.pubkey,
-          address: mpc.address,
-        })
-        markCompleted()
-        clear() // zeroizes the in-memory device share
-        router.push("/dashboard")
-        return
-      }
-
-      if (!mnemonic) {
+      if (!mpc) {
         throw new Error(t("unexpected-error"))
       }
 
-      // 1. Encrypt seed locally with v3 (DK+KEK) and save to IndexedDB
-      const encrypted = await encryptSeedV3(mnemonic, pin)
-      await saveWallet({ encrypted, address } satisfies StoredWalletV3)
-
-      // 2. Link wallet via nonce + EIP-191 signature (required before server backup)
-      const nonceRes = await fetch("/api/wallet/nonce", { method: "POST" })
-      if (!nonceRes.ok) {
-        if (nonceRes.status === 429) throw new Error(t("too-many-requests"))
-        throw new Error("Nonce error")
-      }
-      const { nonce } = unwrap<{ nonce: string }>(await nonceRes.json())
-
-      const walletClient = getWalletClient(mnemonic, 1)
-      const message = `Link wallet ${address} nonce ${nonce}`
-      const signature = await walletClient.signMessage({ message })
-
-      const linkRes = await fetch("/api/wallet/link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, signature, nonce }),
-      })
-      if (!linkRes.ok) throw new Error("Wallet link error")
-
-      // 3. Create server backup: same V3 encrypted object
-      const backupRes = await fetch("/api/wallet/backup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(encrypted),
-      })
-      // Backup failures are non-fatal — wallet is already saved locally
-      if (!backupRes.ok) {
-        // Only log in development, silently fail in production
-        if (process.env.NODE_ENV === "development") {
-          console.warn("Backup upload failed, continuing (non-fatal)")
+      // Recovery flow: commit the staged server share FIRST, while no local
+      // device share exists yet. The re-issued kit (gen N+1) was already
+      // downloaded in the recovery-kit step, so once the commit lands
+      // {kit, server} are a valid pair at N+1. Only then persist the device
+      // share. If the commit fails we never save a local share, so walletStatus
+      // stays "recoverable" and the user can retry kit recovery.
+      if (mpc.recoverToken) {
+        const commitRes = await fetch("/api/mpc-recover/commit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ commitToken: mpc.recoverToken }),
+        })
+        if (!commitRes.ok) {
+          const body = await commitRes.json().catch(() => ({}))
+          throw new Error(
+            body?.message === "recovery_session_expired"
+              ? t("recovery-session-expired")
+              : t("error-recovering-wallet"),
+          )
         }
       }
 
-      // 4. Mark flow complete so sibling routes don't treat cleared mnemonic as reload
+      await saveDeviceShare(mpc.deviceShareBytes, pin, {
+        keyId: mpc.keyId,
+        pubkey: mpc.pubkey,
+        address: mpc.address,
+      })
       markCompleted()
-
-      // 5. Clear mnemonic from onboarding state (RAM only)
       clear()
-
-      // Return to dashboard — user will be prompted to unlock explicitly
       router.push("/dashboard")
     } catch (err) {
       setError(err instanceof Error ? err.message : t("unexpected-error"))
