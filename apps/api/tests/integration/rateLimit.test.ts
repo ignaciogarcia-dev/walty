@@ -36,12 +36,11 @@ describe("rate limiting is bucketed per endpoint", () => {
     }
     expect(lastStatus).toBe(429)
 
-    // GET /wallet/backup has its own bucket: it isn't throttled by the nonce
-    // bucket and reaches its handler, returning the normal gated 403 (this
-    // fresh device holds no wallet key and has no approved pairing). Under the
-    // old shared counter this would have returned 429 instead.
-    const backup = await request(app).get("/wallet/backup").set("Cookie", cookie)
-    expect(backup.status).not.toBe(429)
-    expect(backup.status).toBe(403)
+    // GET /wallet/balance has its own bucket: it isn't throttled by the nonce
+    // bucket and reaches its handler. The request is intentionally malformed,
+    // so success here is a validation error rather than the old shared 429.
+    const balance = await request(app).get("/wallet/balance").set("Cookie", cookie)
+    expect(balance.status).not.toBe(429)
+    expect(balance.status).toBe(400)
   })
 })

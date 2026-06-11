@@ -394,21 +394,16 @@ describe("device pairing gate (real db)", () => {
       .send({ nonce: n, signature })
   }
 
-  it("a trusted device pulls the backup without any pairing", async () => {
+  it("server seed backup endpoint is unavailable", async () => {
     const { cookie } = await trustedOwner(app)
     const res = await request(app).get("/wallet/backup").set("Cookie", cookie)
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(404)
+    expect(res.body.error).toBe("not_found")
   })
 
-  it("an untrusted device is blocked from the backup until approved", async () => {
+  it("a pending pairing can still be approved without exposing a seed backup", async () => {
     const { cookie: owner, account, email } = await trustedOwner(app)
     const newDevice = await loginCookie(app, email)
-
-    const blocked = await request(app)
-      .get("/wallet/backup")
-      .set("Cookie", newDevice)
-    expect(blocked.status).toBe(403)
-    expect(blocked.body.error).toBe("forbidden")
 
     const req = await request(app)
       .post("/devices/pairing-requests")
@@ -421,7 +416,8 @@ describe("device pairing gate (real db)", () => {
     const released = await request(app)
       .get("/wallet/backup")
       .set("Cookie", newDevice)
-    expect(released.status).toBe(200)
+    expect(released.status).toBe(404)
+    expect(released.body.error).toBe("not_found")
   })
 
   it("an already-trusted device cannot open a pairing request", async () => {
@@ -458,13 +454,13 @@ describe("device pairing gate (real db)", () => {
     const bad = await approve(owner, attacker, req.body.pairingId)
     expect(bad.status).toBe(403)
 
-    const stillBlocked = await request(app)
+    const stillUnavailable = await request(app)
       .get("/wallet/backup")
       .set("Cookie", newDevice)
-    expect(stillBlocked.status).toBe(403)
+    expect(stillUnavailable.status).toBe(404)
   })
 
-  it("a rejected pairing leaves the backup blocked", async () => {
+  it("a rejected pairing records the rejection", async () => {
     const { cookie: owner, email } = await trustedOwner(app)
     const newDevice = await loginCookie(app, email)
     const req = await request(app)
@@ -476,10 +472,10 @@ describe("device pairing gate (real db)", () => {
       .set("Cookie", owner)
     expect(reject.status).toBe(200)
 
-    const blocked = await request(app)
-      .get("/wallet/backup")
-      .set("Cookie", newDevice)
-    expect(blocked.status).toBe(403)
+    const row = await db.query.devicePairingRequests.findFirst({
+      where: eq(devicePairingRequests.id, req.body.pairingId),
+    })
+    expect(row?.status).toBe("rejected")
   })
 
   it("expireStalePairings flips overdue pending requests to expired", async () => {

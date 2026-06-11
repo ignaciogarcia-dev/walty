@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto"
-import { and, eq, gt, lt } from "drizzle-orm"
+import { and, eq, lt } from "drizzle-orm"
 import { Router } from "express"
 import {
   decodeFunctionResult,
@@ -10,10 +10,8 @@ import {
 import {
   db,
   addresses,
-  devicePairingRequests,
   mpcKeys,
   mpcServerShares,
-  walletBackups,
   walletNonces,
 } from "@walty/db"
 import {
@@ -22,7 +20,6 @@ import {
 } from "@walty/shared/api-utils/errors"
 import { rateLimitByUser } from "@walty/shared/rate-limit"
 import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
-import { validateBackup as validateBackupShape } from "@walty/shared/wallet-backup/validation"
 import { authed } from "../middleware/typedHandlers.js"
 import { withAuth } from "../middleware/withAuth.js"
 import { loadServerKeyshare, runLocalRecover } from "../services/mpc/MpcServerParty.js"
@@ -102,65 +99,6 @@ walletRouter.post(
     await db.insert(addresses).values({ userId: auth.userId, address })
 
     res.json({ ok: true })
-  }),
-)
-
-walletRouter.get(
-  "/wallet/backup",
-  withAuth,
-  authed(async (req, res) => {
-    const { auth } = req
-    await rateLimitByUser(auth.userId, "wallet-backup-read", 5, 60_000)
-
-    // Releasing the encrypted backup to a device that has no seed is the one
-    // gated step of multi-device. A trusted device (it proved it holds the
-    // wallet key) is always allowed; an untrusted one needs a live approved
-    // pairing from a trusted device.
-    if (!req.deviceTrusted) {
-      const sid = auth.sid
-      const approved = sid
-        ? await db.query.devicePairingRequests.findFirst({
-            where: and(
-              eq(devicePairingRequests.sessionId, sid),
-              eq(devicePairingRequests.status, "approved"),
-              gt(devicePairingRequests.expiresAt, new Date()),
-            ),
-          })
-        : null
-      if (!approved) throw new ForbiddenError("pairing-required")
-    }
-
-    const backup = await db.query.walletBackups.findFirst({
-      where: eq(walletBackups.userId, auth.userId),
-    })
-
-    res.json(backup ? backup.data : null)
-  }),
-)
-
-walletRouter.post(
-  "/wallet/backup",
-  withAuth,
-  authed(async (req, res) => {
-    const { auth } = req
-    await rateLimitByUser(auth.userId, "wallet-backup-write", 5, 60_000)
-
-    const body = req.body
-    try {
-      validateBackupShape(body)
-    } catch (err) {
-      throw new ValidationError(err instanceof Error ? err.message : "Invalid backup")
-    }
-
-    await db
-      .insert(walletBackups)
-      .values({ userId: auth.userId, data: body, updatedAt: new Date() })
-      .onConflictDoUpdate({
-        target: walletBackups.userId,
-        set: { data: body, updatedAt: new Date() },
-      })
-
-    res.json({ success: true })
   }),
 )
 
