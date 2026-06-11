@@ -1,5 +1,6 @@
 import request from "supertest"
 import { describe, expect, it } from "vitest"
+import { db, mpcKeys } from "@walty/db"
 import { createApp } from "../../src/app.js"
 
 describe("auth flow (real db)", () => {
@@ -19,8 +20,20 @@ describe("auth flow (real db)", () => {
     const sess = await request(app).get("/session").set("Cookie", cookie)
     expect(sess.status).toBe(200)
     expect(sess.body.user.email).toBe(email)
+    expect(sess.body.user.hasWallet).toBe(false)
     expect(sess.body.user.hasActiveBusiness).toBe(false)
     expect(sess.body.user.isOwner).toBe(true)
+
+    await db.insert(mpcKeys).values({
+      userId: sess.body.user.id,
+      pubkey: "0x" + "11".repeat(33),
+      address: "0x1111111111111111111111111111111111111111",
+      status: "active",
+    })
+
+    const mpcSess = await request(app).get("/session").set("Cookie", cookie)
+    expect(mpcSess.status).toBe(200)
+    expect(mpcSess.body.user.hasWallet).toBe(true)
 
     const noBiz = await request(app)
       .get("/business/context")
