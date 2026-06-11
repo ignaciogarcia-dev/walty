@@ -86,28 +86,3 @@ export async function seedMember(opts: {
     )
   })
 }
-
-/**
- * Seed a wallet backup (EncryptedSeedV3 format) for a user. Used to populate
- * the server with a backup so recovery tests can test PIN decryption flows.
- */
-export async function seedWalletBackup(
-  userId: number,
-  backup: {
-    encryptedSeed: string
-    seedIv: string
-    encryptedDK: string
-    dkIv: string
-    salt: string
-    version: number
-  },
-): Promise<void> {
-  return withClient(async (c) => {
-    await c.query(
-      `INSERT INTO wallet_backups (user_id, data, updated_at)
-       VALUES ($1, $2, NOW())
-       ON CONFLICT (user_id) DO UPDATE SET data = $2, updated_at = NOW()`,
-      [userId, JSON.stringify(backup)],
-    )
-  })
-}
