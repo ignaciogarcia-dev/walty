@@ -1,7 +1,5 @@
 "use client"
 import { Card, CardContent } from "@/components/ui/card"
-import dynamic from "next/dynamic"
-const Spline = dynamic(() => import("@splinetool/react-spline"), { ssr: false })
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { DollarSign, HandCoins } from "lucide-react"
@@ -216,12 +214,6 @@ export function Banner() {
 					</>
 				)}
 			</AnimatePresence>
-			<Spline
-				className="flex w-full h-full items-center justify-center transition-transform duration-500 ease-out"
-				style={{ transform: `scale(${scale}) translateY(${(1 - scale) * 20}vh)` }}
-				scene="https://prod.spline.design/TmVdLNC30z-72hpK/scene.splinecode"
-			/>
-
 		</section >
 	)
 }
