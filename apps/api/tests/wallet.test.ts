@@ -15,7 +15,6 @@ vi.mock("@walty/db", () => ({
   db: {
     query: {
       walletNonces: { findFirst: vi.fn() },
-      walletBackups: { findFirst: vi.fn() },
       deviceSessions: {
         findFirst: vi.fn(async () => ({
           id: "test-sid",
@@ -36,7 +35,6 @@ vi.mock("@walty/db", () => ({
   },
   addresses: {},
   deviceSessions: {},
-  walletBackups: { userId: "userId" },
   walletNonces: {},
 }))
 
@@ -72,14 +70,14 @@ describe("wallet routes", () => {
     expect(res.body.nonce).toHaveLength(32)
   })
 
-  it("POST /wallet/backup rejects malformed payload", async () => {
+  it("POST /wallet/backup is no longer available", async () => {
     const app = createApp()
     const res = await request(app)
       .post("/wallet/backup")
       .set("Cookie", authedCookie())
       .send({ encryptedSeed: "abc" })
-    expect(res.status).toBe(400)
-    expect(res.body.error).toBe("validation_error")
+    expect(res.status).toBe(404)
+    expect(res.body.error).toBe("not_found")
   })
 
   it("GET /addresses requires auth", async () => {
