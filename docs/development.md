@@ -58,13 +58,12 @@ docker compose up --build
 | Task | Start here |
 | --- | --- |
 | Onboarding / auth | `app/onboarding/`, `app/api/auth/`, `lib/auth/` |
-| Wallet unlock / signing | `hooks/useWallet.ts`, `components/wallet/`, `lib/crypto.ts` |
+| MPC unlock / signing | `hooks/useWallet.ts`, `components/wallet/`, `lib/mpc/` |
 | Business setup | `app/onboarding/setup-business/`, `app/api/business/settings/` |
 | Business payments / QR | `components/pos/CollectModal.tsx`, `app/api/payment-requests/`, `app/api/business/payment-requests/`, `lib/payments/` |
 | Transaction intents | `lib/tx-intents/`, `app/api/tx-intents/` (idempotency uses canonical payload hash) |
 | Business team / cashier | `components/business/`, `app/api/business/`, `lib/business/` |
 | Refund flow | `app/api/business/refund-requests/`, `lib/policies/payment.policy.ts` |
-| Portfolio / pricing | `hooks/usePortfolio.ts`, `app/api/portfolio/`, `lib/portfolio/` |
 | Permissions / policies | `lib/permissions/resolve.ts`, `lib/policies/` |
 
 ## Validation Loop

@@ -8,7 +8,7 @@ Compact orientation guide for contributors.
 | --- | --- |
 | `app/` | App Router pages, layouts, and API routes |
 | `components/` | React UI grouped by domain |
-| `hooks/` | Client hooks (wallet, portfolio, user, business context) |
+| `hooks/` | Client hooks (MPC wallet, user, business context, POS flows) |
 | `lib/` | Domain logic, auth, RPC, policies, transactions, payments |
 | `server/db/` | Drizzle pool and schema |
 | `utils/` | Small client utilities (style, locale, theme) |
@@ -32,12 +32,10 @@ Compact orientation guide for contributors.
 | Hook | Responsibility |
 | --- | --- |
 | `hooks/useWallet.ts` | Coordinator — composes all wallet sub-hooks |
-| `hooks/useWalletLifecycle.ts` | Create, unlock, lock, recover, backup, export |
-| `hooks/useWalletTransfer.ts` | Send, sign, broadcast |
+| `hooks/useWalletLifecycle.ts` | Unlock, lock, MPC recovery, cashier derivation |
+| `hooks/useWalletTransfer.ts` | Sign and broadcast transaction intents |
 | `hooks/useOperatorWalletCollection.ts` | Gas funding + cashier collection |
-| `hooks/useWalletHistory.ts` | Tx history and balance |
 | `hooks/useUser.tsx` | Session bootstrap |
-| `hooks/usePortfolio.ts` | Multi-chain portfolio loading |
 | `hooks/useUnlockFlow.tsx` | Unlock gate for protected actions |
 | `hooks/useBusinessContext.ts` | Business context (role, wallet address) |
 
@@ -46,8 +44,8 @@ Compact orientation guide for contributors.
 | Path | Responsibility |
 | --- | --- |
 | `lib/auth.ts`, `lib/auth/` | JWT verification, rate limiting |
-| `lib/crypto.ts` | AES-GCM seed encryption (v1/v2/v3) |
-| `lib/wallet-store.ts` | IndexedDB abstraction |
+| `lib/crypto.ts` | AES-GCM/PBKDF2 helpers reused for local secret envelopes |
+| `lib/mpc/` | MPC client, device share storage, recovery kit handling |
 | `lib/wallet/` | WalletSecurityManager, OperatorWalletManager, WalletSessionManager |
 | `lib/tx-intents/` | Intent creation, signing, broadcast, expiry |
 | `lib/transactions/` | Tx building, preparation, simulation, sending |
@@ -61,7 +59,5 @@ Compact orientation guide for contributors.
 | `lib/tokens/tokenRegistry.ts` | TOKEN_REGISTRY by chainId |
 | `lib/networks/networks.ts` | NETWORKS[], getNetwork(), getEVMNetworks() |
 | `lib/providers/pricing/` | CoinGecko + DefiLlama pricing router |
-| `lib/portfolio/portfolio-engine.ts` | Server-side cross-chain balance + price aggregation |
 | `lib/dashboard/` | Dashboard routing logic |
 | `lib/api/pipeline.ts` | withAuth, withBusinessContext, withPermission layers |
-
