@@ -1,15 +1,11 @@
 export const en = {
   // Dashboard
-  "create-wallet": "Create wallet",
-  "create-wallet-description":
-    "Create a PIN to protect this device share. This PIN is different from your account password and never leaves this device.",
   "wallet-locked": "Wallet locked",
   "wallet-locked-description":
     "Enter your wallet password to unlock. This is the password you set when creating the wallet.",
   "wallet-password": "Wallet password",
   language: "Language",
   theme: "Theme",
-  create: "Create wallet",
   unlock: "Unlock",
   or: "or",
   loading: "Loading…",
@@ -17,39 +13,21 @@ export const en = {
   "settings-description": "Manage your preferences",
   general: "General",
   security: "Security",
-  "settings-export-backup": "Download",
-  "settings-export-backup-label": "Recovery kit",
-  "settings-export-backup-disclaimer":
-    "The recovery kit restores this wallet together with your recovery password. Store it somewhere safe and never share it.",
   logout: "Logout",
   pay: "Pay",
   home: "Home",
   send: "Send",
   activity: "Activity",
   receive: "Receive",
-  buy: "Buy",
 
   // Wallet
-  balance: "Balance",
-  "send-eth": "Send ETH",
-  "destination-address": "Destination address",
-  "amount-eth": "Amount (ETH)",
   sending: "Sending…",
-  transferring: "Transferring…",
-  paying: "Paying…",
   history: "History",
   "no-transactions-yet": "No transactions yet.",
-  lock: "Lock",
 
   // Transaction
-  "confirm-transaction": "Confirm transaction",
-  destination: "Destination",
   amount: "Amount",
-  "estimated-gas": "Estimated gas",
-  calculating: "Calculating…",
   cancel: "Cancel",
-  "confirm-send": "Confirm send",
-  "confirm-pay": "Confirm payment",
   "transaction-pending": "Transaction pending…",
   "on-network-waiting": "On network — waiting for confirmation",
   confirmed: "Confirmed",
@@ -57,13 +35,9 @@ export const en = {
   pending: "Pending",
   error: "Error",
   dismiss: "Dismiss",
-  "could-not-estimate-gas": "Could not estimate gas",
 
   // Portfolio
   portfolio: "Portfolio",
-  "total-value": "Total value",
-  tokens: "Tokens",
-  "no-assets-found": "No assets found",
   "recent-activity": "Recent Activity",
 
   delete: "Delete",
@@ -76,13 +50,6 @@ export const en = {
   registering: "Registering…",
   email: "Email",
   password: "Password",
-  "account-password": "Account password",
-  "important-note": "Important note:",
-  "register-note":
-    "After registering, you'll create an MPC business wallet protected by a local PIN.",
-  "account-password-description":
-    "This password is for accessing your account. You'll create a separate local PIN for wallet signing.",
-  "ethereum-wallet-sepolia": "Ethereum wallet",
   "minimum-8-characters": "Minimum 8 characters",
   "unexpected-error": "Unexpected error",
 
@@ -91,13 +58,10 @@ export const en = {
   dark: "Dark",
 
   // Errors
-  "password-too-short": "Password must be at least 8 characters",
   "password-too-long": "Password exceeds the maximum allowed length (72 bytes)",
   "wrong-password": "Incorrect password",
   "unlock-locked-out": "Too many attempts. Try again in {seconds}s",
   "attempts-remaining": "attempts remaining",
-  "error-creating-wallet": "Error creating wallet",
-  "error-importing-backup": "Error importing backup",
   "invalid-email-or-password":
     "Invalid email or password less than 8 characters",
   "email-already-in-use": "Email already in use",
@@ -109,27 +73,10 @@ export const en = {
   "recovery-pin": "Recovery PIN",
   "pin-description":
     "6-8 digit PIN. Used to unlock this device share. Never sent to the server.",
-  "setup-pin-backup": "Set up recovery kit",
-  "setup-pin-backup-description":
-    "Save your recovery kit before setting a PIN. The server never receives a complete recovery secret or private key.",
   "recover-wallet": "Recover wallet",
-  "recover-wallet-description":
-    "Upload your recovery kit to restore your wallet on this device.",
   recovering: "Recovering…",
-  "new-wallet-password": "Local wallet PIN",
-  "setting-up-backup": "Setting up recovery…",
-  "backup-created": "Recovery kit ready",
   "pin-too-short": "PIN must be at least 6 digits",
-  "wrong-pin": "Wrong PIN",
-  "error-creating-backup": "Error creating backup",
   "error-recovering-wallet": "Error recovering wallet",
-  "pairing-waiting":
-    "Device pairing is no longer used for recovery. Restore this wallet with your recovery kit.",
-  "pairing-not-approved":
-    "Use your recovery kit to restore this device.",
-  "recovery-with-pin": "Recovery kit",
-  "recovery-with-seed": "Recovery kit",
-  "recovery-import-wallet": "Recover with kit",
   "recovery-no-backup": "Recovery kit required",
   "recovery-no-backup-description":
     "This account can only be restored with its latest walty-recovery-kit.json file and recovery password.",
@@ -180,13 +127,10 @@ export const en = {
     "This PIN unlocks your local MPC device share. It is never sent to our servers.",
   "onboarding-confirm-pin-label": "Confirm PIN",
   "onboarding-continue": "Continue",
-  "onboarding-skip": "Skip",
-  optional: "optional",
   "onboarding-complete-title": "You're all set",
   "onboarding-complete-description":
     "Your wallet has been created and secured.",
   "onboarding-enter-app": "Enter app",
-  "onboarding-no-wallet-found": "No wallet found. Go back to start.",
   "onboarding-recover-title": "Recover your wallet",
   "onboarding-recover-description":
     "Upload your recovery kit to restore your wallet on this device.",
@@ -204,14 +148,10 @@ export const en = {
   // Landing page
   "landing-get-started": "Get Started",
   "landing-hero-title": "CRYPTO PAYMENTS \nMADE EASY",
-  "landing-hero-tagline":
-    "Accept Polygon USDC and USDT payments with an MPC-secured business wallet.",
   "landing-collect": "Collect",
   "landing-collect-desc": "Receive crypto payments via QR code.",
   "landing-pay-title": "Pay",
   "landing-pay-desc": "Customers pay from any compatible wallet.",
-  "landing-self-custody": "Self-Custody",
-  "landing-self-custody-desc": "MPC signing without a backend signer.",
   "landing-for-businesses": "Got a business?",
   "landing-for-businesses-desc":
     "Accept crypto payments directly no intermediaries, no hidden fees. Generate QR codes, get instant confirmation, and manage your team of operators from one place.",
@@ -220,15 +160,6 @@ export const en = {
   "landing-for-people-desc":
     "Open a Walty payment link or scan a QR code from a merchant. You can pay with any compatible wallet; no Walty account is required.",
   "landing-for-people-cta": "Open payment link",
-  "landing-business-feat-1": "Generate payment requests with a USD amount",
-  "landing-business-feat-2": "Automatic on-screen confirmation",
-  "landing-business-feat-3": "Business dashboard with payment history",
-  "landing-business-feat-4": "Operator team with roles",
-  "landing-people-feat-1": "No Walty account needed to pay",
-  "landing-people-feat-2": "Pay by scanning a QR code",
-  "landing-people-feat-3": "Works with any compatible wallet",
-  "landing-people-feat-4": "Merchant receives live confirmation",
-  "landing-supported-networks": "Supported Networks",
   "landing-docs": "Documentation",
   "landing-footer-copyright": "© 2026 Walty.",
   "landing-footer-license": "Open source under MIT License.",
@@ -262,18 +193,12 @@ export const en = {
   "cashier-movement-collection": "Collection",
   "cashier-movement-refund": "Refund",
   "cashier-movements-empty": "No completed collections or refunds yet.",
-  "cashier-movement-detail-title": "Movement details",
   "cashier-movement-detail-type": "Type",
   "cashier-movement-detail-amount": "Amount",
   "cashier-movement-detail-date": "Date",
   "cashier-movement-detail-destination": "Destination",
   "cashier-movement-detail-reason": "Reason",
   "cashier-movement-detail-tx": "Transaction",
-  "cashier-movement-detail-view-explorer": "View on explorer",
-  "loading-tokens": "Loading tokens…",
-  "no-tokens-found": "No tokens found",
-  "no-balance-on-network": "No funds available",
-  "no-balance-hint": "You need USDC or USDT on Polygon to send.",
 
   // Activity
   all: "All",
@@ -285,27 +210,12 @@ export const en = {
   paid: "Paid",
   expired: "Expired",
   confirming: "Confirming",
-  "paid-at": "Paid:",
-  "created-at": "Created:",
 
   // Receive modal
-  copied: "Copied!",
   "copy-address": "Copy Address",
   copy: "Copy",
-  "send-only-on": "Send only on",
-  "send-only-usdc": "Send only USDC",
 
   // Send form
-  "token-search-placeholder": "Token name or contract address",
-  "invalid-address": "Invalid address",
-  "failed-save-contact": "Failed to save contact",
-  "error-saving-contact": "Error saving contact",
-  recipient: "Recipient",
-  "send-max": "Max",
-  "send-invalid-address": "Invalid EVM address",
-  "send-amount-too-low": "Amount must be greater than 0",
-  "send-amount-exceeds-balance": "Amount exceeds your balance",
-  "transfer-sent": "Transfer sent",
 
   // CollectModal (POS)
   "collect-title": "Collect",
@@ -313,7 +223,6 @@ export const en = {
   "currency-usd": "Currency: USD",
   "split-payment": "Split payment",
   continue: "Continue",
-  "token-step-title": "Which token will the customer pay with?",
   "usd-coin": "USD Coin",
   tether: "Tether",
   "generating-qr": "Generating QR…",
@@ -340,7 +249,6 @@ export const en = {
     "Unlock the merchant wallet to create the collection.",
   "error-creating-collection": "Error creating collection",
   "connection-error": "Connection error",
-  "collection-walty": "Walty Collection",
 
   // InviteModal
   "role-owner": "Owner",
@@ -377,7 +285,6 @@ export const en = {
   "error-submitting-request": "Error submitting request",
 
   // RefundRequestsPanel
-  "loading-requests": "Loading requests…",
   "pending-refund-requests": "Pending refund requests",
   operator: "Operator",
   "requested-by": "Requested by:",
@@ -389,7 +296,6 @@ export const en = {
   reject: "Reject",
   executing: "Executing…",
   "execute-refund": "Execute refund",
-  "token-not-found": "Token not found",
 
   // ActivePaymentRequestCard
   "active-collection": "Active collection",
@@ -405,7 +311,6 @@ export const en = {
   "payment-status-pending": "Pending",
 
   // Payment discrepancy
-  "payment-exact": "Exact payment",
   "payment-overpaid": "Payment exceeded expected amount",
   "payment-underpaid": "Payment below expected amount",
   "payment-expected": "Expected:",
@@ -416,8 +321,6 @@ export const en = {
   "refunding-surplus": "Sending request…",
   "refund-surplus-confirm": "Request refund of {amount} {token} to {address}?",
   "refund-surplus-success": "Refund sent",
-  "refund-surplus-requested":
-    "Refund request sent. The owner will review and sign it.",
   "refund-surplus-error": "Error requesting refund",
   "refund-surplus-reason": "Automatic surplus refund",
   "manage-refunds": "Refunds",
@@ -432,7 +335,6 @@ export const en = {
   "unlock-to-sign": "Unlock wallet",
   "unlock-to-sign-desc": "Enter your password to sign this transaction.",
   unlocking: "Unlocking…",
-  "complete-payment": "Complete payment",
 
   // Pay page
   "pay-already-paid": "This collection has already been paid",
@@ -471,7 +373,6 @@ export const en = {
   "setup-business-subtitle": "Tell us the name customers will see when they pay.",
   "setup-business-name-label": "Business name",
   "setup-business-name-placeholder": "Walty Coffee",
-  saving: "Saving...",
 
   // Team panel
   "team-manage-desc": "Manage your business operators",
@@ -484,15 +385,8 @@ export const en = {
     "There are funds in the wallet. Collect them from the {section} section before revoking.",
 
   // Stats widget
-  "monthly-expenses": "Monthly expenses",
-  "monthly-transfers": "Monthly transfers",
-  "stat-payment": "payment",
-  "stat-payments": "payments",
-  "stat-transfer": "transfer",
-  "stat-transfers": "transfers",
 
   // Cashier wallets page
-  "cashier-wallets-title": "Cashier Wallets",
   "cashier-wallets-desc":
     "Your cashiers' wallet balances. Collect earnings to your main wallet.",
   "cashier-wallets-empty":
@@ -508,46 +402,18 @@ export const en = {
   "cashier-funds-collected": "Funds collected successfully.",
 
   // Pay page
-  "pay-own-charge": "You cannot pay your own charge",
-  "pay-own-charge-desc": "This charge was generated from your account.",
-  "pay-confirmed-title": "Payment confirmed",
-  "pay-split-title": "Split payment",
-  "split-payment-desc":
-    "This is a split payment. You can pay any amount up to the full total.",
-  "total-label": "Total:",
-  "paid-label": "Paid:",
-  "remaining-label": "Remaining:",
-  "pay-confirmations": "{current}/{required} confirmations",
-  "pay-expires-in": "Expires in {time}",
-  "pay-status-pending": "Pending",
-  "pay-tx-waiting": "Transaction sent. Waiting for backend detection.",
-  "pay-to-label": "To",
-  "pay-amount-optional-label": "Amount to pay (optional)",
-  "pay-amount-hint":
-    "Leave empty to pay the full remaining amount ({amount} {token})",
-  "pay-sending-tx": "Sending transaction...",
   "delete-invitation": "Delete invitation",
   suspend: "Suspend",
   reactivate: "Reactivate",
   "revoke-access": "Revoke access",
   "no-actions-available": "No actions available",
   // SendForm relay breakdown
-  "you-send": "You send",
-  "sender-pays": "Sender pays",
-  fee: "Fee",
-  "recipient-gets": "Recipient gets",
-  "switch-to-recipient-mode": "Switch to recipient mode",
-  "switch-to-sender-mode": "Switch to sender mode",
-  "amount-you-send": "Amount you send",
-  "amount-recipient-gets": "Amount recipient gets",
-  "insufficient-balance": "Insufficient balance",
 
   // Devices
   devices: "Devices",
   "devices-title": "Your devices",
   "devices-description":
     "Every device that has access to your wallet. Revoke any you don't recognise.",
-  "devices-loading": "Loading devices…",
   "devices-empty": "No devices yet.",
   "devices-this-device": "This device",
   "devices-trusted": "Trusted",
@@ -567,7 +433,6 @@ export const en = {
     "This is the device you're using. You'll be signed out and your local wallet copy will be cleared. To return you'll need your recovery kit.",
   "devices-revoke-confirm": "Revoke",
   "devices-revoke-error": "Couldn't revoke. Try again.",
-  "devices-revoked-banner": "Your access on this device was revoked.",
   // Error boundaries
   "error-title": "Something went wrong",
   "error-description":
