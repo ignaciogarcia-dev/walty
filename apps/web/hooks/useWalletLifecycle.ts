@@ -4,14 +4,13 @@
  * useWalletLifecycle
  *
  * Manages the complete wallet lifecycle:
- * create, unlock, lock, recover, export, import, backup, auto-lock.
+ * create, unlock, lock, MPC recovery, auto-lock.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getStoredWallet,
   saveWallet,
-  type StoredWallet,
   type StoredWalletV3,
 } from "@/lib/wallet-store";
 import {
@@ -19,12 +18,7 @@ import {
   type InitialWalletStatus,
 } from "@/lib/wallet-status";
 import { createWallet } from "@/lib/wallet";
-import {
-  encryptSeedV3,
-  decryptSeedV3,
-  validatePin,
-  type EncryptedSeedV3,
-} from "@/lib/crypto";
+import { encryptSeedV3, decryptSeedV3, validatePin } from "@/lib/crypto";
 import { getWalletClient } from "@/lib/rpc/getWalletClient";
 import { unwrap } from "@/lib/api/unwrap";
 import { zeroize } from "@/lib/zeroize";
@@ -59,10 +53,6 @@ export interface UseWalletLifecycleResult {
   lock: () => void;
   refreshStatus: () => Promise<void>;
   isRecentlyUnlocked: () => boolean;
-  exportWallet: () => void;
-  importWallet: (file: File) => Promise<void>;
-  createBackup: (pin: string) => Promise<void>;
-  recoverWallet: (pin: string, newPin: string) => Promise<void>;
   /** MPC custody: derive cashier `index`'s HD child address (m/index). */
   deriveCashierAddress: (index: number) => Promise<string>;
   linkWallet: (
@@ -225,84 +215,6 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
     void attestDeviceMpc(mpcSecurity).catch(() => {});
   }, [security, mpcSecurity]);
 
-  // ── Export ──────────────────────────────────────────────────────────────
-  const exportWallet = useCallback(() => {
-    (async () => {
-      const stored = await getStoredWallet();
-      if (!stored) return;
-      const blob = new Blob([JSON.stringify(stored)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "walty-backup.json";
-      a.click();
-      URL.revokeObjectURL(url);
-    })();
-  }, []);
-
-  // ── Import ──────────────────────────────────────────────────────────────
-  const importWallet = useCallback(async (file: File) => {
-    const text = await file.text();
-    const parsed = JSON.parse(text) as StoredWallet;
-    if (!parsed.encrypted || !parsed.address)
-      throw new Error("Invalid file");
-    await saveWallet(parsed);
-    setStatus("locked");
-  }, []);
-
-  // ── Create backup ──────────────────────────────────────────────────────
-  const createBackup = useCallback(
-    async (pin: string) => {
-      if (!pinRef.current || !address) throw new Error("Wallet locked");
-      validatePin(pin);
-
-      await security.withUnlockedSeed(async (mnemonic) => {
-        const encrypted = await encryptSeedV3(mnemonic, pin);
-
-        const res = await fetch("/api/wallet/backup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(encrypted),
-        });
-
-        if (!res.ok) throw new Error("Failed to save backup on server");
-      });
-    },
-    [address, security],
-  );
-
-  // ── Recover wallet ─────────────────────────────────────────────────────
-  const recoverWallet = useCallback(
-    async (pin: string, newPin: string) => {
-      validatePin(newPin);
-
-      const res = await fetch("/api/wallet/backup");
-      if (!res.ok) throw new Error("Failed to retrieve backup");
-      const backup = unwrap<EncryptedSeedV3 | null>(await res.json());
-      if (!backup) throw new Error("No backup found on server");
-
-      const backupData = backup;
-      const mnemonic = await decryptSeedV3(backupData, pin);
-
-      const { mnemonicToAccount } = await import("viem/accounts");
-      const addr = mnemonicToAccount(mnemonic).address;
-
-      const encrypted = await encryptSeedV3(mnemonic, newPin);
-      const buf = new TextEncoder().encode(mnemonic);
-      zeroize(buf);
-
-      await saveWallet({ encrypted, address: addr } satisfies StoredWalletV3);
-      setAddress(addr);
-      pinRef.current = newPin;
-      lastUnlockRef.current = Date.now();
-      setStatus("unlocked");
-      void attestDevice(security).catch(() => {});
-    },
-    [security],
-  );
-
   // ── Derive a cashier's HD child address (MPC custody) ────────────────────
   // Runs the derive ceremony at m/index via the owner's MPC quorum; the cashier
   // stays keyless. Requires the device share unlocked (PIN).
@@ -332,10 +244,6 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
     lock,
     refreshStatus,
     isRecentlyUnlocked: () => security.isRecentlyUnlocked(),
-    exportWallet,
-    importWallet,
-    createBackup,
-    recoverWallet,
     linkWallet,
     deriveCashierAddress,
   };

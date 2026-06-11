@@ -7,7 +7,7 @@
  * Zero behavioral changes from original — purely structural refactor.
  *
  * Sub-hooks:
- * - useWalletLifecycle: create, unlock, lock, recover, backup, export, import
+ * - useWalletLifecycle: create, unlock, lock
  * - useWalletTransfer: send, sign, broadcast, gas estimation
  * - useOperatorWalletCollection: gas funding, collection, operator derivation
  * - useWalletHistory: tx history, balance
@@ -53,10 +53,6 @@ export function useWallet() {
     lock: lifecycle.lock,
     refreshStatus: lifecycle.refreshStatus,
     isRecentlyUnlocked: lifecycle.isRecentlyUnlocked,
-    exportWallet: lifecycle.exportWallet,
-    importWallet: lifecycle.importWallet,
-    createBackup: lifecycle.createBackup,
-    recoverWallet: lifecycle.recoverWallet,
     deriveCashierAddress: lifecycle.deriveCashierAddress,
 
     // Transfer — used by signAndBroadcastIntent (refund flow)
