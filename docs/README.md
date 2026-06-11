@@ -20,9 +20,9 @@ Walty is an on-chain crypto payment platform for businesses. Merchants create a 
 
 ## What Walty Does
 
-Walty is business-only. Every registered user is the owner of their own business; team members (cashiers) join via invite link and share the owner's merchant wallet through HD-derived operator wallets.
+Walty is business-only. Every registered user is the owner of their own business; team members (cashiers) join via invite link and operate through MPC-derived cashier wallets.
 
-- Self-custodial HD wallet (BIP-39, 24 words) created and encrypted in the browser
+- Self-custodial MPC business wallet with local device share and recovery kit
 - Generate QR-code payment requests (Polygon, USDC / USDT)
 - Public `/pay/[requestId]` link — payers do not need a Walty account
 - Split payment support (multiple payers, one request)

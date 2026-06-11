@@ -9,7 +9,7 @@ Open an issue before large changes. State the user or operator problem first.
 ### Payments
 
 Current surface:
-- QR payment requests on Polygon (USDC)
+- QR payment requests on Polygon (USDC / USDT)
 - Split payments (multiple payers per request)
 - Public `/pay/[requestId]` — payers need no account
 - Cashier invitation flow and cashier wallet collection
@@ -22,30 +22,19 @@ Open areas:
 - Stronger reconciliation observability (retry, alerting, scan gaps)
 - Webhook / push notification on payment confirmation
 
-### Wallet
+### MPC Wallet
 
 Current surface:
-- Self-custodial BIP-39 wallet (24 words), browser-only
-- AES-GCM + PBKDF2 v3 seed encryption in IndexedDB
-- PIN-encrypted server backup
-- Send flow via transaction intents (sign in browser, broadcast via server)
+- Self-custodial 2-of-3 MPC business wallet
+- PIN-encrypted local device share
+- User-held recovery kit for the backup share
+- Transaction intents signed through MPC ceremonies
 - Auto-lock after inactivity
 
 Open areas:
 - Hardware wallet support (Ledger via viem)
 - WalletConnect integration for external dApps
-- Improve recovery UX (seed phrase import from mobile)
-
-### Portfolio and Pricing
-
-Current surface:
-- Multi-chain EVM portfolio (balances + USD prices)
-- CoinGecko primary / DefiLlama fallback pricing
-- Stablecoins hardcoded at $1
-
-Open areas:
-- Improve pricing resilience (fallback chain, staleness detection)
-- Expand token registry per chain
+- Improve recovery kit rotation and device replacement UX
 
 ### Business Team Management
 
@@ -64,7 +53,7 @@ Open areas:
 When proposing a new feature or refactor:
 
 1. State the user or operator problem first.
-2. Explain which domain it affects (`wallet`, `payments`, `business`, `portfolio`).
+2. Explain which domain it affects (`mpc`, `payments`, `business`, `devices`).
 3. List touched modules and API routes.
 4. Describe the validation strategy (tests, manual steps).
 5. Call out any risks to wallet security, payment integrity, or business flows.

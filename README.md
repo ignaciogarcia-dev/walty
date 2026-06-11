@@ -5,37 +5,29 @@
 
   <h1>Walty</h1>
 
-  <p>Accept and send crypto payments. For businesses and everyday people.</p>
+  <p>Accept stablecoin payments with an MPC-secured business wallet.</p>
 
   <p><a href="#quick-start">Get Started</a> · <a href="#documentation">Documentation</a> · <a href="#contributing">Contributing</a></p>
 </div>
 
 ---
 
-Walty is a self-custodial crypto payment platform for EVM networks. It supports
-personal wallets and business payment operations without a backend signer.
+Walty is a self-custodial crypto POS for businesses on EVM networks. It focuses
+on payment requests, cashier operations, refunds, and auditability without a
+backend signer or seed phrase product surface.
 
 ## Current Product Surface
 
 ### For businesses
 
-- Generate payment requests with a USD amount, payable in `USDC` on Polygon
+- Generate payment requests with a USD amount, payable in `USDC` or `USDT` on Polygon
 - Share QR codes or payment links with customers
 - Track payment status with on-chain reconciliation
 - Support split payments with multiple contributions
 - Invite cashiers with expiring invite links
-- Assign HD-derived cashier wallets and collect funds back to the owner wallet
+- Assign MPC-derived cashier wallets and collect funds back to the owner wallet
 - Create and execute refund flows through transaction intents
 - Keep an audit trail for business actions
-
-### For people
-
-- Create or recover a non-custodial wallet
-- Send native tokens and ERC-20 tokens
-- Pay business payment requests
-- View a multichain portfolio
-- Manage contacts and username-based recipients
-- Track wallet activity
 
 ## Supported Networks
 
@@ -52,10 +44,11 @@ default `.env.example` currently exposes Polygon only.
 
 ## Wallet and Security Model
 
-- seed phrase generated locally in the browser
-- local wallet stored as an encrypted V3 payload
-- optional server-side backup stores the same encrypted payload shape
-- transaction signing happens client-side
+- 2-of-3 MPC key generation for new business wallets
+- local device share encrypted under the user's PIN
+- recovery kit export for the backup share
+- server share encrypted at rest
+- transaction signing happens through MPC ceremonies
 - JWT session stored in an `HttpOnly` cookie
 - CSP nonce and basic hardening headers set in `middleware.ts`
 

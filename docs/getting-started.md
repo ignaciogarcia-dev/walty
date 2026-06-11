@@ -61,7 +61,7 @@ curl http://localhost:3000/api/health
 | `NEXT_PUBLIC_ENABLED_CHAINS` | `137` | Comma-separated chain IDs exposed in the UI |
 | `COOKIE_SECURE` | `true` in prod | Set to `false` for local HTTP |
 
-> **Note:** The default `NEXT_PUBLIC_ENABLED_CHAINS=137` exposes only Polygon in the UI. Portfolio reads all chains server-side regardless of this value.
+> **Note:** The default `NEXT_PUBLIC_ENABLED_CHAINS=137` exposes only Polygon in the UI.
 
 ## Useful Commands
 
