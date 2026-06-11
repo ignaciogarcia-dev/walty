@@ -1,15 +1,11 @@
 export const es = {
   // Dashboard
-  "create-wallet": "Crear wallet",
-  "create-wallet-description":
-    "Creá un PIN para proteger la clave de este dispositivo. Es distinto de la contraseña de tu cuenta y nunca sale del dispositivo.",
   "wallet-locked": "Wallet bloqueada",
   "wallet-locked-description":
     "Ingresa la contraseña de tu wallet para desbloquear. Esta es la contraseña que configuraste al crear la wallet.",
   "wallet-password": "Contraseña de la wallet",
   language: "Idioma",
   theme: "Tema",
-  create: "Crear wallet",
   unlock: "Desbloquear",
   or: "o",
   loading: "Cargando…",
@@ -17,38 +13,21 @@ export const es = {
   "settings-description": "Gestiona tus preferencias",
   general: "General",
   security: "Seguridad",
-  "settings-export-backup": "Descargar",
-  "settings-export-backup-label": "Kit de recuperación",
-  "settings-export-backup-disclaimer": "El kit de recuperación restaura esta wallet junto con tu contraseña de recuperación. Guardalo en un lugar seguro y no lo compartas.",
   logout: "Cerrar sesión",
   pay: "Pagar",
   home: "Inicio",
   send: "Enviar",
   activity: "Actividad",
   receive: "Recibir",
-  buy: "Comprar",
 
   // Wallet
-  balance: "Balance",
-  "send-eth": "Enviar ETH",
-  "destination-address": "Dirección destino",
-  "amount-eth": "Cantidad (ETH)",
   sending: "Enviando…",
-  transferring: "Transfiriendo…",
-  paying: "Pagando…",
   history: "Historial",
   "no-transactions-yet": "Sin transacciones aún.",
-  lock: "Bloquear",
 
   // Transaction
-  "confirm-transaction": "Confirmar transacción",
-  destination: "Destino",
   amount: "Monto",
-  "estimated-gas": "Gas estimado",
-  calculating: "Calculando…",
   cancel: "Cancelar",
-  "confirm-send": "Confirmar envío",
-  "confirm-pay": "Confirmar pago",
   "transaction-pending": "Transacción pendiente…",
   "on-network-waiting": "En la red — esperando confirmación",
   confirmed: "Confirmada",
@@ -56,13 +35,9 @@ export const es = {
   pending: "Pendiente",
   error: "Error",
   dismiss: "Descartar",
-  "could-not-estimate-gas": "No se pudo estimar el gas",
 
   // Portfolio
   portfolio: "Portfolio",
-  "total-value": "Valor total",
-  tokens: "Tokens",
-  "no-assets-found": "No se encontraron activos",
   "recent-activity": "Actividad reciente",
 
   delete: "Eliminar",
@@ -75,13 +50,6 @@ export const es = {
   registering: "Registrando…",
   email: "Email",
   password: "Contraseña",
-  "account-password": "Contraseña de la cuenta",
-  "important-note": "Nota importante:",
-  "register-note":
-    "Después de registrarte, vas a crear una wallet MPC de negocio protegida por un PIN local.",
-  "account-password-description":
-    "Esta contraseña es para acceder a tu cuenta. Después crearás un PIN local separado para firmar con la wallet.",
-  "ethereum-wallet-sepolia": "Ethereum wallet",
   "minimum-8-characters": "Mínimo 8 caracteres",
   "unexpected-error": "Error inesperado",
 
@@ -90,14 +58,11 @@ export const es = {
   dark: "Oscuro",
 
   // Errors
-  "password-too-short": "La contraseña debe tener al menos 8 caracteres",
   "password-too-long":
     "La contraseña supera el largo máximo permitido (72 bytes)",
   "wrong-password": "Contraseña incorrecta",
   "unlock-locked-out": "Demasiados intentos. Reintenta en {seconds}s",
   "attempts-remaining": "intentos restantes",
-  "error-creating-wallet": "Error al crear wallet",
-  "error-importing-backup": "Error al importar backup",
   "invalid-email-or-password": "Email inválido o password menor a 8 caracteres",
   "email-already-in-use": "Email ya en uso",
   "invalid-credentials": "Credenciales inválidas",
@@ -108,27 +73,10 @@ export const es = {
   "recovery-pin": "PIN de recuperación",
   "pin-description":
     "PIN de 6-8 dígitos. Desbloquea la clave de este dispositivo. Nunca se envía al servidor.",
-  "setup-pin-backup": "Configurar kit de recuperación",
-  "setup-pin-backup-description":
-    "Guardá tu kit de recuperación antes de definir el PIN. El servidor nunca recibe un secreto de recuperación completo ni una clave privada completa.",
   "recover-wallet": "Recuperar wallet",
-  "recover-wallet-description":
-    "Subí tu kit de recuperación para restaurar tu wallet en este dispositivo.",
   recovering: "Recuperando…",
-  "new-wallet-password": "PIN local (wallet)",
-  "setting-up-backup": "Configurando recuperación…",
-  "backup-created": "Kit de recuperación listo",
   "pin-too-short": "El PIN debe tener al menos 6 dígitos",
-  "wrong-pin": "PIN incorrecto",
-  "error-creating-backup": "Error al crear backup",
   "error-recovering-wallet": "Error al recuperar wallet",
-  "pairing-waiting":
-    "El pareo de dispositivos ya no se usa para recuperar. Restaurá esta wallet con tu kit de recuperación.",
-  "pairing-not-approved":
-    "Usá tu kit de recuperación para restaurar este dispositivo.",
-  "recovery-with-pin": "Kit de recuperación",
-  "recovery-with-seed": "Kit de recuperación",
-  "recovery-import-wallet": "Recuperar con kit",
   "recovery-no-backup": "Se requiere kit de recuperación",
   "recovery-no-backup-description":
     "Esta cuenta solo puede restaurarse con el archivo walty-recovery-kit.json más reciente y su contraseña de recuperación.",
@@ -179,12 +127,9 @@ export const es = {
     "Este PIN desbloquea tu clave local MPC. Nunca se envía a nuestros servidores.",
   "onboarding-confirm-pin-label": "Confirmar PIN",
   "onboarding-continue": "Continuar",
-  "onboarding-skip": "Omitir",
-  optional: "opcional",
   "onboarding-complete-title": "¡Todo listo!",
   "onboarding-complete-description": "Tu wallet ha sido creada y asegurada.",
   "onboarding-enter-app": "Entrar a la app",
-  "onboarding-no-wallet-found": "No se encontró wallet. Volvé al inicio.",
   "onboarding-recover-title": "Recuperar tu wallet",
   "onboarding-recover-description":
     "Subí tu kit de recuperación para restaurar tu wallet en este dispositivo.",
@@ -202,14 +147,10 @@ export const es = {
   // Landing page
   "landing-get-started": "Comenzar",
   "landing-hero-title": "PAGOS CRYPTO\nFÁCILES",
-  "landing-hero-tagline":
-    "Aceptá pagos en USDC y USDT sobre Polygon con una wallet de negocio protegida por MPC.",
   "landing-collect": "Cobrar",
   "landing-collect-desc": "Recibe pagos en crypto via código QR.",
   "landing-pay-title": "Pagar",
   "landing-pay-desc": "Tus clientes pagan desde cualquier wallet compatible.",
-  "landing-self-custody": "Autocustodia",
-  "landing-self-custody-desc": "Firma MPC sin signer backend.",
   "landing-for-businesses": "¿Tenés un negocio?",
   "landing-for-businesses-desc":
     "Aceptá pagos en crypto directamente, sin intermediarios ni comisiones ocultas. Generá códigos QR, recibí confirmación al instante y gestioná tu equipo de operadores desde un solo lugar.",
@@ -218,15 +159,6 @@ export const es = {
   "landing-for-people-desc":
     "Abrí un link de pago de Walty o escaneá el QR de un comercio. Podés pagar con cualquier wallet compatible; no necesitás una cuenta Walty.",
   "landing-for-people-cta": "Abrir link de pago",
-  "landing-business-feat-1": "Genera solicitudes de pago con monto en USD",
-  "landing-business-feat-2": "Confirmación automática en pantalla",
-  "landing-business-feat-3": "Panel de negocios con historial de pagos",
-  "landing-business-feat-4": "Equipo de operadores con roles",
-  "landing-people-feat-1": "No hace falta una cuenta Walty para pagar",
-  "landing-people-feat-2": "Paga escaneando un código QR",
-  "landing-people-feat-3": "Funciona con cualquier wallet compatible",
-  "landing-people-feat-4": "El comercio recibe confirmación en vivo",
-  "landing-supported-networks": "Redes soportadas",
   "landing-docs": "Documentación",
   "landing-footer-copyright": "© 2026 Walty.",
   "landing-footer-license": "Código abierto bajo licencia MIT.",
@@ -260,18 +192,12 @@ export const es = {
   "cashier-movement-refund": "Reembolso",
   "cashier-movements-empty":
     "Todavía no hay cobros pagados ni reembolsos ejecutados.",
-  "cashier-movement-detail-title": "Detalle del movimiento",
   "cashier-movement-detail-type": "Tipo",
   "cashier-movement-detail-amount": "Monto",
   "cashier-movement-detail-date": "Fecha",
   "cashier-movement-detail-destination": "Destino",
   "cashier-movement-detail-reason": "Motivo",
   "cashier-movement-detail-tx": "Transacción",
-  "cashier-movement-detail-view-explorer": "Ver en explorador",
-  "loading-tokens": "Cargando tokens…",
-  "no-tokens-found": "No se encontraron tokens",
-  "no-balance-on-network": "No tenés fondos disponibles",
-  "no-balance-hint": "Necesitás USDC o USDT en Polygon para poder enviar.",
 
   // Activity
   all: "Todos",
@@ -283,27 +209,12 @@ export const es = {
   paid: "Pagado",
   expired: "Expirado",
   confirming: "Confirmando",
-  "paid-at": "Pagado:",
-  "created-at": "Creado:",
 
   // Receive modal
-  copied: "¡Copiado!",
   "copy-address": "Copiar dirección",
   copy: "Copiar",
-  "send-only-on": "Enviar solo en",
-  "send-only-usdc": "Enviar solo USDC",
 
   // Send form
-  "token-search-placeholder": "Nombre del token o dirección del contrato",
-  "invalid-address": "Dirección inválida",
-  "failed-save-contact": "Error al guardar contacto",
-  "error-saving-contact": "Error al guardar contacto",
-  recipient: "Destinatario",
-  "send-max": "Máx",
-  "send-invalid-address": "Dirección EVM inválida",
-  "send-amount-too-low": "El monto debe ser mayor que 0",
-  "send-amount-exceeds-balance": "El monto supera tu saldo",
-  "transfer-sent": "Transferencia enviada",
 
   // CollectModal (POS)
   "collect-title": "Cobrar",
@@ -311,7 +222,6 @@ export const es = {
   "currency-usd": "Moneda: USD",
   "split-payment": "Pago dividido",
   continue: "Continuar",
-  "token-step-title": "¿Con qué token pagará el cliente?",
   "usd-coin": "USD Coin",
   tether: "Tether",
   "generating-qr": "Generando QR…",
@@ -338,7 +248,6 @@ export const es = {
     "Desbloquea la wallet del comercio para crear el cobro.",
   "error-creating-collection": "Error al crear el cobro",
   "connection-error": "Error de conexión",
-  "collection-walty": "Cobro Walty",
 
   // InviteModal
   "role-owner": "Propietario",
@@ -375,7 +284,6 @@ export const es = {
   "error-submitting-request": "Error al enviar solicitud",
 
   // RefundRequestsPanel
-  "loading-requests": "Cargando solicitudes…",
   "pending-refund-requests": "Solicitudes de reembolso pendientes",
   operator: "Operador",
   "requested-by": "Solicitado por:",
@@ -387,7 +295,6 @@ export const es = {
   reject: "Rechazar",
   executing: "Ejecutando…",
   "execute-refund": "Ejecutar reembolso",
-  "token-not-found": "Token no encontrado",
 
   // ActivePaymentRequestCard
   "active-collection": "Cobro activo",
@@ -403,7 +310,6 @@ export const es = {
   "payment-status-pending": "Pendiente",
 
   // Payment discrepancy
-  "payment-exact": "Pago exacto",
   "payment-overpaid": "Pago mayor al esperado",
   "payment-underpaid": "Pago menor al esperado",
   "payment-expected": "Esperado:",
@@ -415,8 +321,6 @@ export const es = {
   "refund-surplus-confirm":
     "¿Solicitar reembolso de {amount} {token} a {address}?",
   "refund-surplus-success": "Reembolso enviado",
-  "refund-surplus-requested":
-    "Solicitud de reembolso enviada. El propietario la revisará y firmará.",
   "refund-surplus-error": "Error al solicitar reembolso",
   "refund-surplus-reason": "Reembolso automático de excedente",
   "manage-refunds": "Reembolsos",
@@ -431,7 +335,6 @@ export const es = {
   "unlock-to-sign": "Desbloquear wallet",
   "unlock-to-sign-desc": "Ingresá tu contraseña para firmar esta transacción.",
   unlocking: "Desbloqueando…",
-  "complete-payment": "Completar pago",
 
   // Pay page
   "pay-already-paid": "Este cobro ya fue pagado",
@@ -470,7 +373,6 @@ export const es = {
   "setup-business-subtitle": "Indicanos el nombre que verán tus clientes al pagar.",
   "setup-business-name-label": "Nombre del negocio",
   "setup-business-name-placeholder": "Walty Café",
-  saving: "Guardando...",
 
   // Team panel
   "team-manage-desc": "Administrá los operadores de tu negocio",
@@ -483,15 +385,8 @@ export const es = {
     "Hay fondos en la wallet. Recaudalos desde la sección {section} antes de revocar.",
 
   // Stats widget
-  "monthly-expenses": "Gastos del mes",
-  "monthly-transfers": "Envíos del mes",
-  "stat-payment": "pago",
-  "stat-payments": "pagos",
-  "stat-transfer": "envío",
-  "stat-transfers": "envíos",
 
   // Cashier wallets page
-  "cashier-wallets-title": "Cajas",
   "cashier-wallets-desc":
     "Balances de las wallets de tus cajeros. Recaudá las ganancias en tu wallet principal.",
   "cashier-wallets-empty":
@@ -507,46 +402,18 @@ export const es = {
   "cashier-funds-collected": "Fondos recaudados correctamente.",
 
   // Pay page
-  "pay-own-charge": "No podés pagar tu propio cobro",
-  "pay-own-charge-desc": "Este cobro fue generado desde tu cuenta.",
-  "pay-confirmed-title": "Pago confirmado",
-  "pay-split-title": "Pago dividido",
-  "split-payment-desc":
-    "Este es un pago dividido. Podés pagar cualquier monto hasta el total.",
-  "total-label": "Total:",
-  "paid-label": "Pagado:",
-  "remaining-label": "Restante:",
-  "pay-confirmations": "{current}/{required} confirmaciones",
-  "pay-expires-in": "Expira en {time}",
-  "pay-status-pending": "Pendiente",
-  "pay-tx-waiting": "Transacción enviada. Esperando detección del backend.",
-  "pay-to-label": "Para",
-  "pay-amount-optional-label": "Monto a pagar (opcional)",
-  "pay-amount-hint":
-    "Dejá vacío para pagar el monto restante completo ({amount} {token})",
-  "pay-sending-tx": "Enviando transacción...",
   "delete-invitation": "Eliminar invitación",
   suspend: "Suspender",
   reactivate: "Reactivar",
   "revoke-access": "Revocar acceso",
   "no-actions-available": "Sin acciones disponibles",
   // SendForm relay breakdown
-  "you-send": "Vos enviás",
-  "sender-pays": "El emisor paga",
-  fee: "Comisión",
-  "recipient-gets": "El destinatario recibe",
-  "switch-to-recipient-mode": "Cambiar a modo destinatario",
-  "switch-to-sender-mode": "Cambiar a modo emisor",
-  "amount-you-send": "Monto que enviás",
-  "amount-recipient-gets": "Monto que recibe el destinatario",
-  "insufficient-balance": "Saldo insuficiente",
 
   // Dispositivos
   devices: "Dispositivos",
   "devices-title": "Tus dispositivos",
   "devices-description":
     "Cada dispositivo con acceso a tu wallet. Revocá los que no reconozcas.",
-  "devices-loading": "Cargando dispositivos…",
   "devices-empty": "Todavía no hay dispositivos.",
   "devices-this-device": "Este dispositivo",
   "devices-trusted": "Confiable",
@@ -566,7 +433,6 @@ export const es = {
     "Es el dispositivo que estás usando. Vas a cerrar sesión y se va a borrar la copia local de tu wallet. Para volver vas a necesitar tu kit de recuperación.",
   "devices-revoke-confirm": "Revocar",
   "devices-revoke-error": "No se pudo revocar. Intentá de nuevo.",
-  "devices-revoked-banner": "Tu acceso desde este dispositivo fue revocado.",
   // Error boundaries
   "error-title": "Algo salió mal",
   "error-description":
