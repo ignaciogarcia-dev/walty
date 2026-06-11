@@ -169,9 +169,6 @@ beforeEach(() => {
   // /api/wallet/link — called during create → linkWallet
   mockFetchResponse("/api/wallet/link", { ok: true });
 
-  // /api/wallet/backup — called during createBackup
-  mockFetchResponse("/api/wallet/backup", { ok: true });
-
   // /api/wallet/challenge — called during create (server challenge for v3)
   mockFetchResponse("/api/wallet/challenge", {
     data: { challenge: "test-challenge" },
