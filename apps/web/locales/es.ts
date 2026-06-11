@@ -2,7 +2,7 @@ export const es = {
   // Dashboard
   "create-wallet": "Crear wallet",
   "create-wallet-description":
-    "Crea una contraseña para proteger tu wallet. Esta contraseña es diferente de la contraseña de tu cuenta y se usará para encriptar tu seed localmente.",
+    "Creá un PIN para proteger la clave de este dispositivo. Es distinto de la contraseña de tu cuenta y nunca sale del dispositivo.",
   "wallet-locked": "Wallet bloqueada",
   "wallet-locked-description":
     "Ingresa la contraseña de tu wallet para desbloquear. Esta es la contraseña que configuraste al crear la wallet.",
@@ -11,7 +11,6 @@ export const es = {
   theme: "Tema",
   create: "Crear wallet",
   unlock: "Desbloquear",
-  "import-backup": "Importar backup",
   or: "o",
   loading: "Cargando…",
   settings: "Configuración",
@@ -19,10 +18,9 @@ export const es = {
   general: "General",
   security: "Seguridad",
   "settings-export-backup": "Descargar",
-  "settings-export-backup-label": "Backup de wallet",
-  "settings-export-backup-disclaimer": "El archivo contiene tu seed cifrada con tu PIN. Guardalo en un lugar seguro y no lo compartas. Quien tenga el archivo y tu PIN tiene acceso completo a tu wallet.",
+  "settings-export-backup-label": "Kit de recuperación",
+  "settings-export-backup-disclaimer": "El kit de recuperación restaura esta wallet junto con tu contraseña de recuperación. Guardalo en un lugar seguro y no lo compartas.",
   logout: "Cerrar sesión",
-  transfer: "Transferir",
   pay: "Pagar",
   home: "Inicio",
   send: "Enviar",
@@ -40,7 +38,6 @@ export const es = {
   paying: "Pagando…",
   history: "Historial",
   "no-transactions-yet": "Sin transacciones aún.",
-  "export-backup": "Exportar backup",
   lock: "Bloquear",
 
   // Transaction
@@ -81,9 +78,9 @@ export const es = {
   "account-password": "Contraseña de la cuenta",
   "important-note": "Nota importante:",
   "register-note":
-    "Después de registrarte, necesitarás crear una wallet con una contraseña diferente. Esta contraseña es solo para tu cuenta.",
+    "Después de registrarte, vas a crear una wallet MPC de negocio protegida por un PIN local.",
   "account-password-description":
-    "Esta contraseña es para acceder a tu cuenta. Después crearás otra contraseña para tu wallet.",
+    "Esta contraseña es para acceder a tu cuenta. Después crearás un PIN local separado para firmar con la wallet.",
   "ethereum-wallet-sepolia": "Ethereum wallet",
   "minimum-8-characters": "Mínimo 8 caracteres",
   "unexpected-error": "Error inesperado",
@@ -110,36 +107,31 @@ export const es = {
   pin: "PIN",
   "recovery-pin": "PIN de recuperación",
   "pin-description":
-    "PIN de 6–8 dígitos. Permite recuperar tu wallet en cualquier dispositivo. Nunca se envía al servidor.",
-  "setup-pin-backup": "Configurar recuperación por PIN",
+    "PIN de 6-8 dígitos. Desbloquea la clave de este dispositivo. Nunca se envía al servidor.",
+  "setup-pin-backup": "Configurar kit de recuperación",
   "setup-pin-backup-description":
-    "Crea un PIN para recuperar tu wallet en cualquier dispositivo sin tu frase semilla. El servidor almacena solo datos cifrados.",
+    "Guardá tu kit de recuperación antes de definir el PIN. El servidor nunca recibe un secreto de recuperación completo ni una clave privada completa.",
   "recover-wallet": "Recuperar wallet",
   "recover-wallet-description":
-    "Ingresa tu PIN para restaurar tu wallet en este dispositivo.",
+    "Subí tu kit de recuperación para restaurar tu wallet en este dispositivo.",
   recovering: "Recuperando…",
   "new-wallet-password": "PIN local (wallet)",
-  "setting-up-backup": "Configurando backup…",
-  "backup-created": "Backup creado",
+  "setting-up-backup": "Configurando recuperación…",
+  "backup-created": "Kit de recuperación listo",
   "pin-too-short": "El PIN debe tener al menos 6 dígitos",
   "wrong-pin": "PIN incorrecto",
   "error-creating-backup": "Error al crear backup",
   "error-recovering-wallet": "Error al recuperar wallet",
   "pairing-waiting":
-    "Esperando que uno de tus dispositivos de confianza apruebe este… ¿No tenés otro a mano? Importá tu frase de recuperación.",
+    "El pareo de dispositivos ya no se usa para recuperar. Restaurá esta wallet con tu kit de recuperación.",
   "pairing-not-approved":
-    "El pareo no fue aprobado. Intentá de nuevo o importá tu frase de recuperación.",
-  "recovery-with-pin": "Recuperar con PIN",
-  "recovery-with-seed": "Importar frase",
-  "recovery-phrase": "Frase de recuperación",
-  "recovery-phrase-placeholder":
-    "Escribe aquí tus 24 palabras separadas por espacios",
-  "recovery-import-wallet": "Importar wallet",
-  "recovery-no-backup": "No encontramos un backup en el servidor",
+    "Usá tu kit de recuperación para restaurar este dispositivo.",
+  "recovery-with-pin": "Kit de recuperación",
+  "recovery-with-seed": "Kit de recuperación",
+  "recovery-import-wallet": "Recuperar con kit",
+  "recovery-no-backup": "Se requiere kit de recuperación",
   "recovery-no-backup-description":
-    "Puedes restaurar esta cuenta importando tu frase de recuperación y eligiendo un PIN.",
-  "recovery-phrase-not-linked":
-    "La frase de recuperación no corresponde a una wallet vinculada a esta cuenta.",
+    "Esta cuenta solo puede restaurarse con el archivo walty-recovery-kit.json más reciente y su contraseña de recuperación.",
   "local-wallet-mismatch-title": "Detectamos una wallet local distinta",
   "local-wallet-mismatch-description":
     "La wallet guardada en este dispositivo no coincide con tu cuenta actual. Para continuar, restaura la wallet correcta.",
@@ -182,20 +174,9 @@ export const es = {
   "onboarding-kit-saved-warning":
     "Guardá el archivo en un lugar seguro y fuera de línea (gestor de contraseñas, USB). Si perdés este dispositivo y el archivo, no hay forma de recuperar tus fondos.",
   "onboarding-kit-saved-continue": "Lo guardé, continuar",
-  "onboarding-recovery-phrase-title": "Tu frase de recuperación",
-  "onboarding-recovery-phrase-description":
-    "Anota las 24 palabras en orden y guárdalas en un lugar seguro. Son la única forma de recuperar tu wallet si pierdes el acceso.",
-  "onboarding-i-saved-phrase": "Guardé mi frase de recuperación",
-  "onboarding-confirm-title": "¿Guardaste tu frase?",
-  "onboarding-confirm-description":
-    "Asegúrate de haber anotado las 24 palabras en orden. No podrás verlas de nuevo.",
-  "onboarding-yes-saved": "Sí, la guardé",
-  "onboarding-confirm-checkbox": "Anoté mi frase de recuperación",
-  "onboarding-confirm-understand-risk":
-    "Entiendo que si pierdo esta frase puedo perder el acceso a mis fondos de forma permanente.",
-  "onboarding-create-pin-title": "Crea un PIN de recuperación",
+  "onboarding-create-pin-title": "Creá un PIN de wallet",
   "onboarding-create-pin-description":
-    "Este PIN te permite recuperar tu wallet en cualquier dispositivo. Nunca se envía a nuestros servidores.",
+    "Este PIN desbloquea tu clave local MPC. Nunca se envía a nuestros servidores.",
   "onboarding-confirm-pin-label": "Confirmar PIN",
   "onboarding-continue": "Continuar",
   "onboarding-skip": "Omitir",
@@ -206,9 +187,9 @@ export const es = {
   "onboarding-no-wallet-found": "No se encontró wallet. Volvé al inicio.",
   "onboarding-recover-title": "Recuperar tu wallet",
   "onboarding-recover-description":
-    "Ingresa tu PIN de recuperación para restaurar tu wallet en este dispositivo.",
+    "Subí tu kit de recuperación para restaurar tu wallet en este dispositivo.",
   "onboarding-recover-invalid-local-description":
-    "La wallet local de este dispositivo no coincide con tu cuenta. Restaura tu wallet con PIN o importando tu frase de recuperación.",
+    "La wallet local de este dispositivo no coincide con tu cuenta. Restaurá la wallet correcta con tu kit de recuperación.",
   "pin-mismatch": "Los PINs no coinciden",
   "setting-up-wallet": "Configurando wallet…",
   checking: "Verificando…",
@@ -222,29 +203,29 @@ export const es = {
   "landing-get-started": "Comenzar",
   "landing-hero-title": "PAGOS CRYPTO\nFÁCILES",
   "landing-hero-tagline":
-    "Acepta y envía pagos en crypto. Para negocios y personas.",
+    "Aceptá pagos en USDC y USDT sobre Polygon con una wallet de negocio protegida por MPC.",
   "landing-collect": "Cobrar",
   "landing-collect-desc": "Recibe pagos en crypto via código QR.",
   "landing-pay-title": "Pagar",
-  "landing-pay-desc": "Envía y recibe pagos de forma instantánea.",
+  "landing-pay-desc": "Tus clientes pagan desde cualquier wallet compatible.",
   "landing-self-custody": "Autocustodia",
-  "landing-self-custody-desc": "Tus llaves, tus fondos. Siempre.",
+  "landing-self-custody-desc": "Firma MPC sin signer backend.",
   "landing-for-businesses": "¿Tenés un negocio?",
   "landing-for-businesses-desc":
     "Aceptá pagos en crypto directamente, sin intermediarios ni comisiones ocultas. Generá códigos QR, recibí confirmación al instante y gestioná tu equipo de operadores desde un solo lugar.",
   "landing-for-businesses-cta": "Empezar a cobrar",
-  "landing-for-people": "¿Nuevo en crypto?",
+  "landing-for-people": "¿Necesitás pagar?",
   "landing-for-people-desc":
-    "Walty te permite crear tu wallet en segundos, enviar y recibir pagos escaneando un código QR, y ver todos tus activos en múltiples redes. Tus llaves, tus fondos siempre bajo tu control.",
-  "landing-for-people-cta": "Crear mi wallet",
+    "Abrí un link de pago de Walty o escaneá el QR de un comercio. Podés pagar con cualquier wallet compatible; no necesitás una cuenta Walty.",
+  "landing-for-people-cta": "Abrir link de pago",
   "landing-business-feat-1": "Genera solicitudes de pago con monto en USD",
   "landing-business-feat-2": "Confirmación automática en pantalla",
   "landing-business-feat-3": "Panel de negocios con historial de pagos",
   "landing-business-feat-4": "Equipo de operadores con roles",
-  "landing-people-feat-1": "Wallet crypto sin custodia",
+  "landing-people-feat-1": "No hace falta una cuenta Walty para pagar",
   "landing-people-feat-2": "Paga escaneando un código QR",
-  "landing-people-feat-3": "Envía tokens a contactos o direcciones",
-  "landing-people-feat-4": "Ve tu portfolio en múltiples redes",
+  "landing-people-feat-3": "Funciona con cualquier wallet compatible",
+  "landing-people-feat-4": "El comercio recibe confirmación en vivo",
   "landing-supported-networks": "Redes soportadas",
   "landing-docs": "Documentación",
   "landing-footer-copyright": "© 2026 Walty.",
@@ -255,12 +236,12 @@ export const es = {
   "landing-how-it-works-subtitle": "Empezá en tres simples pasos.",
   "landing-step-1-title": "Crear cuenta",
   "landing-step-1-desc":
-    "Registrate y creá tu wallet. Tus llaves se guardan de forma segura en tu dispositivo.",
-  "landing-step-2-title": "Elegir modo",
+    "Registrate y creá una wallet MPC de negocio. La clave de tu dispositivo queda local.",
+  "landing-step-2-title": "Configurar negocio",
   "landing-step-2-desc":
-    "Seleccioná si usás Walty como persona o como negocio.",
+    "Agregá tu negocio e invitá cajeros cuando estés listo.",
   "landing-step-3-title": "Empezar a usar",
-  "landing-step-3-desc": "Pagá o aceptá pagos con crypto. Así de simple.",
+  "landing-step-3-desc": "Creá solicitudes de pago y confirmá cobros en USDC o USDT sobre Polygon.",
 
   // Dashboard actions
   collect: "Cobrar",
@@ -582,7 +563,7 @@ export const es = {
   "devices-revoke-description":
     "Va a cerrar sesión y va a necesitar una nueva aprobación para volver.",
   "devices-revoke-self-warning":
-    "Es el dispositivo que estás usando. Vas a cerrar sesión y se va a borrar la copia local de tu wallet. Para volver vas a necesitar tu contraseña y la aprobación de otro dispositivo confiable, o tu frase semilla.",
+    "Es el dispositivo que estás usando. Vas a cerrar sesión y se va a borrar la copia local de tu wallet. Para volver vas a necesitar tu kit de recuperación.",
   "devices-revoke-confirm": "Revocar",
   "devices-revoke-error": "No se pudo revocar. Intentá de nuevo.",
   "devices-revoked-banner": "Tu acceso desde este dispositivo fue revocado.",
