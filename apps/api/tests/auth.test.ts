@@ -55,7 +55,7 @@ vi.mock("@walty/db", () => {
     users: {},
     businessMembers: {},
     businessSettings: {},
-    walletBackups: {},
+    mpcKeys: {},
   }
 })
 

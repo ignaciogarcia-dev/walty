@@ -5,7 +5,7 @@ import {
   users,
   businessMembers,
   businessSettings,
-  walletBackups,
+  mpcKeys,
 } from "@walty/db"
 import { NotFoundError } from "@walty/shared/api-utils/errors"
 import { authed } from "../middleware/typedHandlers.js"
@@ -20,7 +20,7 @@ sessionRouter.get(
   withAuth,
   authed(async (req, res) => {
     const { auth } = req
-    const [user, settings, memberships, walletBackup] = await Promise.all([
+    const [user, settings, memberships, activeMpcKey] = await Promise.all([
       db.query.users.findFirst({
         where: eq(users.id, auth.userId),
         columns: { id: true, email: true },
@@ -33,9 +33,9 @@ sessionRouter.get(
         where: eq(businessMembers.userId, auth.userId),
         columns: { status: true },
       }),
-      db.query.walletBackups.findFirst({
-        where: eq(walletBackups.userId, auth.userId),
-        columns: { userId: true },
+      db.query.mpcKeys.findFirst({
+        where: eq(mpcKeys.userId, auth.userId),
+        columns: { id: true, status: true },
       }),
     ])
 
@@ -62,7 +62,7 @@ sessionRouter.get(
       user: {
         id: user.id,
         email: user.email,
-        hasWallet: !!walletBackup,
+        hasWallet: activeMpcKey?.status === "active",
         hasActiveBusiness,
         hasBusinessSettings: !!settings,
         isOwner,
