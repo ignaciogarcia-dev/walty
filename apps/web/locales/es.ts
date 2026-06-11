@@ -146,11 +146,69 @@ export const es = {
 
   // Landing page
   "landing-get-started": "Comenzar",
-  "landing-hero-title": "PAGOS CRYPTO\nFÁCILES",
-  "landing-collect": "Cobrar",
-  "landing-collect-desc": "Recibe pagos en crypto via código QR.",
-  "landing-pay-title": "Pagar",
-  "landing-pay-desc": "Tus clientes pagan desde cualquier wallet compatible.",
+  "landing-open-account": "Abrir cuenta",
+  "landing-nav-product": "Producto",
+  "landing-nav-security": "Seguridad",
+  "landing-docs": "Documentación",
+  "landing-github": "GitHub",
+  "landing-features": "Funciones",
+
+  // Hero
+  "landing-hero-eyebrow": "Sin comisiones · Cobros instantáneos",
+  "landing-hero-title": "Cobrá crypto con la solidez de un",
+  "landing-hero-accent": "banco",
+  "landing-hero-subtitle":
+    "Generá un QR y recibí USDC al instante sobre Polygon. Autocustodia total, sin intermediarios ni comisiones de plataforma.",
+  "landing-hero-cta-secondary": "Ver cómo funciona",
+  "landing-demo-balance-label": "Saldo disponible",
+  "landing-demo-tx": "Pago recibido",
+  "landing-demo-qr-caption": "Escaneá para pagar",
+
+  // Trust bar
+  "landing-trust-eyebrow": "Construido sobre Polygon · USDC · Open source MIT",
+  "landing-trust-1-value": "Instantánea",
+  "landing-trust-1-label": "Liquidación on-chain",
+  "landing-trust-2-value": "0 %",
+  "landing-trust-2-label": "Comisiones de plataforma",
+  "landing-trust-3-value": "2-de-3",
+  "landing-trust-3-label": "Autocustodia MPC",
+
+  // How it works
+  "landing-how-it-works": "Cómo funciona",
+  "landing-how-it-works-subtitle": "Del QR al cobro, en tiempo real.",
+  "landing-step-1-title": "Generá un QR o link",
+  "landing-step-1-desc":
+    "Creá una solicitud de pago en USDC desde tu panel en segundos.",
+  "landing-step-2-title": "Tu cliente paga",
+  "landing-step-2-desc":
+    "Escanea el QR o abre el link y paga desde cualquier wallet. Sin cuenta, sin registro.",
+  "landing-step-3-title": "Recibís al instante",
+  "landing-step-3-desc":
+    "El cobro se liquida on-chain y aparece confirmado en tu panel.",
+
+  // Features (bento)
+  "landing-features-title":
+    "Todo lo que un negocio necesita para cobrar crypto",
+  "landing-feature-custody-title": "Autocustodia real (MPC 2-de-3)",
+  "landing-feature-custody-desc":
+    "Las claves se reparten entre tu dispositivo, el servidor y un kit de respaldo. La firma ocurre solo en tu navegador: nadie puede mover tus fondos sin vos.",
+  "landing-feature-fees-title": "Sin intermediarios ni comisiones",
+  "landing-feature-fees-desc":
+    "Walty no cobra comisiones de plataforma. Solo pagás el gas de Polygon, céntimos por transacción.",
+  "landing-feature-team-title": "Equipo de cajeros con roles",
+  "landing-feature-team-desc":
+    "Invitá operadores por link, asigná permisos y revisá un registro de auditoría de cada acción.",
+  "landing-feature-refunds-title": "Reembolsos con aprobación",
+  "landing-feature-refunds-desc":
+    "El cajero solicita, el dueño aprueba y firma. Control total sobre cada devolución.",
+  "landing-feature-qr-title": "QR y links públicos",
+  "landing-feature-qr-desc":
+    "Generá solicitudes de pago que tus clientes abren sin cuenta, desde cualquier wallet EVM.",
+  "landing-feature-oss-title": "Open source y autoalojable",
+  "landing-feature-oss-desc":
+    "Código abierto bajo licencia MIT. Auditá todo o ejecutá Walty en tu propia infraestructura.",
+
+  // Personas
   "landing-for-businesses": "¿Tenés un negocio?",
   "landing-for-businesses-desc":
     "Aceptá pagos en crypto directamente, sin intermediarios ni comisiones ocultas. Generá códigos QR, recibí confirmación al instante y gestioná tu equipo de operadores desde un solo lugar.",
@@ -159,21 +217,51 @@ export const es = {
   "landing-for-people-desc":
     "Abrí un link de pago de Walty o escaneá el QR de un comercio. Podés pagar con cualquier wallet compatible; no necesitás una cuenta Walty.",
   "landing-for-people-cta": "Abrir link de pago",
-  "landing-docs": "Documentación",
+
+  // Security
+  "landing-security-eyebrow": "Seguridad",
+  "landing-security-title": "Tus fondos, solo tuyos",
+  "landing-security-desc":
+    "Walty usa firma de umbral MPC 2-de-3. La clave nunca se reconstruye y la firma sucede en tu navegador. Ni Walty ni ningún servidor pueden mover el dinero de tu negocio.",
+  "landing-security-share-device": "Dispositivo",
+  "landing-security-share-device-desc":
+    "Cifrada con tu PIN, local en tu navegador.",
+  "landing-security-share-server": "Servidor",
+  "landing-security-share-server-desc":
+    "Cifrada con KMS. Inútil por sí sola.",
+  "landing-security-share-backup": "Kit de respaldo",
+  "landing-security-share-backup-desc":
+    "Un archivo que guardás offline para recuperación.",
+  "landing-security-point-1": "Firma solo en el navegador",
+  "landing-security-point-2": "Código abierto auditable",
+  "landing-security-point-3": "Liquidación on-chain en Polygon",
+
+  // Final CTA
+  "landing-cta-title": "Empezá a cobrar crypto hoy",
+  "landing-cta-desc":
+    "Creá tu cuenta de negocio en minutos. Sin comisiones, sin custodios.",
+
+  // FAQ
+  "landing-faq-title": "Preguntas frecuentes",
+  "landing-faq-q1": "¿Mi cliente necesita una cuenta Walty?",
+  "landing-faq-a1":
+    "No. Tu cliente abre el link o escanea el QR y paga desde cualquier wallet EVM. No necesita cuenta ni registro.",
+  "landing-faq-q2": "¿Qué red y token soporta?",
+  "landing-faq-a2":
+    "Walty opera con USDC sobre Polygon. El pagador cubre el gas, que en Polygon son céntimos.",
+  "landing-faq-q3": "¿Walty cobra comisiones?",
+  "landing-faq-a3":
+    "No hay comisiones de plataforma. El único costo es el gas de red de Polygon.",
+  "landing-faq-q4": "¿Quién custodia los fondos?",
+  "landing-faq-a4":
+    "Vos. Usamos MPC 2-de-3 y la firma ocurre en tu navegador; ningún servidor de Walty puede mover tu dinero.",
+  "landing-faq-q5": "¿Puedo autoalojar Walty?",
+  "landing-faq-a5":
+    "Sí. Walty es open source bajo licencia MIT y se puede ejecutar en tu propia infraestructura.",
+
+  // Footer
   "landing-footer-copyright": "© 2026 Walty.",
   "landing-footer-license": "Código abierto bajo licencia MIT.",
-  "landing-features": "Funciones",
-  "landing-github": "GitHub",
-  "landing-how-it-works": "Cómo funciona",
-  "landing-how-it-works-subtitle": "Empezá en tres simples pasos.",
-  "landing-step-1-title": "Crear cuenta",
-  "landing-step-1-desc":
-    "Registrate y creá una wallet MPC de negocio. La clave de tu dispositivo queda local.",
-  "landing-step-2-title": "Configurar negocio",
-  "landing-step-2-desc":
-    "Agregá tu negocio e invitá cajeros cuando estés listo.",
-  "landing-step-3-title": "Empezar a usar",
-  "landing-step-3-desc": "Creá solicitudes de pago y confirmá cobros en USDC o USDT sobre Polygon.",
 
   // Dashboard actions
   collect: "Cobrar",

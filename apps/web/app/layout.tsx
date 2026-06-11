@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Hanken_Grotesk } from "next/font/google";
 import { headers } from "next/headers";
 import { ThemeProvider } from "@/components/theme/provider";
 import { LocaleProvider } from "@/components/locale/provider";
@@ -19,9 +19,39 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Display face for the landing headlines (body/UI stays on Geist).
+const hankenGrotesk = Hanken_Grotesk({
+  variable: "--font-hanken",
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+});
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const siteTitle = "Walty — Cobros crypto para negocios";
+const siteDescription =
+  "Cobrá crypto con la solidez de un banco. Generá un QR y recibí USDC al instante sobre Polygon, con autocustodia total y sin comisiones de plataforma.";
+
 export const metadata: Metadata = {
-  title: "Walty",
-  description: "Ethereum wallet",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: siteTitle,
+    template: "%s · Walty",
+  },
+  description: siteDescription,
+  openGraph: {
+    type: "website",
+    siteName: "Walty",
+    title: siteTitle,
+    description: siteDescription,
+    url: siteUrl,
+    images: [{ url: "/android-chrome-512x512.png", width: 512, height: 512, alt: "Walty" }],
+  },
+  twitter: {
+    card: "summary",
+    title: siteTitle,
+    description: siteDescription,
+    images: ["/android-chrome-512x512.png"],
+  },
   icons: {
     icon: [
       { url: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
@@ -51,7 +81,7 @@ export default async function RootLayout({
     <html lang={locale} className={theme === "dark" ? "dark" : ""} suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${hankenGrotesk.variable} antialiased`}
       >
         <LoadingScreen />
         <QueryProvider>
