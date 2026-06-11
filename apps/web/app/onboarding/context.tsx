@@ -30,13 +30,11 @@ export type OnboardingMpc = {
 }
 
 type OnboardingState = {
-  mnemonic: string | null
   address: string | null
   mpc: OnboardingMpc | null
 }
 
 type OnboardingCtx = OnboardingState & {
-  setWallet: (data: { mnemonic: string | null; address: string | null }) => void
   setMpc: (mpc: OnboardingMpc) => void
   clear: () => void
   /** True after create-pin succeeds — secrets were cleared on purpose, not a reload. */
@@ -47,21 +45,13 @@ type OnboardingCtx = OnboardingState & {
 const OnboardingContext = createContext<OnboardingCtx | null>(null)
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
-  // Secrets (mnemonic or MPC shares) live only in RAM — never persisted.
+  // MPC shares live only in RAM — never persisted until the PIN step.
   // Reload mid-flow loses state; callers redirect back to create-wallet.
   const [state, setState] = useState<OnboardingState>({
-    mnemonic: null,
     address: null,
     mpc: null,
   })
   const [completed, setCompleted] = useState(false)
-
-  const setWallet = useCallback(
-    (data: { mnemonic: string | null; address: string | null }) => {
-      setState((prev) => ({ ...prev, mnemonic: data.mnemonic, address: data.address }))
-    },
-    [],
-  )
 
   const setMpc = useCallback((mpc: OnboardingMpc) => {
     setState((prev) => ({ ...prev, mpc, address: mpc.address }))
@@ -78,13 +68,13 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         zeroize(prev.mpc.deviceShareBytes)
         if (prev.mpc.backupShareBytes) zeroize(prev.mpc.backupShareBytes)
       }
-      return { mnemonic: null, address: null, mpc: null }
+      return { address: null, mpc: null }
     })
   }, [])
 
   return (
     <OnboardingContext.Provider
-      value={{ ...state, setWallet, setMpc, clear, completed, markCompleted }}
+      value={{ ...state, setMpc, clear, completed, markCompleted }}
     >
       {children}
     </OnboardingContext.Provider>

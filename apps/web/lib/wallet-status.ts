@@ -2,23 +2,17 @@ import { getStoredWallet, clearStoredWallet } from "./wallet-store";
 import { getDeviceShareMeta, clearDeviceShare } from "./mpc/deviceShareStore";
 import { unwrap } from "./api/unwrap";
 
-/**
- * The local custody for this device, regardless of kind: a stored seed (mnemonic)
- * or an MPC device share. Status logic only needs its receiving `address`, so an
- * MPC user (no seed, device share present) is no longer mistaken for "new".
- */
 async function getLocalCustody(): Promise<{ address: string } | null> {
-  const seed = await getStoredWallet();
-  if (seed) return { address: seed.address };
+  const legacySeed = await getStoredWallet();
+  if (legacySeed) return { address: legacySeed.address };
   const share = await getDeviceShareMeta();
   if (share) return { address: share.address };
   return null;
 }
 
-export type LinkedAddress = {
-  id: number;
-  userId: number;
-  address: string;
+type MpcKeyResult = {
+  keyId: string | null;
+  address: string | null;
 };
 
 export type InitialWalletStatus =
@@ -26,11 +20,6 @@ export type InitialWalletStatus =
   | "locked"
   | "recoverable"
   | "invalid-local";
-
-type LinkedAddressesResult = {
-  addresses: LinkedAddress[];
-  isAuthenticated: boolean;
-};
 
 const STATUS_CACHE_TTL_MS = 5000;
 let cachedStatus: { value: InitialWalletStatus; expiresAt: number } | null =
@@ -41,51 +30,17 @@ function normalizeAddress(address: string): string {
   return address.trim().toLowerCase();
 }
 
-/**
- * Fetches the user's linked addresses from the server
- * @returns Array of linked addresses, or empty array on error
- */
-export async function fetchLinkedAddresses(): Promise<LinkedAddressesResult | null> {
-  const res = await fetch("/api/addresses");
+async function fetchMpcKey(): Promise<MpcKeyResult | null> {
+  const res = await fetch("/api/mpc-key");
   if (res.status === 401) {
-    return { addresses: [], isAuthenticated: false };
+    return null;
   }
   if (!res.ok) {
     return null;
   }
-
-  const { addresses } = unwrap<{ addresses: LinkedAddress[] }>(
-    await res.json(),
-  );
-  if (!Array.isArray(addresses)) {
-    return null;
-  }
-
-  return {
-    addresses: addresses as LinkedAddress[],
-    isAuthenticated: true,
-  };
+  return unwrap<MpcKeyResult>(await res.json());
 }
 
-/**
- * Checks if a wallet address belongs to the user's linked addresses
- */
-export function isAddressLinked(
-  address: string,
-  linkedAddresses: LinkedAddress[],
-): boolean {
-  return linkedAddresses.some(
-    (addr) => normalizeAddress(addr.address) === normalizeAddress(address),
-  );
-}
-
-/**
- * Determines the initial wallet status based on:
- * - User's linked addresses in the database
- * - Wallet stored in IndexedDB (or localStorage for v1 migration)
- *
- * @returns "new" | "locked" | "recoverable" | "invalid-local"
- */
 export async function determineWalletStatus(
   options: { force?: boolean } = {},
 ): Promise<InitialWalletStatus> {
@@ -105,26 +60,12 @@ export async function determineWalletStatus(
 
   inFlightStatusPromise = (async () => {
     try {
-      const [stored, linkedResult] = await Promise.all([
+      const [local, mpcKey] = await Promise.all([
         getLocalCustody(),
-        fetchLinkedAddresses(),
+        fetchMpcKey(),
       ]);
 
-      // Keep local wallet intact until we can confirm the authenticated identity.
-      if (!linkedResult || !linkedResult.isAuthenticated) {
-        const status = stored ? "locked" : "new";
-        cachedStatus = {
-          value: status,
-          expiresAt: Date.now() + STATUS_CACHE_TTL_MS,
-        };
-        return status;
-      }
-
-      const linkedAddresses = linkedResult.addresses;
-      const hasLinkedAddresses = linkedAddresses.length > 0;
-
-      if (!hasLinkedAddresses) {
-        // Authenticated user with no linked addresses is the only true "new" case.
+      if (!mpcKey?.keyId || !mpcKey.address) {
         await clearStoredWallet();
         await clearDeviceShare();
         cachedStatus = {
@@ -134,30 +75,26 @@ export async function determineWalletStatus(
         return "new";
       }
 
-      if (stored) {
-        if (isAddressLinked(stored.address, linkedAddresses)) {
-          cachedStatus = {
-            value: "locked",
-            expiresAt: Date.now() + STATUS_CACHE_TTL_MS,
-          };
-          return "locked";
-        }
-
+      if (!local) {
         cachedStatus = {
-          value: "invalid-local",
+          value: "recoverable",
           expiresAt: Date.now() + STATUS_CACHE_TTL_MS,
         };
-        return "invalid-local";
+        return "recoverable";
       }
 
+      const status =
+        normalizeAddress(local.address) === normalizeAddress(mpcKey.address)
+          ? "locked"
+          : "invalid-local";
       cachedStatus = {
-        value: "recoverable",
+        value: status,
         expiresAt: Date.now() + STATUS_CACHE_TTL_MS,
       };
-      return "recoverable";
+      return status;
     } catch {
-      const stored = await getLocalCustody().catch(() => null);
-      const status = stored ? "locked" : "new";
+      const local = await getLocalCustody().catch(() => null);
+      const status = local ? "locked" : "new";
       cachedStatus = {
         value: status,
         expiresAt: Date.now() + STATUS_CACHE_TTL_MS,
