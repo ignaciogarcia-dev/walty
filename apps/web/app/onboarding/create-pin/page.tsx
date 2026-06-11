@@ -74,7 +74,7 @@ export default function CreatePinPage() {
       })
       markCompleted()
       clear()
-      router.push("/dashboard")
+      router.push("/dashboard/home")
     } catch (err) {
       setError(err instanceof Error ? err.message : t("unexpected-error"))
     } finally {

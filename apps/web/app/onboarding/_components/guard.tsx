@@ -66,7 +66,12 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
 
     // If onboarding is complete, don't allow staying in /onboarding/*.
     if (!nextStep) {
-      if (base.startsWith("/onboarding")) router.replace("/dashboard")
+      // Navigate straight to the resolved dashboard route, not the "/dashboard"
+      // segment root. The root only HTTP-redirects to /dashboard/home, and a
+      // client-side router navigation that has to follow that redirect leaves the
+      // intermediate RSC chunk "rejected" — which trips a React 19 dev-mode
+      // performance.measure crash (negative timestamp) and hangs the transition.
+      if (base.startsWith("/onboarding")) router.replace("/dashboard/home")
       return
     }
 
