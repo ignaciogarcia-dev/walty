@@ -1,5 +1,6 @@
 "use client"
 
+import { BalanceCard } from "@/components/wallet/BalanceCard"
 import { ActivePaymentRequestCard } from "@/components/dashboard/ActivePaymentRequestCard"
 import { CollectModal } from "@/components/pos/CollectModal"
 import { useCollectFlow } from "@/hooks/useCollectFlow"
@@ -28,6 +29,8 @@ export function OwnerHome({ merchantWalletAddress }: Props) {
 
   return (
     <>
+      <BalanceCard address={merchantWalletAddress} />
+
       <div className="flex gap-3">
         <Button
           onClick={() => setCollectOpen(true)}
