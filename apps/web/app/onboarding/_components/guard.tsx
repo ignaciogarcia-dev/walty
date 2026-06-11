@@ -78,8 +78,6 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
       ;[
         "/onboarding/create-wallet",
         "/onboarding/recovery-kit",
-        "/onboarding/recovery-phrase",
-        "/onboarding/confirm-recovery",
         "/onboarding/create-pin",
         "/onboarding/complete",
       ].forEach((p) => allowedBases.add(p))
