@@ -37,6 +37,7 @@ export type UserState = {
 
 export async function fetchSession(): Promise<UserData | null> {
   const res = await fetch("/api/session")
+  if (res.status === 401) return null
   if (!res.ok) throw new Error("Failed to fetch session")
   const { user: userData, business } = unwrap<SessionResponse>(await res.json())
   return {

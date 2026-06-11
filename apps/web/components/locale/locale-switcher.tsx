@@ -17,6 +17,7 @@ export function LocaleSwitcher() {
 			variant="ghost"
 			size="sm"
 			onClick={() => setLocale(next)}
+			aria-label={next === "en" ? "Switch to English" : "Cambiar a Español"}
 			className="text-xs font-medium px-2"
 		>
 			{localeLabel[next]}

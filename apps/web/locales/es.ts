@@ -96,7 +96,7 @@ export const es = {
   "recovery-kit-no-password": "Por favor ingresa tu contraseña de recuperación.",
   "recovery-kit-invalid-file": "Archivo de kit de recuperación inválido. Asegúrate de haber seleccionado el walty-recovery-kit.json correcto.",
   "recovery-kit-wrong-password": "Contraseña de recuperación incorrecta. Verifica la contraseña e intenta de nuevo.",
-  "recovery-kit-outdated": "Este kit de recuperación está desactualizado — tu wallet se actualizó después de crearlo. Usá tu kit de recuperación más reciente para restaurar el acceso.",
+  "recovery-kit-outdated": "Este kit de recuperación está desactualizado. Tu wallet se actualizó después de crearlo. Usá tu kit de recuperación más reciente para restaurar el acceso.",
   "recovery-session-expired": "La recuperación tardó demasiado en completarse. No se cambió nada — volvé a empezar la recuperación con tu kit.",
 
   // Onboarding
