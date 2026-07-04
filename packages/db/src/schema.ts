@@ -97,12 +97,6 @@ export const transactions = pgTable("transactions", {
   hashLogIdxUniq: unique("transactions_hash_logidx_unique").on(t.hash, t.logIndex),
 }))
 
-export const walletBackups = pgTable("wallet_backups", {
-  userId: integer("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
-  data: jsonb("data").notNull(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-})
-
 export const paymentRequests = pgTable("payment_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
   merchantId: integer("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),

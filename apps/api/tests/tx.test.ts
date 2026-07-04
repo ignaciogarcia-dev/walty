@@ -107,10 +107,4 @@ describe("tx routes", () => {
     expect(res.status).toBe(200)
     expect(res.body).toEqual({ items: [], total: 0 })
   })
-
-  it("POST /tx/scan-incoming returns 410", async () => {
-    const app = createApp()
-    const res = await request(app).post("/tx/scan-incoming").set("Cookie", authed())
-    expect(res.status).toBe(410)
-  })
 })

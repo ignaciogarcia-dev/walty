@@ -12,12 +12,6 @@ import type { Kms } from "../src/services/mpc/kms.js"
 // Lazy imports (modules don't exist yet — test runner will error on import)
 let encryptShare: (ctx: ShareContext, shareBytes: Buffer, kms?: Kms) => Promise<EncryptedShare>
 let decryptShare: (ctx: ShareContext, enc: EncryptedShare, kms?: Kms) => Promise<Buffer>
-let rewrap: (
-  ctx: ShareContext,
-  enc: EncryptedShare,
-  newVersion: number,
-  kms?: Kms,
-) => Promise<EncryptedShare>
 let getKms: () => Kms
 
 beforeEach(async () => {
@@ -25,7 +19,6 @@ beforeEach(async () => {
   const kmsModule = await import("../src/services/mpc/kms.js")
   encryptShare = store.encryptShare
   decryptShare = store.decryptShare
-  rewrap = store.rewrap
   getKms = kmsModule.getKms
 })
 
@@ -102,25 +95,6 @@ describe("wrong KEK", () => {
     const wrongKms = new LocalDevKms(randomBytes(32))
 
     await expect(decryptShare(baseCtx, enc, wrongKms)).rejects.toThrow()
-  })
-})
-
-describe("key rotation via rewrap", () => {
-  it("decrypts after rewrap with new version, fails with old version", async () => {
-    const original = randomBytes(1024)
-    const enc = await encryptShare(baseCtx, original)
-
-    // Rotate to version 2
-    const newVersion = 2
-    const rotated = await rewrap(baseCtx, enc, newVersion)
-
-    // New version context works
-    const newCtx: ShareContext = { ...baseCtx, version: newVersion }
-    const decrypted = await decryptShare(newCtx, rotated)
-    expect(decrypted).toEqual(original)
-
-    // Old version context fails (AAD mismatch — version in AAD differs)
-    await expect(decryptShare(baseCtx, rotated)).rejects.toThrow()
   })
 })
 

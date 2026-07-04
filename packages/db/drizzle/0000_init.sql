@@ -48,18 +48,6 @@ CREATE TABLE "user_profiles" (
 	CONSTRAINT "user_profiles_username_unique" UNIQUE("username")
 );
 --> statement-breakpoint
-CREATE TABLE "wallet_backups" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" integer NOT NULL REFERENCES "public"."users"("id") ON DELETE cascade,
-	"wallet_address" text NOT NULL,
-	"ciphertext" text NOT NULL,
-	"iv" text NOT NULL,
-	"salt" text NOT NULL,
-	"version" integer NOT NULL,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
 CREATE TABLE "wallet_nonces" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" integer NOT NULL REFERENCES "public"."users"("id") ON DELETE cascade,
