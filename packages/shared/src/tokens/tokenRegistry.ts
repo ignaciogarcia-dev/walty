@@ -117,17 +117,6 @@ export function getTokensByChain(chainId: number): Token[] {
   return TOKEN_REGISTRY[chainId] ?? []
 }
 
-export function getTokenByAddress(
-  address: string,
-  chainId: number
-): Token | undefined {
-  const tokens = TOKEN_REGISTRY[chainId]
-  if (!tokens) return undefined
-  return tokens.find(
-    (t) => t.address?.toLowerCase() === address.toLowerCase()
-  )
-}
-
 /** Returns the USDC token for a given chain, or null if the chain is unknown. */
 export function getRelayToken(chainId: number): Token | null {
   return TOKEN_REGISTRY[chainId]?.find((t) => t.symbol === "USDC") ?? null

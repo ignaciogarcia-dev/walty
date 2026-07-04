@@ -104,16 +104,3 @@ export async function decryptShare(
     )
   }
 }
-
-// Re-encrypt under a new version (new DEK, new AAD). After this, callers must
-// use { ...ctx, version: newVersion }; the old envelope no longer verifies.
-export async function rewrap(
-  ctx: ShareContext,
-  enc: EncryptedShare,
-  newVersion: number,
-  kms: Kms = getKms(),
-): Promise<EncryptedShare> {
-  const plaintext = await decryptShare(ctx, enc, kms)
-  const newCtx: ShareContext = { ...ctx, version: newVersion }
-  return encryptShare(newCtx, plaintext, kms)
-}

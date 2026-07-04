@@ -303,12 +303,3 @@ txRouter.post(
     res.json({ ok: true })
   }),
 )
-
-// ---------- POST /tx/scan-incoming ----------
-// Always 410 — superseded by server-side reconciler.
-txRouter.post("/tx/scan-incoming", (_req, res) => {
-  res.status(410).json({
-    error:
-      "This endpoint is no longer available. Incoming transfers are reconciled server-side.",
-  })
-})

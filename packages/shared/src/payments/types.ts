@@ -77,7 +77,3 @@ export function getPaymentRequestCountdown(
     seconds,
   }
 }
-
-export function getPaymentShareText(request: Pick<PaymentRequestView, "amountUsd" | "tokenSymbol">, url: string): string {
-  return `Pagar $${request.amountUsd} ${request.tokenSymbol} en Walty: ${url}`
-}

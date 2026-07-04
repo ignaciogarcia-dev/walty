@@ -34,8 +34,6 @@ export const txIntentPayloadSchema = z.object({
   derivationIndex: z.number().int().nonnegative().optional(),
 })
 
-export type TxIntentPayloadInput = z.infer<typeof txIntentPayloadSchema>
-
 export const createTxIntentBody = z.object({
   payload: txIntentPayloadSchema,
   type: txIntentType.default("transfer"),

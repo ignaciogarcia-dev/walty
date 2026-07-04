@@ -26,7 +26,3 @@ export interface DevicePairingRequestedEvent {
 export interface DevicePairingResolvedEvent {
   pairingId: string
 }
-
-export interface DeviceRevokedEvent {
-  sid: string
-}
