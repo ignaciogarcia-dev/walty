@@ -195,10 +195,6 @@ export function initWebSocket(httpServer: HttpServer): Server {
   return io
 }
 
-export function getIo(): Server | null {
-  return ioInstance
-}
-
 const AUTHED_NAMESPACES = ["/tx-intents", "/business", "/devices", "/mpc"] as const
 
 /** Drops any open authed sockets for a revoked session id (best-effort). */
@@ -222,7 +218,6 @@ export function closeWebSocket(): Promise<void> {
   })
 }
 
-export { type PaymentRequestEvent } from "@walty/shared/payments/events"
 import type { PaymentRequestEvent } from "@walty/shared/payments/events"
 
 export function emitPaymentRequestEvent(event: PaymentRequestEvent): void {

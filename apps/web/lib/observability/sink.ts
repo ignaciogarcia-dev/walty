@@ -5,10 +5,6 @@ export interface ErrorSink {
   capture(payload: ScrubbedError): void
 }
 
-export const noopSink: ErrorSink = {
-  capture() {},
-}
-
 export const consoleSink: ErrorSink = {
   capture(payload) {
     console.error("[walty:error]", payload)

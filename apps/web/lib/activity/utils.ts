@@ -1,5 +1,3 @@
-import type { TransactionActivityItem } from "@walty/shared/activity/types"
-
 /** USD formatting matching CashierMovementsFeed: no cents when the amount is a whole number. */
 export function formatActivityUsd(amount: string | number): string {
   const num = typeof amount === "string" ? parseFloat(amount) : amount
@@ -54,11 +52,6 @@ export function formatCurrency(amount: string | number): string {
   }).format(num)
 }
 
-export function calculateChangePercent(current: number, previous: number): number {
-  if (previous === 0) return current > 0 ? 100 : 0
-  return ((current - previous) / previous) * 100
-}
-
 export function formatChangePercent(percent: number): string {
   const sign = percent >= 0 ? "+" : ""
   return `${sign}${percent.toFixed(1)}%`
@@ -73,17 +66,6 @@ export function getMonthRange(monthOffset: number = 0): { start: Date; end: Date
   const end = new Date(year, month + 1, 0, 23, 59, 59, 999)
   
   return { start, end }
-}
-
-export function isTransactionPayment(tx: TransactionActivityItem, userAddress: string): boolean {
-  // A payment is when the user sends money (fromAddress = userAddress)
-  // and the transaction is confirmed
-  return tx.fromAddress.toLowerCase() === userAddress.toLowerCase() && tx.status === "confirmed"
-}
-
-export function isTransactionSend(tx: TransactionActivityItem, userAddress: string): boolean {
-  // A send is any transaction where fromAddress = userAddress
-  return tx.fromAddress.toLowerCase() === userAddress.toLowerCase()
 }
 
 export function sumAmounts(amounts: string[]): string {

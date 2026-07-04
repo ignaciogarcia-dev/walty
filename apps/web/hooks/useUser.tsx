@@ -35,7 +35,7 @@ export type UserState = {
   refetch: () => Promise<void>
 }
 
-export async function fetchSession(): Promise<UserData | null> {
+async function fetchSession(): Promise<UserData | null> {
   const res = await fetch("/api/session")
   if (res.status === 401) return null
   if (!res.ok) throw new Error("Failed to fetch session")
@@ -66,8 +66,4 @@ export function useUser(): UserState {
     error: error instanceof Error ? error.message : null,
     refetch: async () => { await refetch() },
   }
-}
-
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
 }

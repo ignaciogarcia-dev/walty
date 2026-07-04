@@ -10,14 +10,6 @@ export type RefundStatus =
   | "rejected"
   | "executed"
 
-export interface RefundState {
-  id: string
-  status: RefundStatus
-  requestedBy: string
-  approvedBy: string | null
-  txHash: string | null
-}
-
 export type RefundAction =
   | { type: "approve"; approver: string }
   | { type: "reject"; reason: string }

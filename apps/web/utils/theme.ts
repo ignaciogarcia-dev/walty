@@ -15,13 +15,3 @@ export async function getTheme(): Promise<Theme> {
 	if (!theme || !isTheme(theme)) return defaultTheme
 	return theme
 }
-
-export function getThemeClient(): Theme {
-	if (typeof window === "undefined") return defaultTheme
-	const theme = document.cookie
-		.split("; ")
-		.find((row) => row.startsWith(`${storageKey}=`))
-		?.split("=")[1]
-	if (!theme || !isTheme(theme)) return defaultTheme
-	return theme
-}

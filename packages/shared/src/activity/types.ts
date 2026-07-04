@@ -1,31 +1,9 @@
-export type ActivityFilter = "all" | "payments" | "sends";
 export type PaymentRequestStatusFilter =
   | "all"
   | "paid"
   | "expired"
   | "pending"
   | "confirming";
-
-export interface PersonActivityStats {
-  currentMonthExpenses: {
-    total: string;
-    count: number;
-  };
-  previousMonthExpenses: {
-    total: string;
-    count: number;
-  };
-  currentMonthSends: {
-    total: string;
-    count: number;
-  };
-  previousMonthSends: {
-    total: string;
-    count: number;
-  };
-  expensesChangePercent: number;
-  sendsChangePercent: number;
-}
 
 export interface BusinessActivityStats {
   currentMonthSales: {
@@ -40,11 +18,6 @@ export interface BusinessActivityStats {
   currentMonthFailed: number;
   successRate: number;
   salesChangePercent: number;
-}
-
-export interface ActivityStats {
-  person?: PersonActivityStats;
-  business?: BusinessActivityStats;
 }
 
 export interface PaymentRequestHistoryItem {
