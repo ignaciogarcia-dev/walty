@@ -11,6 +11,7 @@ export const businessMemberRoleEnum = pgEnum("business_member_role", ["cashier"]
 export const businessMemberStatusEnum = pgEnum("business_member_status", ["invited", "active", "suspended", "revoked"])
 export const txIntentTypeEnum = pgEnum("tx_intent_type", ["transfer", "refund", "gas_funding", "collection"])
 export const refundRequestStatusEnum = pgEnum("refund_request_status", ["pending", "approved", "approved_pending_signature", "rejected", "executed"])
+export const posDeviceStatusEnum = pgEnum("pos_device_status", ["pending", "active", "revoked"])
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -127,6 +128,10 @@ export const paymentRequests = pgTable("payment_requests", {
   receivedAmountUsd: text("received_amount_usd"),
   paymentDiscrepancy: text("payment_discrepancy"),
   operatorId: integer("operator_id").references(() => users.id, { onDelete: "restrict" }),
+  // Set when the request was created by a headless POS device (operatorId stays
+  // null in that case). Attributes the sale to the terminal for reporting and
+  // links to the POS's derived child wallet for refunds/sweeps.
+  posDeviceId: integer("pos_device_id").references(() => posDevices.id, { onDelete: "set null" }),
 })
 
 export const businessMembers = pgTable("business_members", {
@@ -151,10 +156,49 @@ export const businessMembers = pgTable("business_members", {
   uniqueDerivationIndex: unique("business_members_derivation_index_unique").on(t.businessId, t.derivationIndex),
 }))
 
+// A headless POS terminal (e.g. a Raspberry Pi) owned by a business. Like a
+// cashier, its funds live in an HD-under-MPC child wallet ("m/derivationIndex")
+// custodied by the owner; the terminal never signs on-chain. Unlike a cashier,
+// it authenticates by signing each API request with an Ed25519 keypair whose
+// private key lives only on the device — the server stores only publicKey.
+// status: pending (created, never seen) → active (first valid request) → revoked.
+export const posDevices = pgTable("pos_devices", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  publicKey: text("public_key").notNull(),
+  status: posDeviceStatusEnum("status").notNull().default("pending"),
+  derivationIndex: integer("derivation_index").notNull(),
+  walletAddress: text("wallet_address").notNull(),
+  lastSeenAt: timestamp("last_seen_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  revokedAt: timestamp("revoked_at"),
+}, (t) => ({
+  businessIdIdx: index("pos_devices_business_id_idx").on(t.businessId),
+  publicKeyIdx: index("pos_devices_public_key_idx").on(t.publicKey),
+  uniqueDerivationIndex: unique("pos_devices_derivation_index_unique").on(t.businessId, t.derivationIndex),
+}))
+
+// Anti-replay store for POS request signatures. Each signed request carries a
+// unique nonce; the unique(posDeviceId, nonce) constraint makes a replayed
+// signature fail to insert. Rows are pruned after expiresAt.
+export const posRequestNonces = pgTable("pos_request_nonces", {
+  id: serial("id").primaryKey(),
+  posDeviceId: integer("pos_device_id").notNull().references(() => posDevices.id, { onDelete: "cascade" }),
+  nonce: text("nonce").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+}, (t) => ({
+  uniqueNonce: unique("pos_request_nonces_device_nonce_unique").on(t.posDeviceId, t.nonce),
+  expiresAtIdx: index("pos_request_nonces_expires_at_idx").on(t.expiresAt),
+}))
+
 export const refundRequests = pgTable("refund_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
   paymentRequestId: uuid("payment_request_id").notNull().references(() => paymentRequests.id, { onDelete: "cascade" }),
-  requestedBy: integer("requested_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+  // The user who requested the refund. Null when initiated by a POS device,
+  // in which case posDeviceId identifies the terminal instead.
+  requestedBy: integer("requested_by").references(() => users.id, { onDelete: "restrict" }),
+  posDeviceId: integer("pos_device_id").references(() => posDevices.id, { onDelete: "set null" }),
   businessId: integer("business_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   amountToken: text("amount_token").notNull(),
   amountUsd: text("amount_usd").notNull(),

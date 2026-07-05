@@ -23,8 +23,29 @@ const memberCtx: PermissionContext = { businessContext: makeBusinessContext(fals
 const ownerCtx: PermissionContext = { businessContext: makeBusinessContext(true) }
 
 describe("resolvePermissions", () => {
-  it("throws for agent actor", () => {
-    expect(() => resolvePermissions(agentActor)).toThrow("Agent permissions not implemented")
+  describe("agent actor (POS device)", () => {
+    it("has the fixed POS_DEVICE scope", () => {
+      const perms = resolvePermissions(agentActor)
+      expect(perms).toContain(Permission.PAYMENT_REQUEST_CREATE)
+      expect(perms).toContain(Permission.PAYMENT_REQUEST_CANCEL)
+      expect(perms).toContain(Permission.REFUND_REQUEST_CREATE)
+    })
+
+    it("does NOT get base, member-read, or owner permissions", () => {
+      const perms = resolvePermissions(agentActor)
+      expect(perms).not.toContain(Permission.SEND_TOKEN)
+      expect(perms).not.toContain(Permission.MANAGE_CONTACTS)
+      expect(perms).not.toContain(Permission.PAYMENT_REQUEST_READ)
+      expect(perms).not.toContain(Permission.REFUND_REQUEST_LIST)
+      expect(perms).not.toContain(Permission.POS_MANAGE)
+      expect(perms).not.toContain(Permission.REFUND_REVIEW)
+    })
+
+    it("ignores business context entirely", () => {
+      const perms = resolvePermissions(agentActor, ownerCtx)
+      expect(perms).not.toContain(Permission.MEMBER_LIST)
+      expect(perms).not.toContain(Permission.JOIN_BUSINESS)
+    })
   })
 
   describe("user without business context", () => {
@@ -133,7 +154,12 @@ describe("hasPermission", () => {
     expect(hasPermission(userActor, Permission.JOIN_BUSINESS, ownerCtx)).toBe(false)
   })
 
-  it("throws for agent actor", () => {
-    expect(() => hasPermission(agentActor, Permission.SEND_TOKEN)).toThrow()
+  it("grants a POS-scoped permission to an agent actor", () => {
+    expect(hasPermission(agentActor, Permission.PAYMENT_REQUEST_CREATE)).toBe(true)
+  })
+
+  it("denies a non-POS permission to an agent actor", () => {
+    expect(hasPermission(agentActor, Permission.SEND_TOKEN)).toBe(false)
+    expect(hasPermission(agentActor, Permission.PAYMENT_REQUEST_READ)).toBe(false)
   })
 })

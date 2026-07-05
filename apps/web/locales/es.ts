@@ -526,4 +526,38 @@ export const es = {
   "error-description":
     "Ocurrió un error inesperado. Podés reintentar; si sigue pasando, recargá la página.",
   "error-retry": "Reintentar",
+
+  // POS terminals
+  "pos-nav": "POS",
+  "pos-title": "Puntos de venta (POS)",
+  "pos-subtitle":
+    "Terminales que cobran de forma autónoma. Cada uno tiene su propia billetera y se vincula con una clave privada.",
+  "pos-add": "Agregar POS",
+  "pos-empty": "Todavía no tenés terminales POS. Agregá el primero.",
+  "pos-revoked-heading": "Revocados",
+  "pos-revoke": "Revocar",
+  "pos-revoke-title": "Revocar POS",
+  "pos-revoke-confirm":
+    "¿Revocar este POS? Dejará de poder cobrar. Los fondos ya recibidos no se mueven.",
+  "pos-status-active": "Activo",
+  "pos-status-pending": "Sin vincular",
+  "pos-status-revoked": "Revocado",
+  "pos-last-seen": "Última conexión",
+  "pos-never-connected": "Nunca se conectó",
+  "pos-create-title": "Agregar POS",
+  "pos-create-description":
+    "Se generará la billetera del terminal (requiere desbloquear tu wallet) y una clave privada que vas a cargar en el dispositivo.",
+  "pos-name-placeholder": "Nombre (ej: Caja 1)",
+  "pos-name-required": "Ingresá un nombre",
+  "pos-create-cta": "Crear POS",
+  "pos-creating": "Creando…",
+  "pos-create-error": "No se pudo crear el POS",
+  "pos-credentials-title": "Clave del POS",
+  "pos-key-warning":
+    "Guardá esta clave privada ahora: se muestra una sola vez y no se puede recuperar. Cargala en el dispositivo POS.",
+  "pos-private-key": "Clave privada",
+  "pos-copy-config": "Copiar config",
+  "pos-download-config": "Descargar",
+  "pos-done": "Listo",
+  copied: "Copiado",
 } as const;

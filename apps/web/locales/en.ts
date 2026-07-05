@@ -523,4 +523,38 @@ export const en = {
   "error-description":
     "An unexpected error occurred. You can try again; if it keeps happening, reload the page.",
   "error-retry": "Try again",
+
+  // POS terminals
+  "pos-nav": "POS",
+  "pos-title": "Point of sale (POS)",
+  "pos-subtitle":
+    "Terminals that take payments autonomously. Each has its own wallet and links with a private key.",
+  "pos-add": "Add POS",
+  "pos-empty": "You don't have any POS terminals yet. Add your first one.",
+  "pos-revoked-heading": "Revoked",
+  "pos-revoke": "Revoke",
+  "pos-revoke-title": "Revoke POS",
+  "pos-revoke-confirm":
+    "Revoke this POS? It will no longer be able to take payments. Funds already received are not moved.",
+  "pos-status-active": "Active",
+  "pos-status-pending": "Not linked",
+  "pos-status-revoked": "Revoked",
+  "pos-last-seen": "Last seen",
+  "pos-never-connected": "Never connected",
+  "pos-create-title": "Add POS",
+  "pos-create-description":
+    "This will generate the terminal's wallet (requires unlocking your wallet) and a private key to load onto the device.",
+  "pos-name-placeholder": "Name (e.g. Register 1)",
+  "pos-name-required": "Enter a name",
+  "pos-create-cta": "Create POS",
+  "pos-creating": "Creating…",
+  "pos-create-error": "Couldn't create the POS",
+  "pos-credentials-title": "POS key",
+  "pos-key-warning":
+    "Save this private key now: it's shown only once and cannot be recovered. Load it onto the POS device.",
+  "pos-private-key": "Private key",
+  "pos-copy-config": "Copy config",
+  "pos-download-config": "Download",
+  "pos-done": "Done",
+  copied: "Copied",
 } as const;

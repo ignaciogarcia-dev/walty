@@ -1,5 +1,5 @@
 "use client"
-import { ClockCounterClockwise, DeviceMobile, House, Receipt, SidebarSimpleIcon, Users, Wallet } from "@phosphor-icons/react"
+import { ClockCounterClockwise, DeviceMobile, House, Receipt, SidebarSimpleIcon, Storefront, Users, Wallet } from "@phosphor-icons/react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -38,6 +38,7 @@ export function DashboardSidebar() {
   const showTeamTab = isOwner
   const showRefundsTab = isOwner
   const showWalletsTab = isOwner
+  const showPosTab = isOwner
 
   function handleMobileNavigation() {
     if (isMobile) {
@@ -77,6 +78,13 @@ export function DashboardSidebar() {
         icon: <Wallet size={18} weight="regular" />,
         label: t("cashier-wallets"),
         href: "/dashboard/business/wallets",
+      }]
+      : []),
+    ...(showPosTab
+      ? [{
+        icon: <Storefront size={18} weight="regular" />,
+        label: t("pos-nav"),
+        href: "/dashboard/pos",
       }]
       : []),
     {
@@ -141,6 +149,7 @@ export function DashboardSidebar() {
                   const isTeam = item.href === "/dashboard/business/team"
                   const isRefunds = item.href === "/dashboard/business/refunds/manage"
                   const isWallets = item.href === "/dashboard/business/wallets"
+                  const isPos = item.href === "/dashboard/pos"
                   const isDevices = item.href === "/dashboard/devices"
                   const isActive = isHome
                     ? pathname === "/dashboard/home" || pathname === "/dashboard/business/home"
@@ -150,9 +159,11 @@ export function DashboardSidebar() {
                         ? pathname.startsWith("/dashboard/business/refunds/manage")
                         : isWallets
                           ? pathname.startsWith("/dashboard/business/wallets")
-                          : isDevices
-                            ? pathname.startsWith("/dashboard/devices")
-                            : pathname === item.href
+                          : isPos
+                            ? pathname.startsWith("/dashboard/pos")
+                            : isDevices
+                              ? pathname.startsWith("/dashboard/devices")
+                              : pathname === item.href
                   return (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton

@@ -8,6 +8,7 @@ import type { AuthPayload } from "@walty/shared/auth/payload"
 import type { BusinessContext } from "@walty/shared/business/getBusinessContext"
 import type { Actor } from "@walty/shared/permissions"
 import { asyncHandler } from "./asyncHandler.js"
+import type { PosContext } from "./withPos.js"
 
 export interface AuthedRequest extends Request {
   auth: AuthPayload
@@ -83,5 +84,32 @@ export function businessed(
       )
     }
     return handler(req as BusinessRequest, res, next)
+  })
+}
+
+export interface PosRequest extends Request {
+  pos: PosContext
+  business: BusinessContext
+  actor: Actor
+  clientIp: string
+}
+
+/**
+ * For handlers composed behind withPosAuth — a POS device (agent actor). There
+ * is no req.auth (no user); the device context lives on req.pos and the derived
+ * business context on req.business.
+ */
+export function posed(
+  handler: (
+    req: PosRequest,
+    res: Response,
+    next: NextFunction,
+  ) => Promise<unknown> | unknown,
+): RequestHandler {
+  return asyncHandler(async (req, res, next) => {
+    if (!req.pos || !req.business || !req.actor || !req.clientIp) {
+      throw new Error("posed: missing POS context (middleware order)")
+    }
+    return handler(req as PosRequest, res, next)
   })
 }

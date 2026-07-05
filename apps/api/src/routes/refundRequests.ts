@@ -6,6 +6,7 @@ import {
   db,
   businessMembers,
   paymentRequests,
+  posDevices,
   refundRequests,
   txIntents,
   users,
@@ -294,15 +295,26 @@ refundRequestsRouter.patch(
         throw new NotFoundError("original payment request not found")
       }
 
-      const operatorMember = payment.merchantWalletAddress
-        ? await db.query.businessMembers.findFirst({
-            where: and(
-              eq(businessMembers.businessId, business.businessId),
-              eq(businessMembers.walletAddress, payment.merchantWalletAddress),
-            ),
-            columns: { derivationIndex: true },
-          })
-        : null
+      // The refund must be signed from the child wallet that received the
+      // payment (m/derivationIndex), not the owner master. POS-created payments
+      // carry posDeviceId; cashier-created ones are matched by wallet address.
+      let childDerivationIndex: number | null = null
+      if (payment.posDeviceId != null) {
+        const device = await db.query.posDevices.findFirst({
+          where: eq(posDevices.id, payment.posDeviceId),
+          columns: { derivationIndex: true },
+        })
+        childDerivationIndex = device?.derivationIndex ?? null
+      } else if (payment.merchantWalletAddress) {
+        const operatorMember = await db.query.businessMembers.findFirst({
+          where: and(
+            eq(businessMembers.businessId, business.businessId),
+            eq(businessMembers.walletAddress, payment.merchantWalletAddress),
+          ),
+          columns: { derivationIndex: true },
+        })
+        childDerivationIndex = operatorMember?.derivationIndex ?? null
+      }
 
       const decimals = payment.tokenDecimals
       const raw = BigInt(refund.amountToken)
@@ -327,8 +339,8 @@ refundRequestsRouter.patch(
         },
         from: payment.merchantWalletAddress,
       }
-      if (operatorMember?.derivationIndex != null) {
-        payload.derivationIndex = operatorMember.derivationIndex
+      if (childDerivationIndex != null) {
+        payload.derivationIndex = childDerivationIndex
       }
 
       const [intent] = await db

@@ -1,6 +1,5 @@
 import { Router } from "express"
-import { and, asc, desc, eq, inArray } from "drizzle-orm"
-import { parseUnits } from "viem"
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm"
 import { z } from "zod"
 import {
   db,
@@ -19,14 +18,6 @@ import {
   writeAuditLog,
 } from "@walty/shared/business/auditLog"
 import {
-  PAYMENT_CHAIN_ID,
-  PAYMENT_EXPIRY_MINUTES,
-  PAYMENT_MAX_AMOUNT_USD,
-  PAYMENT_REQUIRED_CONFIRMATIONS,
-  getPaymentTokenDefinition,
-  isPaymentTokenSymbol,
-} from "@walty/shared/payments/config"
-import {
   toPaymentRequestView,
   toPublicPaymentRequestView,
 } from "@walty/shared/payments/paymentRequests"
@@ -39,9 +30,9 @@ import type { SplitPaymentContribution } from "@walty/shared/payments/types"
 import { Permission } from "@walty/shared/permissions"
 import { canCancelPayment } from "@walty/shared/policies/payment.policy"
 import { rateLimitByIp, rateLimitByUser } from "@walty/shared/rate-limit"
-import { getPublicClient } from "@walty/shared/rpc/getPublicClient"
 import { logSecurityEvent } from "@walty/shared/security/logSecurityEvent"
 import { asyncHandler } from "../middleware/asyncHandler.js"
+import { createPaymentRequestRecord } from "../services/paymentRequestService.js"
 import { businessed } from "../middleware/typedHandlers.js"
 import { validateBody } from "../middleware/validateBody.js"
 import { withBusinessAuth } from "../middleware/withBusiness.js"
@@ -64,8 +55,16 @@ paymentRequestsRouter.get(
       eq(paymentRequests.merchantId, business.businessId),
       inArray(paymentRequests.status, ["pending", "confirming"]),
     )
+    // The home "active collection" card is the owner's OWN active charge — not
+    // a cashier's or a POS terminal's — so those never hijack the owner's collect
+    // flow. (A POS charge has operatorId null like an owner one, so exclude it by
+    // posDeviceId too.) The owner still sees the whole business in activity/history.
     const whereClause = business.isOwner
-      ? baseWhere
+      ? and(
+          baseWhere,
+          isNull(paymentRequests.operatorId),
+          isNull(paymentRequests.posDeviceId),
+        )
       : and(baseWhere, eq(paymentRequests.operatorId, auth.userId))
 
     const [request] = await db
@@ -156,17 +155,6 @@ paymentRequestsRouter.post(
     const { amountUsd, token, merchantWalletAddress, isSplitPayment } =
       req.body as z.infer<typeof paymentRequestCreateBody>
 
-    if (!isPaymentTokenSymbol(token)) {
-      throw new ValidationError("token must be USDC or USDT")
-    }
-    const amount = parseFloat(amountUsd)
-    if (isNaN(amount) || amount <= 0) {
-      throw new ValidationError("invalid amount")
-    }
-    if (amount > PAYMENT_MAX_AMOUNT_USD) {
-      throw new ValidationError("amount exceeds maximum allowed")
-    }
-
     if (business.isOwner) {
       const linkedAddress = await db.query.addresses.findFirst({
         where: and(
@@ -191,51 +179,14 @@ paymentRequestsRouter.post(
       }
     }
 
-    const tokenDef = getPaymentTokenDefinition(token)
-    if (!tokenDef?.address) throw new ValidationError("token must be USDC or USDT")
-
-    let amountToken: string
-    try {
-      amountToken = parseUnits(amountUsd, tokenDef.decimals).toString()
-    } catch {
-      // parseUnits rejects scientific notation, > decimals precision, etc.
-      // Surface as 400 instead of letting the throw bubble to a 500.
-      throw new ValidationError("amount format is invalid")
-    }
-
-    const client = getPublicClient(PAYMENT_CHAIN_ID)
-    const startBlock = (await client.getBlockNumber()).toString()
-
-    const expiresAt = new Date(Date.now() + PAYMENT_EXPIRY_MINUTES * 60 * 1000)
-    const now = new Date()
-
-    const insertValues: typeof paymentRequests.$inferInsert = {
+    const request = await createPaymentRequestRecord({
       merchantId: business.businessId,
-      operatorId: business.isOwner ? null : auth.userId,
-      chainId: PAYMENT_CHAIN_ID,
-      amountUsd,
-      amountToken,
-      tokenSymbol: token,
-      tokenAddress: tokenDef.address,
-      tokenDecimals: tokenDef.decimals,
       merchantWalletAddress,
-      startBlock,
-      lastScannedBlock: startBlock,
-      requiredConfirmations: PAYMENT_REQUIRED_CONFIRMATIONS,
-      confirmations: 0,
-      updatedAt: now,
-      expiresAt,
-      isSplitPayment: Boolean(isSplitPayment),
-    }
-    if (Boolean(isSplitPayment)) {
-      insertValues.totalPaidToken = "0"
-      insertValues.totalPaidUsd = "0"
-    }
-
-    const [request] = await db
-      .insert(paymentRequests)
-      .values(insertValues)
-      .returning()
+      amountUsd,
+      token,
+      isSplitPayment,
+      operatorId: business.isOwner ? null : auth.userId,
+    })
 
     writeAuditLog(
       business.businessId,

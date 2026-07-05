@@ -36,6 +36,10 @@ Walty is an on-chain crypto POS platform with a Next.js web app and an Express/S
 - QR collection modal (generate request → poll → confirmed)
 - Cashier invitation and cashier wallet collection
 - Refund request, owner approval, owner-signed execution
+- POS terminals: headless devices (e.g. Raspberry Pi) that take payments
+  autonomously. Each has its own MPC-derived child wallet (custodied by the
+  owner, swept like a cashier) and authenticates by signing every API request
+  with an Ed25519 keypair. See `docs/pos-signature-contract.md`.
 - Audit log
 
 ### Server APIs

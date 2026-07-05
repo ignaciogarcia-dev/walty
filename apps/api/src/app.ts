@@ -14,6 +14,7 @@ import { healthRouter } from "./routes/health.js"
 import { internalRouter } from "./routes/internal.js"
 import { joinRouter } from "./routes/join.js"
 import { paymentRequestsRouter } from "./routes/paymentRequests.js"
+import { posRouter } from "./routes/pos.js"
 import { refundRequestsRouter } from "./routes/refundRequests.js"
 import { pricesRouter } from "./routes/prices.js"
 import { sessionRouter } from "./routes/session.js"
@@ -36,7 +37,16 @@ export function createApp(): Express {
       credentials: true,
     }),
   )
-  app.use(express.json({ limit: "1mb" }))
+  // Capture the raw request body so POS signature verification can hash the
+  // exact bytes the device signed (re-serializing req.body would not be stable).
+  app.use(
+    express.json({
+      limit: "1mb",
+      verify: (req, _res, buf) => {
+        ;(req as express.Request & { rawBody?: Buffer }).rawBody = buf
+      },
+    }),
+  )
   app.use(express.urlencoded({ extended: true }))
   app.use(cookieParser())
   app.use(pinoHttp({ logger }))
@@ -51,6 +61,7 @@ export function createApp(): Express {
   app.use(treasuryRouter)
   app.use(businessRouter)
   app.use(paymentRequestsRouter)
+  app.use(posRouter)
   app.use(txIntentsRouter)
   app.use(txRouter)
   app.use(refundRequestsRouter)
