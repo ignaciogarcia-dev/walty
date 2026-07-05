@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, sql } from "drizzle-orm"
+import { and, eq, isNotNull } from "drizzle-orm"
 import { Router } from "express"
 import { DatabaseError } from "pg"
 import { formatUnits } from "viem"
@@ -8,6 +8,7 @@ import {
   addresses,
   businessMembers,
   businessSettings,
+  posDevices,
   users,
 } from "@walty/db"
 import {
@@ -30,6 +31,7 @@ import {
   memberPatchBody,
 } from "@walty/shared/business/schemas"
 import { registerChildAddress } from "../services/mpc/MpcServerParty.js"
+import { getNextDerivationIndex } from "../services/derivationIndex.js"
 import { Permission } from "@walty/shared/permissions"
 import {
   canDeleteInvitation,
@@ -198,14 +200,9 @@ businessRouter.get(
   ...withBusinessAuth(Permission.MEMBER_INVITE),
   businessed(async (req, res) => {
     const { business } = req
-    const [result] = await db
-      .select({
-        maxIndex: sql<number>`COALESCE(MAX(${businessMembers.derivationIndex}), 0)`,
-      })
-      .from(businessMembers)
-      .where(eq(businessMembers.businessId, business.businessId))
-
-    const nextIndex = (result?.maxIndex ?? 0) + 1
+    // Unique across cashiers AND POS devices (both derive from the same MPC
+    // master), so the two never land on the same HD path.
+    const nextIndex = await getNextDerivationIndex(business.businessId)
     res.json({ nextIndex })
   }),
 )
@@ -463,7 +460,8 @@ businessRouter.get(
   ...withBusinessAuth(Permission.MEMBER_LIST),
   businessed(async (req, res) => {
     const { business } = req
-    const rows = await db
+
+    const memberRows = await db
       .select({
         id: businessMembers.id,
         status: businessMembers.status,
@@ -483,34 +481,67 @@ businessRouter.get(
       )
       .orderBy(businessMembers.derivationIndex)
 
-    const wallets = await Promise.all(
-      rows.map(async (row) => {
-        const displayName =
-          row.userEmail ?? row.inviteEmail ?? `Cajero #${row.derivationIndex}`
+    // POS terminals are keyless child wallets too — the owner sweeps them the
+    // same way (sign at m/derivationIndex). Include the non-revoked ones.
+    const posRows = await db
+      .select({
+        id: posDevices.id,
+        name: posDevices.name,
+        status: posDevices.status,
+        walletAddress: posDevices.walletAddress,
+        derivationIndex: posDevices.derivationIndex,
+      })
+      .from(posDevices)
+      .where(
+        and(
+          eq(posDevices.businessId, business.businessId),
+          isNotNull(posDevices.walletAddress),
+        ),
+      )
+      .orderBy(posDevices.derivationIndex)
 
-        let balances = { USDC: "0.00", USDT: "0.00" }
-        try {
-          const raw = await getOperatorTokenBalances(row.walletAddress!)
-          const USDC_DECIMALS = 6
-          const USDT_DECIMALS = 6
-          balances = {
-            USDC: formatUnits(raw.USDC ?? 0n, USDC_DECIMALS),
-            USDT: formatUnits(raw.USDT ?? 0n, USDT_DECIMALS),
-          }
-        } catch {
-          // RPC failure for one wallet → show 0, don't block the list
-        }
-
+    const USDC_DECIMALS = 6
+    const USDT_DECIMALS = 6
+    async function balancesFor(address: string) {
+      try {
+        const raw = await getOperatorTokenBalances(address)
         return {
-          memberId: row.id,
-          displayName,
-          walletAddress: row.walletAddress!,
-          derivationIndex: row.derivationIndex!,
-          status: row.status,
-          balances,
+          USDC: formatUnits(raw.USDC ?? 0n, USDC_DECIMALS),
+          USDT: formatUnits(raw.USDT ?? 0n, USDT_DECIMALS),
         }
-      }),
-    )
+      } catch {
+        // RPC failure for one wallet → show 0, don't block the list
+        return { USDC: "0.00", USDT: "0.00" }
+      }
+    }
+
+    const wallets = await Promise.all([
+      ...memberRows.map(async (row) => ({
+        id: `cashier:${row.id}`,
+        kind: "cashier" as const,
+        memberId: row.id,
+        posDeviceId: null,
+        displayName:
+          row.userEmail ?? row.inviteEmail ?? `Cajero #${row.derivationIndex}`,
+        walletAddress: row.walletAddress!,
+        derivationIndex: row.derivationIndex!,
+        status: row.status,
+        balances: await balancesFor(row.walletAddress!),
+      })),
+      ...posRows
+        .filter((row) => row.status !== "revoked")
+        .map(async (row) => ({
+          id: `pos:${row.id}`,
+          kind: "pos" as const,
+          memberId: null,
+          posDeviceId: row.id,
+          displayName: `POS · ${row.name}`,
+          walletAddress: row.walletAddress,
+          derivationIndex: row.derivationIndex,
+          status: row.status,
+          balances: await balancesFor(row.walletAddress),
+        })),
+    ])
 
     res.json({ wallets })
   }),
