@@ -14,11 +14,14 @@ import { unwrap } from "@/lib/api/unwrap"
 import { cn } from "@/utils/style"
 
 type OperatorWallet = {
-  memberId: number
+  id: string
+  kind: "cashier" | "pos"
+  memberId: number | null
+  posDeviceId: number | null
   displayName: string
   walletAddress: string
   derivationIndex: number
-  status: "invited" | "active" | "suspended" | "revoked"
+  status: "invited" | "active" | "suspended" | "revoked" | "pending"
   balances: {
     USDC: string
     USDT: string
@@ -35,7 +38,7 @@ export default function OperatorWalletsPage() {
     useWalletContext()
   const { ensureUnlocked, unlockDialog } = useUnlockFlow()
 
-  const [collecting, setCollecting] = useState<{ memberId: number; token: CollectToken } | null>(null)
+  const [collecting, setCollecting] = useState<{ id: string; token: CollectToken } | null>(null)
 
   const { data: wallets = [], isLoading } = useQuery({
     queryKey: ["operator-wallets"],
@@ -58,7 +61,7 @@ export default function OperatorWalletsPage() {
     if (!token) return
 
     resetCollect()
-    setCollecting({ memberId: wallet.memberId, token: symbol })
+    setCollecting({ id: wallet.id, token: symbol })
 
     await collectOperatorFunds({
       derivationIndex: wallet.derivationIndex,
@@ -100,7 +103,7 @@ export default function OperatorWalletsPage() {
         <div className="flex flex-col gap-3">
           {activeWallets.map((wallet) => (
             <WalletCard
-              key={wallet.memberId}
+              key={wallet.id}
               wallet={wallet}
               collecting={collecting}
               collectStatus={collectStatus}
@@ -118,7 +121,7 @@ export default function OperatorWalletsPage() {
           <div className="flex flex-col gap-3">
             {inactiveWallets.map((wallet) => (
               <WalletCard
-                key={wallet.memberId}
+                key={wallet.id}
                 wallet={wallet}
                 collecting={collecting}
                 collectStatus={collectStatus}
@@ -145,14 +148,14 @@ function WalletCard({
   onCollect,
 }: {
   wallet: OperatorWallet
-  collecting: { memberId: number; token: CollectToken } | null
+  collecting: { id: string; token: CollectToken } | null
   collectStatus: string
   collectTxHash: string | null
   collectError: string | null
   onCollect: (wallet: OperatorWallet, token: CollectToken) => void
 }) {
   const { t } = useTranslation()
-  const isThisWalletCollecting = collecting?.memberId === wallet.memberId
+  const isThisWalletCollecting = collecting?.id === wallet.id
   const isInactive = wallet.status !== "active"
   const inactiveStatusLabel =
     wallet.status === "suspended"
