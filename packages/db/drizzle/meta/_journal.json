@@ -57,6 +57,13 @@
       "when": 1749081600000,
       "tag": "0007_mpc",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1749168000000,
+      "tag": "0008_pos_devices",
+      "breakpoints": true
     }
   ]
 }
