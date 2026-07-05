@@ -12,6 +12,7 @@
     "./permissions": "./src/permissions/index.ts",
     "./permissions/*": "./src/permissions/*.ts",
     "./payments/*": "./src/payments/*.ts",
+    "./pos/*": "./src/pos/*.ts",
     "./tx-intents/*": "./src/tx-intents/*.ts",
     "./api-utils/*": "./src/api-utils/*.ts",
     "./tokens/*": "./src/tokens/*.ts",

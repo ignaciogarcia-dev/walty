@@ -22,6 +22,7 @@ export const Permission = {
   MEMBER_INVITE: "member.invite",
   MEMBER_MANAGE: "member.manage",
   REFUND_REVIEW: "refund.review",
+  POS_MANAGE: "pos.manage",
 
   // Special
   JOIN_BUSINESS: "join_business",

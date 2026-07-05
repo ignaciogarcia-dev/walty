@@ -13,6 +13,8 @@ export const AUDIT_ACTIONS = {
   REFUND_REQUEST_APPROVED: "refund_request.approved",
   REFUND_REQUEST_REJECTED: "refund_request.rejected",
   REFUND_REQUEST_EXECUTED: "refund_request.executed",
+  POS_DEVICE_CREATED: "pos_device.created",
+  POS_DEVICE_REVOKED: "pos_device.revoked",
 } as const
 
 export async function writeAuditLog(

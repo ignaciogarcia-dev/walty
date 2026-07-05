@@ -21,6 +21,16 @@ const BUSINESS_OWNER: Permission[] = [
   Permission.MEMBER_INVITE,
   Permission.MEMBER_MANAGE,
   Permission.REFUND_REVIEW,
+  Permission.POS_MANAGE,
+]
+
+// A POS device (agent actor) operates on behalf of a business with a fixed,
+// minimal scope: create/cancel its own charges and initiate refund requests.
+// It never gets owner powers or base user powers.
+const POS_DEVICE: Permission[] = [
+  Permission.PAYMENT_REQUEST_CREATE,
+  Permission.PAYMENT_REQUEST_CANCEL,
+  Permission.REFUND_REQUEST_CREATE,
 ]
 
 export function resolvePermissions(
@@ -28,7 +38,7 @@ export function resolvePermissions(
   ctx: PermissionContext = { businessContext: null }
 ): Permission[] {
   if (actor.type === "agent") {
-    throw new Error("Agent permissions not implemented")
+    return [...POS_DEVICE]
   }
 
   const { businessContext } = ctx
