@@ -1,0 +1,66 @@
+version: 2
+
+updates:
+  # ─── JavaScript / TypeScript (pnpm workspace) ───────────────────────────
+  # A single npm entry at the repo root covers every workspace package
+  # (apps/*, packages/*) via pnpm-lock.yaml.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Madrid"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "javascript"
+    groups:
+      # Non-major bumps batched into one PR to cut noise.
+      npm-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+      # Major bumps grouped separately so they can be reviewed together.
+      npm-major:
+        update-types:
+          - "major"
+
+  # ─── Docker images ──────────────────────────────────────────────────────
+  - package-ecosystem: "docker"
+    directory: "/apps/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Madrid"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Madrid"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  # ─── GitHub Actions ─────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Madrid"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
