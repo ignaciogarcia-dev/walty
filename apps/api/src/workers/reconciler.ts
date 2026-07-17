@@ -1,3 +1,5 @@
+import { lt } from "drizzle-orm"
+import { db, posRequestNonces } from "@walty/db"
 import { reconcilePendingPaymentRequests } from "@walty/shared/payments/reconcilePendingPaymentRequests"
 import { cleanupExpiredEntries } from "@walty/shared/rate-limit"
 import { reconcileIncomingTransfers } from "@walty/shared/tx/reconcileIncomingTransfers"
@@ -13,6 +15,10 @@ export async function runReconciler(): Promise<void> {
       expireStalePairings(),
     ])
     await cleanupExpiredEntries()
+    // Prune expired POS anti-replay nonces (insert-only otherwise)
+    await db
+      .delete(posRequestNonces)
+      .where(lt(posRequestNonces.expiresAt, new Date()))
     logger.info({ pending, incoming, expiredPairings }, "reconciler tick")
   } catch (err) {
     logger.error({ err }, "reconciler failed")
