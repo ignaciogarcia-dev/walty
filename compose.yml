@@ -31,8 +31,10 @@ services:
       # In a multi-replica deploy set this to false on every non-leader
       # replica so the reconciler + sweep run on exactly one instance.
       WORKERS_LEADER: ${WORKERS_LEADER:-true}
-    ports:
-      - "4000:4000"
+    # No host port publishing: the api is reached through Caddy (public
+    # WebSocket/API origin) and by the web container over the Docker network.
+    expose:
+      - "4000"
     depends_on:
       db:
         condition: service_healthy
@@ -55,10 +57,34 @@ services:
     env_file: .env
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-    ports:
-      - "3000:3000"
+    # No host port publishing: the web app is served to users through Caddy.
+    expose:
+      - "3000"
     depends_on:
+      - api
+
+  # Reverse proxy + automatic HTTPS (Let's Encrypt). Terminates TLS for both
+  # the web app and the API, and transparently upgrades the Socket.IO
+  # WebSocket connection. Domains are configured via APP_DOMAIN / API_DOMAIN
+  # in .env (see Caddyfile).
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
+      API_DOMAIN: ${API_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
       - api
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:

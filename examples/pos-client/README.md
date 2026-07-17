@@ -15,14 +15,21 @@ firmware.
    ```json
    {
      "posId": 12,
-     "apiBaseUrl": "https://your-walty-api.example.com",
+     "apiBaseUrl": "https://api.walty.io",
+     "webBaseUrl": "https://www.walty.io",
      "privateKey": "<32-byte hex private key>"
    }
    ```
 
-   (Or provide `POS_ID`, `API_BASE_URL`, `POS_PRIVATE_KEY` as environment
-   variables.) Keep `pos.json` secret — anyone with it can create charges for
-   this terminal.
+   (Or provide `POS_ID`, `API_BASE_URL`, `WEB_BASE_URL`, `POS_PRIVATE_KEY` as
+   environment variables.) Keep `pos.json` secret — anyone with it can create
+   charges for this terminal.
+
+   `webBaseUrl` is optional: it's the customer-facing origin that serves the
+   `/pay/<id>` page. Set it when the API and web app are on separate hosts (the
+   usual production setup — `api.walty.io` vs `www.walty.io`). If omitted, the
+   pay link is derived from `apiBaseUrl`, which only works when both share a
+   host (e.g. local dev).
 
 ## Run
 

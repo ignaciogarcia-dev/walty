@@ -8,6 +8,12 @@
 //   { "posId": 12, "apiBaseUrl": "http://localhost:4000", "privateKey": "<hex>" }
 // Values can also come from env: POS_ID, API_BASE_URL, POS_PRIVATE_KEY.
 //
+// Optional `webBaseUrl` (env WEB_BASE_URL): the customer-facing web origin that
+// serves the /pay/<id> page. Set it when the API and web app live on separate
+// hosts (e.g. api.walty.io vs www.walty.io) — that page is served by the web
+// app, not the API. If omitted it falls back to apiBaseUrl with any :port
+// stripped, which is only correct for single-origin/local setups.
+//
 // Usage:
 //   node pos-client.mjs charge <amountUsd> [token]   # create a charge, poll until paid
 //   node pos-client.mjs cancel <paymentRequestId>
@@ -22,6 +28,7 @@ function loadConfig() {
   const fromEnv = {
     posId: process.env.POS_ID ? Number(process.env.POS_ID) : undefined,
     apiBaseUrl: process.env.API_BASE_URL,
+    webBaseUrl: process.env.WEB_BASE_URL,
     privateKey: process.env.POS_PRIVATE_KEY,
   }
   let fromFile = {}
@@ -108,6 +115,14 @@ async function pollStatus(cfg, id) {
   return res.json()
 }
 
+// The /pay/<id> page is served by the web app. Prefer an explicit webBaseUrl;
+// otherwise derive from apiBaseUrl (strip trailing :port) for single-origin
+// setups where the API and web app share a host.
+function payUrl(cfg, id) {
+  const base = cfg.webBaseUrl ?? cfg.apiBaseUrl.replace(/:\d+$/, "")
+  return `${base.replace(/\/$/, "")}/pay/${id}`
+}
+
 // ----- commands ---------------------------------------------------------------
 
 async function cmdCharge(cfg, amountUsd, token = "USDC") {
@@ -117,7 +132,7 @@ async function cmdCharge(cfg, amountUsd, token = "USDC") {
     token,
   })
   console.log(`charge created: id=${req.id} amount=$${amountUsd} ${token}`)
-  console.log(`  show this to the customer to pay: ${cfg.apiBaseUrl.replace(/:\d+$/, "")}/pay/${req.id}`)
+  console.log(`  show this to the customer to pay: ${payUrl(cfg, req.id)}`)
   console.log("polling for payment…")
 
   const deadline = Date.now() + 15 * 60_000

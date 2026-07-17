@@ -1,0 +1,18 @@
+# Reverse proxy for Walty. Caddy obtains and renews Let's Encrypt certificates
+# automatically and upgrades the Socket.IO WebSocket connection transparently.
+#
+# Domains come from the environment (set in .env, passed to the caddy service
+# in compose.yml):
+#   APP_DOMAIN  -> the Next.js web app   (e.g. app.walty.app)
+#   API_DOMAIN  -> the Express + Socket.IO API (e.g. api.walty.app)
+#
+# For a plain local/IP smoke test you can leave them as "localhost"; Caddy will
+# serve over an internal self-signed cert instead of Let's Encrypt.
+
+{$APP_DOMAIN} {
+	reverse_proxy web:3000
+}
+
+{$API_DOMAIN} {
+	reverse_proxy api:4000
+}
