@@ -24,8 +24,12 @@ vi.mock("@walty/shared/payments/reconcilePendingPaymentRequests", () => ({
   reconcilePendingPaymentRequests: vi.fn(async () => ({ paid: 0 })),
 }))
 
+// Payment-request ids are v4 UUIDs; the public route now rejects non-UUID ids
+// (before they reach the DB) so this must be a real UUID shape.
+const SAMPLE_PR_ID = "11111111-1111-4111-8111-111111111111"
+
 const samplePr = {
-  id: "abc",
+  id: SAMPLE_PR_ID,
   merchantId: 1,
   operatorId: null,
   chainId: 137,
@@ -126,10 +130,16 @@ describe("payment request routes", () => {
 
   it("GET /payment-requests/:id (public) returns public view", async () => {
     const app = createApp()
-    const res = await request(app).get("/payment-requests/abc")
+    const res = await request(app).get(`/payment-requests/${SAMPLE_PR_ID}`)
     expect(res.status).toBe(200)
-    expect(res.body.id).toBe("abc")
+    expect(res.body.id).toBe(SAMPLE_PR_ID)
     expect(res.body.tokenSymbol).toBe("USDC")
+  })
+
+  it("GET /payment-requests/:id (public) returns 404 for a non-UUID id (no 500)", async () => {
+    const app = createApp()
+    const res = await request(app).get("/payment-requests/not-a-uuid")
+    expect(res.status).toBe(404)
   })
 
   it("POST /payment-requests validates token", async () => {
