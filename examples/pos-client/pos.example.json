@@ -1,5 +1,6 @@
 {
   "posId": 1,
   "apiBaseUrl": "http://localhost:4000",
+  "webBaseUrl": "http://localhost:3000",
   "privateKey": "replace-with-the-32-byte-hex-private-key-shown-once-in-the-dashboard"
 }
