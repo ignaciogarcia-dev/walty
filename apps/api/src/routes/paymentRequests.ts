@@ -8,6 +8,7 @@ import {
   splitPaymentContributions,
 } from "@walty/db"
 import {
+  ConflictError,
   NotFoundError,
   ValidationError,
 } from "@walty/shared/api-utils/errors"
@@ -117,11 +118,23 @@ paymentRequestsRouter.patch(
       throw new ValidationError(policy.reason)
     }
 
+    // Status-guarded update (see the POS cancel route): gating on
+    // status="pending" makes the cancel atomic against a concurrent reconciler
+    // `paid` transition. 0 rows means the request is no longer cancellable.
     const [updated] = await db
       .update(paymentRequests)
       .set({ status: "cancelled", updatedAt: new Date() })
-      .where(eq(paymentRequests.id, id))
+      .where(
+        and(
+          eq(paymentRequests.id, id),
+          eq(paymentRequests.status, "pending"),
+        ),
+      )
       .returning()
+
+    if (!updated) {
+      throw new ConflictError("payment request is no longer cancellable")
+    }
 
     writeAuditLog(
       business.businessId,
