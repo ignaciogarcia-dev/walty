@@ -179,8 +179,8 @@ refundRequestsRouter.post(
       throw new ValidationError(policy.reason)
     }
 
-    let finalAmountToken = payment.amountToken
-    let finalAmountUsd = payment.amountUsd
+    let finalAmountToken = payment.receivedAmountToken ?? payment.amountToken
+    let finalAmountUsd = payment.receivedAmountUsd ?? payment.amountUsd
     if (overrideToken && overrideUsd) {
       const overrideBigInt = BigInt(overrideToken)
       if (overrideBigInt <= 0n) {
