@@ -8,6 +8,7 @@ import {
   splitPaymentContributions,
 } from "@walty/db"
 import {
+  ConflictError,
   NotFoundError,
   ValidationError,
 } from "@walty/shared/api-utils/errors"
@@ -117,11 +118,23 @@ paymentRequestsRouter.patch(
       throw new ValidationError(policy.reason)
     }
 
+    // Status-guarded update (see the POS cancel route): gating on
+    // status="pending" makes the cancel atomic against a concurrent reconciler
+    // `paid` transition. 0 rows means the request is no longer cancellable.
     const [updated] = await db
       .update(paymentRequests)
       .set({ status: "cancelled", updatedAt: new Date() })
-      .where(eq(paymentRequests.id, id))
+      .where(
+        and(
+          eq(paymentRequests.id, id),
+          eq(paymentRequests.status, "pending"),
+        ),
+      )
       .returning()
+
+    if (!updated) {
+      throw new ConflictError("payment request is no longer cancellable")
+    }
 
     writeAuditLog(
       business.businessId,
@@ -283,6 +296,12 @@ paymentRequestsRouter.get(
 
     const { id } = req.params
 
+    // Ids are v4 UUIDs; reject anything else before it reaches the DB, otherwise
+    // Postgres throws on the uuid cast and this public endpoint 500s.
+    if (!z.string().uuid().safeParse(id).success) {
+      throw new NotFoundError("not found")
+    }
+
     await reconcilePendingPaymentRequests({ id, onEvent: reconcilerSink }).catch((err) => {
       // eslint-disable-next-line no-console
       console.error("[payment-requests/:id] reconcile error:", err)
@@ -332,6 +351,12 @@ paymentRequestsRouter.get(
     await rateLimitByIp(`contributions-poll:${getIp(req)}`, 30, 60_000)
 
     const { id } = req.params
+
+    // Ids are v4 UUIDs; reject anything else before it reaches the DB (public
+    // endpoint — a malformed id would otherwise 500 on the Postgres uuid cast).
+    if (!z.string().uuid().safeParse(id).success) {
+      throw new NotFoundError("not found")
+    }
 
     const request = await db.query.paymentRequests.findFirst({
       where: eq(paymentRequests.id, id),

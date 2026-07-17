@@ -269,11 +269,24 @@ posRouter.patch(
       throw new ValidationError(policy.reason)
     }
 
+    // Status-guarded update: the policy check above is check-then-act, so a
+    // reconciler `paid` transition could land between it and this write. Gating
+    // on status="pending" makes the cancel atomic — 0 rows means we lost the
+    // race and the request is no longer cancellable.
     const [updated] = await db
       .update(paymentRequests)
       .set({ status: "cancelled", updatedAt: new Date() })
-      .where(eq(paymentRequests.id, id))
+      .where(
+        and(
+          eq(paymentRequests.id, id),
+          eq(paymentRequests.status, "pending"),
+        ),
+      )
       .returning()
+
+    if (!updated) {
+      throw new ConflictError("payment request is no longer cancellable")
+    }
 
     writeAuditLog(
       pos.businessId,
@@ -344,8 +357,11 @@ posRouter.post(
       throw new ValidationError(policy.reason)
     }
 
-    let finalAmountToken = payment.amountToken
-    let finalAmountUsd = payment.amountUsd
+    // Default to the amount actually collected, never the requested amount: a
+    // paid-but-underpaid request (payment discrepancy) must not be refundable
+    // for more than was received.
+    let finalAmountToken = payment.receivedAmountToken ?? payment.amountToken
+    let finalAmountUsd = payment.receivedAmountUsd ?? payment.amountUsd
     if (overrideToken && overrideUsd) {
       const overrideBigInt = BigInt(overrideToken)
       if (overrideBigInt <= 0n) throw new ValidationError("invalid refund amount")

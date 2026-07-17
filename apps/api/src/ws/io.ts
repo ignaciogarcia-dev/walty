@@ -218,14 +218,17 @@ export function closeWebSocket(): Promise<void> {
   })
 }
 
-import type { PaymentRequestEvent } from "@walty/shared/payments/events"
+import {
+  toPublicPaymentRequestEvent,
+  type PaymentRequestEvent,
+} from "@walty/shared/payments/events"
 
 export function emitPaymentRequestEvent(event: PaymentRequestEvent): void {
   const io = ioInstance
   if (!io) return
   io.of("/payment-requests")
     .to(`request:${event.requestId}`)
-    .emit(`request:${event.type}`, event)
+    .emit(`request:${event.type}`, toPublicPaymentRequestEvent(event))
 }
 
 export type TxIntentStatus =
