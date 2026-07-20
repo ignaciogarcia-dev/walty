@@ -48,10 +48,10 @@
     "viem": "^2.0.0"
   },
   "devDependencies": {
-    "@types/bcrypt": "^5.0.2",
+    "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.7",
     "@vitest/coverage-v8": "^4.1.0",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.0"
   }
 }
