@@ -28,10 +28,10 @@
     "onlyBuiltDependencies": ["bcrypt", "esbuild", "sharp", "unrs-resolver"]
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
+    "@playwright/test": "^1.61.1",
     "@types/pg": "^8.11.10",
     "eslint": "^9.39.4",
-    "pg": "^8.20.0",
+    "pg": "^8.22.0",
     "typescript": "^5.9.3"
   }
 }
