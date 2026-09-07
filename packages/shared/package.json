@@ -39,9 +39,9 @@
   "dependencies": {
     "@walty/db": "workspace:*",
     "bcrypt": "^6.0.0",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "^0.45.2",
     "jsonwebtoken": "^9.0.3",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "peerDependencies": {
     "next": "^16.0.0",
