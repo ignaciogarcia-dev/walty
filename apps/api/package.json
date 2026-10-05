@@ -12,7 +12,7 @@
     "lint": "echo 'no lint configured'"
   },
   "dependencies": {
-    "@aws-sdk/client-kms": "^3.1065.0",
+    "@aws-sdk/client-kms": "^3.1145.0",
     "@safe-global/protocol-kit": "^7.2.0",
     "@silencelaboratories/dkls-wasm-ll-node": "^1.2.0",
     "@walty/db": "workspace:*",
@@ -20,17 +20,17 @@
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "^0.45.3",
     "express": "^4.21.2",
-    "helmet": "^8.0.0",
+    "helmet": "^8.3.0",
     "node-cron": "^3.0.3",
-    "pg": "^8.20.0",
+    "pg": "^8.23.1",
     "pino": "^9.5.0",
     "pino-http": "^10.3.0",
-    "socket.io": "^4.8.0",
-    "viem": "^2.47.6",
-    "zod": "^4.4.3",
-    "zodiac-roles-sdk": "^4.0.0"
+    "socket.io": "^4.8.4",
+    "viem": "^2.57.2",
+    "zod": "^4.6.5",
+    "zodiac-roles-sdk": "^4.1.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
@@ -40,12 +40,12 @@
     "@types/express-serve-static-core": "^4.19.5",
     "@types/node": "^20.0.0",
     "@types/node-cron": "^3.0.11",
-    "@types/pg": "^8.20.0",
-    "@types/supertest": "^6.0.2",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
     "@vitest/coverage-v8": "^4.1.0",
-    "socket.io-client": "^4.8.3",
-    "supertest": "^7.0.0",
-    "tsx": "^4.19.0",
+    "socket.io-client": "^4.8.4",
+    "supertest": "^7.3.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   }
