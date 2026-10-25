@@ -60,6 +60,7 @@ export function useCollectPayment({
 
   useEffect(() => {
     if (!open || !activeRequest) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- seed local state from the request the modal was opened with
     setRequest(activeRequest)
     setAmount(activeRequest.amountUsd)
     setError(null)
@@ -101,6 +102,7 @@ export function useCollectPayment({
 
   useEffect(() => {
     if (!detail) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror the refetched detail into local request state
     setRequest(detail)
     onRequestChange?.(detail)
     if (detail.status === "paid") setStep("confirmed")

@@ -18,6 +18,7 @@ export function LocaleProvider({ children, initialLocale }: Props) {
 	const [mounted, setMounted] = useState(false)
 
 	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- the locale cookie is only readable on the client, after hydration
 		setMounted(true)
 		// Sync locale from cookie on client side after mount
 		// This ensures the client-side cookie takes precedence if it differs from server
