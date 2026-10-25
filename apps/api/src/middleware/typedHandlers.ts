@@ -7,19 +7,19 @@ import type {
 import type { AuthPayload } from "@walty/shared/auth/payload"
 import type { BusinessContext } from "@walty/shared/business/getBusinessContext"
 import type { Actor } from "@walty/shared/permissions"
-import { asyncHandler } from "./asyncHandler.js"
+import { asyncHandler, type RouteParams } from "./asyncHandler.js"
 import type { PosContext } from "./withPos.js"
 
-export interface AuthedRequest extends Request {
+export interface AuthedRequest extends Request<RouteParams> {
   auth: AuthPayload
 }
 
-export interface BusinessContextRequest extends Request {
+export interface BusinessContextRequest extends Request<RouteParams> {
   auth: AuthPayload
   business: BusinessContext
 }
 
-export interface BusinessRequest extends Request {
+export interface BusinessRequest extends Request<RouteParams> {
   auth: AuthPayload
   business: BusinessContext
   actor: Actor
@@ -87,7 +87,7 @@ export function businessed(
   })
 }
 
-export interface PosRequest extends Request {
+export interface PosRequest extends Request<RouteParams> {
   pos: PosContext
   business: BusinessContext
   actor: Actor
