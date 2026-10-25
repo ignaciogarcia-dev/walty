@@ -38,6 +38,7 @@ export function useDevices() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch; state is only set after the request resolves
     refetch();
     const socket = getNamespaceSocket("/devices");
     const onChange = () => {

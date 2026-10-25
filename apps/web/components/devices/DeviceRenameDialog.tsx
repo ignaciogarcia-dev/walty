@@ -34,6 +34,7 @@ export function DeviceRenameDialog({
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the form each time the dialog opens
       setLabel(initialLabel);
       setError(null);
     }

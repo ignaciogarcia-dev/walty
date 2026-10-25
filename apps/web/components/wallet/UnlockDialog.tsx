@@ -38,6 +38,7 @@ export function UnlockDialog({ open, onResult }: UnlockDialogProps) {
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the PIN form each time the dialog opens
       setPin("")
       setError(null)
       setLoading(false)

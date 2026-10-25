@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22+ (the test toolchain — Vitest 5, jsdom 30 — requires it)
 - pnpm
 - Docker
 - Git

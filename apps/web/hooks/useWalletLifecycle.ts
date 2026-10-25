@@ -71,10 +71,12 @@ export function useWalletLifecycle(): UseWalletLifecycleResult {
   const pinRef = useRef<string | null>(null);
   const lastUnlockRef = useRef<number>(0);
 
+  // eslint-disable-next-line react-hooks/refs -- the manager stores the ref objects; .current is only read later
   const [security] = useState(() =>
     createWalletSecurityManager(pinRef, lastUnlockRef, 30_000),
   );
   // Shares the same PIN refs as `security`, so one PIN entry drives whichever custody exists.
+  // eslint-disable-next-line react-hooks/refs -- the manager stores the ref objects; .current is only read later
   const [mpcSecurity] = useState(() =>
     createMpcSecurityManager(pinRef, lastUnlockRef, 30_000),
   );

@@ -74,6 +74,7 @@ export function RefundManagePage() {
       markExecuted(refundId, txHash)
     } else if (txStatus === "error") {
       executingRefundId.current = null
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reacts to tx status owned by the wallet context
       setActionLoading(null)
       if (txError) setError(txError)
     }
