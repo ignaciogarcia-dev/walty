@@ -1,6 +1,6 @@
 "use client"
 
-import { Github } from "lucide-react"
+import { GithubLogoIcon } from "@phosphor-icons/react"
 import { useEffect, useState } from "react"
 
 const DEFAULT_OWNER = "ignaciogarcia-dev"
@@ -61,7 +61,7 @@ export function GithubStars({
 			className={`inline-flex h-9 items-center gap-2 rounded-full border border-border bg-transparent px-3 text-sm tabular-nums transition-colors duration-150 hover:bg-secondary/40 ${className ?? ""}`}
 			aria-label={`GitHub repository stars: ${count === null ? "loading" : label}`}
 		>
-			<Github className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+			<GithubLogoIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
 			<span className="text-muted-foreground">Stars</span>
 			<span className="font-medium text-foreground">{label}</span>
 		</a>
