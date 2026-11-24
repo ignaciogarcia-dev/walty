@@ -1,6 +1,6 @@
 <div align="center">
   <a href="#">
-    <img src="public/readme/readme-banner.jpg" alt="Walty" />
+    <img src="apps/web/public/readme/readme-banner.jpg" alt="Walty" />
   </a>
 
   <h1>Walty</h1>
